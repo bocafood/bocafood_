@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-06 — Canais de venda: modelo de importação
+- Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Em `Configurações > Canais de venda`, adicionei o campo `Modelo de importação`, opcional por canal.
+- O modelo disponível nesta fase é `Glovo CSV`; canais sem modelo continuam funcionando normalmente para pedidos, vendas e financeiro.
+- Em `Pedidos > Importar pedidos`, a lista de canais agora mostra somente canais com modelo de importação compatível.
+- Se nenhum canal estiver preparado para importação, a prévia orienta a configurar o modelo no cadastro do canal antes de enviar o arquivo.
+- A validação da importação também bloqueia o envio se o canal selecionado não tiver modelo associado, evitando importar arquivo de marketplace no canal errado.
+- Atualizei cache-busters de `pedidos.js` e `configuracoes.js` no Admin.
+
 ## 2026-06-06 — Pedidos: estoque na importação Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Adicionei no modal de importação Glovo a escolha `Estoque`: `Só histórico` ou `Baixar estoque dos entregues`.

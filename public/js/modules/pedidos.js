@@ -8380,8 +8380,30 @@ Modules.Pedidos = (function () {
     return String(channel && (channel.formaPagamento || channel.forma_pagamento || channel.defaultPaymentMethod || channel.paymentMethod || channel.paymentMethodName || channel.metodoPagamento) || '').trim();
   }
 
+  function _channelImportModel(channel) {
+    return String(channel && (channel.importModel || channel.import_model || channel.orderImportModel || channel.importacaoModelo || channel.modeloImportacao) || '').trim();
+  }
+
+  function _isSupportedOrderImportModel(model) {
+    return String(model || '').trim() === 'glovo_csv';
+  }
+
+  function _importableSalesChannels() {
+    return (_canais || []).filter(function (channel) {
+      return _isSupportedOrderImportModel(_channelImportModel(channel));
+    });
+  }
+
+  function _channelDisplayName(channel) {
+    return _firstText(channel && channel.name, channel && channel.nome, channel && channel.label, channel && channel.key, '');
+  }
+
   function _openOrderImportPreview() {
-    var preferred = _salesChannelByName('Glovo') ? 'Glovo' : (_channelNames()[0] || '');
+    var importableChannels = _importableSalesChannels();
+    var glovo = importableChannels.find(function (channel) {
+      return _channelAliasKey(_channelDisplayName(channel)) === 'glovo';
+    });
+    var preferred = _firstText(_channelDisplayName(glovo), _channelDisplayName(importableChannels[0]), '');
     var body = '' +
       '<div style="display:flex;flex-direction:column;gap:14px;">' +
         '<div style="display:grid;grid-template-columns:minmax(220px,300px) minmax(260px,1fr) minmax(220px,300px);gap:12px;align-items:end;">' +
@@ -8401,14 +8423,17 @@ Modules.Pedidos = (function () {
   }
 
   function _orderImportChannelOptions(selected) {
-    var names = _channelNames().slice();
-    if (selected && names.indexOf(selected) < 0) names.unshift(selected);
+    var names = _importableSalesChannels().map(function (channel) { return _channelDisplayName(channel); }).filter(Boolean);
+    if (!names.length) return '<option value="">Nenhum canal com importação</option>';
     return names.map(function (name) {
       return '<option value="' + _esc(name) + '"' + (String(selected || '') === String(name || '') ? ' selected' : '') + '>' + _esc(_title(name)) + '</option>';
     }).join('');
   }
 
   function _orderImportEmptyHtml() {
+    if (!_importableSalesChannels().length) {
+      return '<div style="border:1px dashed #E3D8D0;border-radius:14px;padding:18px;background:#fff;color:#6F6860;font-size:13px;line-height:1.5;">Antes de importar pedidos, abra Configurações &gt; Canais de venda e escolha o modelo de importação do canal. Só canais com modelo associado aparecem aqui.</div>';
+    }
     return '<div style="border:1px dashed #E3D8D0;border-radius:14px;padding:18px;background:#fff;color:#6F6860;font-size:13px;line-height:1.5;">Selecione o canal e envie o CSV da Glovo para conferir como os pedidos serão lidos antes da importação real.</div>';
   }
 
@@ -8556,6 +8581,7 @@ Modules.Pedidos = (function () {
     var channelName = _orderImportSelectedChannel();
     var channel = _salesChannelByName(channelName) || {};
     if (!channelName) blockers.push('Selecione o canal de venda antes de importar.');
+    if (channelName && !_isSupportedOrderImportModel(_channelImportModel(channel))) blockers.push('Associe um modelo de importação ao canal de venda antes de importar.');
     if (!_channelPaymentMethod(channel)) blockers.push('Configure a forma de pagamento padrão do canal antes de importar.');
     if (!_channelBankAccountId(channel)) blockers.push('Configure a conta bancária padrão do canal antes de importar.');
     if (!_channelIncomeCategoryMeta(channel).id && !_channelIncomeCategoryMeta(channel).name) blockers.push('Configure a categoria financeira do canal antes de importar.');

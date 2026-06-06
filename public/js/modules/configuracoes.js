@@ -1698,6 +1698,35 @@ Modules.Configuracoes = (function () {
     };
   }
 
+  function _channelImportModel(channel) {
+    return String(channel && (channel.importModel || channel.import_model || channel.orderImportModel || channel.importacaoModelo || channel.modeloImportacao || '') || '').trim();
+  }
+
+  function _channelImportModelOptions(selected) {
+    selected = String(selected || '').trim();
+    var options = [
+      { value: '', label: 'Sem modelo de importação' },
+      { value: 'glovo_csv', label: 'Glovo CSV' }
+    ];
+    if (selected && !options.some(function (opt) { return opt.value === selected; })) {
+      options.push({ value: selected, label: 'Modelo selecionado' });
+    }
+    return options.map(function (opt) {
+      return '<option value="' + _esc(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + _esc(opt.label) + '</option>';
+    }).join('');
+  }
+
+  function _channelImportModelFields(model) {
+    model = String(model || '').trim();
+    return {
+      importModel: model,
+      import_model: model,
+      orderImportModel: model,
+      importacaoModelo: model,
+      modeloImportacao: model
+    };
+  }
+
   function _channelBankAccountOptions(selected) {
     var current = String(selected || '');
     var active = (_bankAccounts || []).filter(function (account) {
@@ -2113,7 +2142,7 @@ Modules.Configuracoes = (function () {
             '<span class="mi" style="font-size:18px;">delete_outline</span>' +
           '</button>') +
         '</div>' +
-        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
+        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(170px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Conta bancária padrão</span>' +
             '<select id="ch-bank-account-' + idx + '" style="' + selectStyle + '">' + _channelBankAccountOptions(_channelBankAccountId(ch)) + '</select>' +
@@ -2121,6 +2150,10 @@ Modules.Configuracoes = (function () {
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Forma de pagamento padrão</span>' +
             '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(_channelPaymentMethod(ch)) + '</select>' +
+          '</label>' +
+          '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Modelo de importação</span>' +
+            '<select id="ch-import-model-' + idx + '" style="' + selectStyle + '">' + _channelImportModelOptions(_channelImportModel(ch)) + '</select>' +
           '</label>' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Comissão %</span>' +
@@ -2134,7 +2167,7 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Imposto comissão %</span>' +
             '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
-          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
+          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Só canais com modelo de importação aparecem na prévia de importação de pedidos. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2142,7 +2175,7 @@ Modules.Configuracoes = (function () {
     var fixedChannelText = _isTpvEnabled() ? 'Cardápio e Venda presencial são canais fixos do BocaFood.' : 'Cardápio é um canal fixo do BocaFood. Venda presencial aparece aqui quando estiver ativada.';
     var emptyChannelText = _isTpvEnabled() ? 'Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.' : 'Adicione apenas se sua loja vender por outro canal além do Cardápio.';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
-      '<style>@media(max-width:860px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(180px,1fr) minmax(92px,132px) minmax(104px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
+      '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(92px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +
@@ -2153,7 +2186,7 @@ Modules.Configuracoes = (function () {
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7F2;border:1px solid #F0DED5;border-radius:14px;padding:12px 14px;margin-bottom:14px;color:#5D504B;font-size:13px;line-height:1.45;">' +
           '<span class="mi" style="font-size:18px;color:#A84A3E;line-height:1.2;">info</span>' +
-          '<span>Defina por onde a venda chega e quais padrões financeiros esse canal deve usar. Na importação de pedidos, o BocaFood já pode preencher categoria, conta bancária e forma de pagamento com base nesses campos. ' + _esc(fixedChannelText) + '</span>' +
+          '<span>Defina por onde a venda chega e quais padrões financeiros esse canal deve usar. Quando esse canal tiver um modelo de importação, ele aparece na prévia de importação de pedidos e o BocaFood já pode preencher categoria, conta bancária e forma de pagamento com base nesses campos. ' + _esc(fixedChannelText) + '</span>' +
         '</div>' +
         '<div id="channels-list" style="display:grid;grid-template-columns:1fr;gap:10px;">' + (rows || '<div style="text-align:center;padding:34px 20px;color:#7C706B;font-size:14px;line-height:1.45;background:#FFFCF8;border:1px dashed #E4D4CC;border-radius:14px;"><strong style="display:block;color:#443836;font-size:14px;margin-bottom:4px;">Nenhum canal adicional cadastrado.</strong>' + _esc(emptyChannelText) + '</div>') + '</div>' +
         '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
@@ -2172,6 +2205,7 @@ Modules.Configuracoes = (function () {
       var prev = existing.find(function (ch) { return _normChannelName(ch.name) === _normChannelName(name); }) || {};
       var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
       var paymentMethod = _val('ch-payment-method-' + idx);
+      var importModel = _val('ch-import-model-' + idx);
       return Object.assign({
         name: name,
         commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
@@ -2183,7 +2217,7 @@ Modules.Configuracoes = (function () {
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice,
         locked: _isSystemChannel({ name: name }) || !!prev.locked
-      }, _incomeCategoryFields(cat), _channelPaymentMethodFields(paymentMethod));
+      }, _incomeCategoryFields(cat), _channelPaymentMethodFields(paymentMethod), _channelImportModelFields(importModel));
     }).filter(function (ch) { return !!ch.name; });
   }
 
@@ -2221,7 +2255,7 @@ Modules.Configuracoes = (function () {
   }
 
   function _addCanalVenda() {
-    _config.canais_venda = { list: _collectCanaisVenda().concat([Object.assign({ name: '', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false }, _channelPaymentMethodFields(''))]) };
+    _config.canais_venda = { list: _collectCanaisVenda().concat([Object.assign({ name: '', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false }, _channelPaymentMethodFields(''), _channelImportModelFields(''))]) };
     _renderCanaisVenda();
   }
 
