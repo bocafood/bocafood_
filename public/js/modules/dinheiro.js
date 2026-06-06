@@ -171,6 +171,7 @@ Modules.Dinheiro = (function () {
           analysis.costSource = 'combinação de menu';
           analysis.isMenuCombination = true;
           analysis.combinationLabel = sample.label || 'Combinação';
+          analysis.combinationItemsLabel = _menuCombinationItemsLabel(sample.selections || []);
           analysis.combinationIndex = index;
           analysis.combinationTotalCount = info.totalCount || 0;
           analysis.combinationTruncated = !!info.truncated;
@@ -598,6 +599,19 @@ Modules.Dinheiro = (function () {
       }).join(', ');
       return selection.groupName + ': ' + choices;
     }).join(' / ');
+  }
+
+  function _menuCombinationItemsLabel(selections) {
+    var items = [];
+    (selections || []).forEach(function (selection) {
+      (selection.options || []).forEach(function (option) {
+        var qty = _num(option && option.qty);
+        var label = _firstText(option && option.label, option && option.name, option && option.ref, '');
+        if (!label) return;
+        items.push(label + (qty > 1 ? ' x' + qty : ''));
+      });
+    });
+    return items.length ? items.join(' · ') : 'Sem escolhas obrigatórias';
   }
 
   function _menuCombinationCountLabel(count) {
@@ -1459,12 +1473,12 @@ Modules.Dinheiro = (function () {
       var img = _productImage(r.product);
       var hasCostAndPrice = r.totalCost > 0 && r.price > 0;
       var marginColor = !hasCostAndPrice ? '#6F6860' : (r.profit < 0 || r.status === 'margem baixa' ? '#B42318' : (r.status === 'atenção' ? '#D97706' : '#1F6F43'));
-      var searchText = [r.product && r.product.name, r.displayName, r.combinationLabel, r.costSource].join(' ').toLowerCase();
+      var searchText = [r.product && r.product.name, r.displayName, r.combinationLabel, r.combinationItemsLabel, r.costSource].join(' ').toLowerCase();
       var title = r.isMenuCombination ? (r.product.name || 'Menu') : (r.product.name || 'Produto');
-      var subtitle = r.isMenuCombination ? (r.combinationLabel || 'Combinação') : r.costSource;
+      var subtitle = r.isMenuCombination ? (r.combinationItemsLabel || r.combinationLabel || 'Combinação') : r.costSource;
       var badge = r.isMenuCombination ? '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#FFF3F1;color:#B42318;font-size:10.5px;font-weight:800;margin-top:5px;">Combinação</span>' : '';
       return '<tr data-din-product="' + _esc(searchText) + '" data-product-id="' + _esc(r.product && r.product.id || '') + '" data-row-key="' + _esc(r.__priceRowKey || '') + '" onclick="Modules.Dinheiro._openPriceCompositionRow(this.dataset.rowKey,this.dataset.productId)" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="background:#fff;border-bottom:1px solid #EAE4DA;cursor:pointer;transition:background .15s ease;">' +
-        _priceTd('<div style="display:flex;align-items:center;gap:12px;min-width:0;"><div style="width:46px;height:46px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:18px;color:#C9BCB8;">restaurant_menu</span>') + '</div><div style="min-width:0;"><strong style="display:block;font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(title) + '</strong><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(subtitle || 'sem dados') + '</div>' + badge + '</div></div>') +
+        _priceTd('<div style="display:flex;align-items:flex-start;gap:12px;min-width:0;"><div style="width:46px;height:46px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:18px;color:#C9BCB8;">restaurant_menu</span>') + '</div><div style="min-width:0;"><strong style="display:block;font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(title) + '</strong><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;white-space:' + (r.isMenuCombination ? 'normal' : 'nowrap') + ';overflow:' + (r.isMenuCombination ? 'visible' : 'hidden') + ';text-overflow:' + (r.isMenuCombination ? 'clip' : 'ellipsis') + ';max-width:320px;">' + _esc(subtitle || 'sem dados') + '</div>' + badge + '</div></div>') +
         _priceTd(UI.fmt(r.ingredientCost)) +
         _priceTd(UI.fmt(r.packagingCost)) +
         _priceTd(UI.fmt(r.indirectCost)) +
@@ -1906,9 +1920,18 @@ Modules.Dinheiro = (function () {
 
   function _openMenuCombinationAnalysisModal(product, channel, sample) {
     if (!sample || !sample.analysis) return;
-    var analysis = Object.assign({}, sample.analysis, { product: product, channel: channel });
     var channels = _data.canais || [_defaultChannel()];
     var channelIndex = Math.max(0, channels.findIndex(function (ch) { return ch === channel || String(ch && ch.name || '') === String(channel && channel.name || ''); }));
+    channel = channels[channelIndex] || channel || _defaultChannel();
+    var recalculatedSample = Object.assign({}, sample);
+    recalculatedSample.analysis = _menuCombinationMetrics(product, recalculatedSample, channel);
+    var analysis = Object.assign({}, recalculatedSample.analysis, { product: product, channel: channel });
+    var comboKey = 'combo-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    window._dinOpenMenuCombination = window._dinOpenMenuCombination || {};
+    window._dinOpenMenuCombination[comboKey] = { product: product, sample: recalculatedSample };
+    var channelOptions = channels.map(function (ch, idx) {
+      return '<option value="' + idx + '"' + (idx === channelIndex ? ' selected' : '') + '>' + _esc(ch.name || ('Canal ' + (idx + 1))) + '</option>';
+    }).join('');
     var minMarginRule = _num(_data.dinheiro.minMarginPct || 40);
     var desiredMarginRule = _num(_data.dinheiro.desiredMarginPct || 60);
     var minimumRulePrice = _priceForMargin(analysis.totalCost, minMarginRule, channel, { round: false }, product);
@@ -1922,12 +1945,15 @@ Modules.Dinheiro = (function () {
     var statusTone = analysis.status === 'prejuízo' || analysis.status === 'margem baixa' ? '#B42318' : (analysis.status === 'atenção' || analysis.status === 'sem custo' ? '#D97706' : '#1F6F43');
     var editHint = '<div style="margin-top:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px;">' +
       '<div style="min-width:0;flex:1 1 280px;"><div style="font-size:12.5px;font-weight:750;color:#1F1F1F;line-height:1.35;">Para ajustar esta combinação, revise o preço base do menu ou o valor extra das escolhas que fazem parte dela.</div><div style="font-size:11.5px;color:#6F6860;line-height:1.4;margin-top:3px;">Depois de fechar o cadastro, esta análise abre novamente com os valores atualizados.</div></div>' +
-      '<button type="button" data-product-id="' + _esc(product && product.id || '') + '" data-combination-label="' + _esc(sample.label || '') + '" data-channel-index="' + channelIndex + '" onclick="Modules.Dinheiro._openCatalogProductFromCombination(this.dataset.productId,this.dataset.combinationLabel,this.dataset.channelIndex)" style="height:36px;padding:0 12px;border:none;border-radius:11px;background:#B42318;color:#fff;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);white-space:nowrap;">Editar menu</button>' +
+      '<button type="button" data-product-id="' + _esc(product && product.id || '') + '" data-combination-label="' + _esc(recalculatedSample.label || '') + '" data-channel-index="' + channelIndex + '" onclick="Modules.Dinheiro._openCatalogProductFromCombination(this.dataset.productId,this.dataset.combinationLabel,this.dataset.channelIndex)" style="height:36px;padding:0 12px;border:none;border-radius:11px;background:#B42318;color:#fff;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(180,35,24,.16);white-space:nowrap;">Editar menu</button>' +
     '</div>';
     var body = '<div style="display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;">' +
       '<section style="' + _priceModalCardStyle() + '">' +
         _priceModalSectionTitle('Combinação analisada', 'Esta leitura usa só as escolhas desta combinação.', 'tune') +
-        '<div style="font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.45;">' + _esc(sample.label || 'Combinação') + '</div>' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(170px,220px);gap:12px;align-items:end;margin-top:2px;">' +
+          '<div style="min-width:0;"><div style="font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.45;">' + _esc(recalculatedSample.label || 'Combinação') + '</div></div>' +
+          '<label style="' + _labelWrap() + '"><span style="' + _priceModalLabel() + '">Canal de venda</span><select data-combo-key="' + _esc(comboKey) + '" onchange="Modules.Dinheiro._updateMenuCombinationChannel(this.dataset.comboKey,this.value)" style="' + _priceModalSelect() + '">' + channelOptions + '</select></label>' +
+        '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
           '<span style="font-size:11px;color:#6F6860;">' + _esc(product.name || 'Menu') + '</span>' +
           '<span style="font-size:11px;color:#6F6860;">·</span>' +
@@ -1978,6 +2004,17 @@ Modules.Dinheiro = (function () {
     } catch (e) {}
     if (window._dinMenuCombinationModal) window._dinMenuCombinationModal.close();
     Router.navigate('catalogo/produtos');
+  }
+
+  function _updateMenuCombinationChannel(comboKey, channelIndex) {
+    var stored = window._dinOpenMenuCombination && window._dinOpenMenuCombination[comboKey];
+    if (!stored || !stored.product || !stored.sample) return;
+    var channels = _data.canais || [_defaultChannel()];
+    var nextIndex = parseInt(channelIndex, 10);
+    if (!isFinite(nextIndex) || !channels[nextIndex]) nextIndex = 0;
+    var nextChannel = channels[nextIndex] || _defaultChannel();
+    if (window._dinMenuCombinationModal) window._dinMenuCombinationModal.close();
+    _openMenuCombinationAnalysisModal(stored.product, nextChannel, stored.sample);
   }
 
   function _soldMenuCombinationsBlock(product) {
@@ -2877,6 +2914,7 @@ Modules.Dinheiro = (function () {
     _openProductModal: _openProductModal,
     _updateProductPriceModal: _updateProductPriceModal,
     _setMenuCombinationView: _setMenuCombinationView,
+    _updateMenuCombinationChannel: _updateMenuCombinationChannel,
     _openMenuCombinationPriceModal: _openMenuCombinationPriceModal,
     _saveProductPrice: _saveProductPrice,
     _closeProductModal: _closeProductModal,

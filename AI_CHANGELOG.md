@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: itens visíveis na combinação
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Na listagem `Composição do Preço`, linhas de combinação de menu agora mostram abaixo do nome do menu apenas os nomes dos itens escolhidos, sem o título dos grupos.
+- O texto dos itens da combinação não fica mais cortado por reticências, permitindo ver todos os itens que compõem aquela combinação.
+- A busca da tela também considera esse texto limpo dos itens da combinação.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
+## 2026-06-06 — Preços: canal na composição da combinação
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Incluí o seletor `Canal de venda` no modal `Composição da combinação`.
+- Ao trocar o canal, a mesma combinação é recalculada no modal, atualizando preço, taxas, lucro, margem, markup, distribuição do preço e preços sugeridos.
+- A troca de canal é apenas análise: não salva preço e não cria preço específico para a combinação.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Preços: editar menu pela combinação
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal de composição de uma combinação de menu, incluí a orientação: `Para ajustar esta combinação, revise o preço base do menu ou o valor extra das escolhas que fazem parte dela.`
