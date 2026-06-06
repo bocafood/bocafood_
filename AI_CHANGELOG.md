@@ -1,5 +1,22 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: escolhas de menu na importação
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Na `Prévia de importação de pedidos`, quando o produto vinculado é menu/combo ou possui variantes, a linha passa a mostrar as escolhas cadastradas para esse produto.
+- A usuária pode selecionar as opções do menu/combo antes de importar o pedido.
+- O sistema tenta pré-marcar escolhas quando o texto vindo da Glovo combina com uma opção cadastrada.
+- A importação só considera a linha pronta quando as escolhas obrigatórias do produto estão completas.
+- As escolhas selecionadas entram no pedido importado como `choices`, `variants`, `selectedOptions`, `choiceDetails`, `menuChoices` e também geram `stockChoices` quando a opção tem vínculo de estoque.
+- Organizei o layout da célula `Itens e vínculos` para deixar o seletor de produto no topo e as escolhas do menu/combo abaixo, usando a largura completa da linha.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
+## 2026-06-06 — Pedidos: prévia de importação sem coluna de herança
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi da tabela do modal `Prévia de importação de pedidos` a coluna `Herança do canal`.
+- A herança de forma de pagamento, conta bancária e categoria financeira continua sendo validada e aplicada na importação; a mudança é apenas visual.
+- Ajustei a largura mínima da tabela para a prévia ficar mais leve.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
 ## 2026-06-06 — Canais de venda: modelo de importação
 - Arquivos alterados: `public/js/modules/configuracoes.js`, `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Em `Configurações > Canais de venda`, adicionei o campo `Modelo de importação`, opcional por canal.

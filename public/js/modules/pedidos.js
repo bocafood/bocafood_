@@ -8418,7 +8418,7 @@ Modules.Pedidos = (function () {
       '<button type="button" onclick="window._orderImportPreviewModal&&window._orderImportPreviewModal.close()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
       '<button id="order-import-submit" type="button" onclick="Modules.Pedidos._importGlovoPreviewOrders()" style="height:38px;padding:0 15px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Importar pedidos válidos</button>' +
     '</div>';
-    window._orderImportPreviewState = { fileName: '', rows: [], parsed: [], channel: preferred, error: '', mappings: {}, imported: {}, importing: false, stockMode: 'history' };
+    window._orderImportPreviewState = { fileName: '', rows: [], parsed: [], channel: preferred, error: '', mappings: {}, choiceMappings: {}, imported: {}, importing: false, stockMode: 'history' };
     window._orderImportPreviewModal = UI.modal({ title: 'Prévia de importação de pedidos', body: body, footer: footer, maxWidth: '1120px' });
   }
 
@@ -8510,8 +8510,45 @@ Modules.Pedidos = (function () {
   function _setOrderImportItemMapping(itemKey, productId) {
     var state = window._orderImportPreviewState || {};
     state.mappings = state.mappings || {};
+    state.choiceMappings = state.choiceMappings || {};
     if (productId) state.mappings[itemKey] = String(productId || '');
     else delete state.mappings[itemKey];
+    delete state.choiceMappings[itemKey];
+    window._orderImportPreviewState = state;
+    if (state.rows && state.rows.length) {
+      state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
+    }
+    window._orderImportPreviewState = state;
+    _renderOrderImportPreview();
+  }
+
+  function _setOrderImportChoiceMapping(itemKey, groupIdx, optionIdx, checked) {
+    var state = window._orderImportPreviewState || {};
+    var item = _orderImportFindPreviewItem(itemKey);
+    var product = item && item.match && item.match.product;
+    var groups = _detailProductChoiceGroups(product);
+    var group = groups[parseInt(groupIdx, 10)] || null;
+    var option = group && group.options ? group.options[parseInt(optionIdx, 10)] : null;
+    if (!item || !group || !option) return;
+    state.choiceMappings = state.choiceMappings || {};
+    var current = _orderImportChoicesForItem(item).filter(function (choice) {
+      return String(choice.groupId || '') !== String(group.id || '');
+    });
+    var selected = _orderImportChoicesForItem(item).filter(function (choice) {
+      return String(choice.groupId || '') === String(group.id || '');
+    });
+    if (group.max <= 1) selected = checked ? [_orderImportChoiceFromOption(group, option, 1, 'preview')] : [];
+    else {
+      var key = _orderImportChoiceOptionKey(group, option);
+      selected = selected.filter(function (choice) { return _orderImportChoiceKey(choice) !== key; });
+      if (checked) selected.push(_orderImportChoiceFromOption(group, option, 1, 'preview'));
+      if (selected.length > group.max) {
+        selected = selected.slice(0, group.max);
+        UI.toast('Escolha no máximo ' + group.max + ' opção(ões).', 'warning');
+      }
+    }
+    state.choiceMappings[itemKey] = current.concat(selected);
+    window._orderImportPreviewState = state;
     if (state.rows && state.rows.length) {
       state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
     }
@@ -8598,7 +8635,107 @@ Modules.Pedidos = (function () {
   function _orderImportRowReady(row) {
     if (!row || !row.orderId) return false;
     if (!Array.isArray(row.items) || !row.items.length) return false;
-    return row.items.every(function (item) { return item.match && item.match.product; });
+    return row.items.every(function (item) {
+      return item.match && item.match.product && _orderImportItemChoicesComplete(item);
+    });
+  }
+
+  function _orderImportFindPreviewItem(itemKey) {
+    var state = window._orderImportPreviewState || {};
+    var rows = Array.isArray(state.parsed) ? state.parsed : [];
+    for (var i = 0; i < rows.length; i++) {
+      var items = Array.isArray(rows[i] && rows[i].items) ? rows[i].items : [];
+      for (var j = 0; j < items.length; j++) {
+        if (String(items[j] && items[j].itemKey || '') === String(itemKey || '')) return items[j];
+      }
+    }
+    return null;
+  }
+
+  function _orderImportChoiceOptionKey(group, option) {
+    return String(group && group.id || '') + '::' + String(option && (option.id || option.ref || option.label) || '');
+  }
+
+  function _orderImportChoiceKey(choice) {
+    return String(choice && choice.groupId || '') + '::' + String(choice && (choice.optionId || choice.ref || choice.option || choice.label || choice.name) || '');
+  }
+
+  function _orderImportChoiceFromOption(group, option, qty, source) {
+    qty = Math.max(1, _num(qty || 1) || 1);
+    return {
+      groupId: group.id,
+      group: group.title,
+      groupName: group.title,
+      optionId: option.id,
+      ref: option.ref || '',
+      option: option.label,
+      optionName: option.label,
+      label: option.label,
+      name: option.label,
+      value: option.label,
+      priceExtra: _num(option.priceExtra),
+      price: _num(option.priceExtra),
+      img: option.img || '',
+      stockRef: option.stockRef || '',
+      stockItemId: option.stockItemId || '',
+      stockItemName: option.stockItemName || '',
+      stockItemType: option.stockItemType || '',
+      itemClass: option.itemClass || option.stockItemType || '',
+      classe: option.classe || option.stockItemType || '',
+      stockQuantityPerChoice: _num(option.stockQuantityPerChoice || option.stockQuantity),
+      stockQuantity: _num(option.stockQuantity || option.stockQuantityPerChoice),
+      stockUnit: option.stockUnit || option.unit || '',
+      stockUnitCost: _num(option.stockUnitCost),
+      qty: qty,
+      quantity: qty,
+      source: source || 'import_preview'
+    };
+  }
+
+  function _orderImportGlovoChoiceText(item) {
+    return (Array.isArray(item && item.choices) ? item.choices : []).map(function (choice) {
+      return _firstText(choice && choice.name, choice && choice.label, '');
+    }).filter(Boolean).join(' | ');
+  }
+
+  function _orderImportInitialChoicesFromGlovo(item, groups) {
+    var raw = _orderImportNormalizeName(_orderImportGlovoChoiceText(item));
+    if (!raw) return [];
+    var choices = [];
+    (groups || []).forEach(function (group) {
+      var selected = [];
+      (group.options || []).forEach(function (option) {
+        var label = _orderImportNormalizeName(option.label);
+        if (!label) return;
+        if (raw === label || raw.indexOf(label) >= 0 || label.indexOf(raw) >= 0) {
+          selected.push(_orderImportChoiceFromOption(group, option, 1, 'glovo_match'));
+        }
+      });
+      if (selected.length > group.max) selected = selected.slice(0, group.max);
+      choices = choices.concat(selected);
+    });
+    return choices;
+  }
+
+  function _orderImportChoicesForItem(item) {
+    if (!item || !item.itemKey) return [];
+    var state = window._orderImportPreviewState || {};
+    var saved = state.choiceMappings && state.choiceMappings[item.itemKey];
+    if (Array.isArray(saved)) return saved.slice();
+    var product = item.match && item.match.product;
+    var groups = _detailProductChoiceGroups(product);
+    return _orderImportInitialChoicesFromGlovo(item, groups);
+  }
+
+  function _orderImportItemChoicesComplete(item) {
+    var product = item && item.match && item.match.product;
+    var groups = _detailProductChoiceGroups(product);
+    if (!groups.length) return true;
+    var choices = _orderImportChoicesForItem(item);
+    return groups.every(function (group) {
+      var count = choices.filter(function (choice) { return String(choice.groupId || '') === String(group.id || ''); }).length;
+      return count >= group.min && count <= group.max;
+    });
   }
 
   function _orderImportRowImported(row) {
@@ -8707,6 +8844,7 @@ Modules.Pedidos = (function () {
     if (!_channelIncomeCategoryMeta(channel).id && !_channelIncomeCategoryMeta(channel).name) warnings.push('Canal sem categoria financeira.');
     if (!_channelBankAccountId(channel)) warnings.push('Canal sem conta bancária.');
     if (!_channelPaymentMethod(channel)) warnings.push('Canal sem forma de pagamento.');
+    if (items.some(function (item) { return item.match && item.match.product && !_orderImportItemChoicesComplete(item); })) warnings.push('Complete as escolhas do menu/combo antes de importar.');
     return {
       idx: idx,
       orderId: orderId,
@@ -8917,17 +9055,21 @@ Modules.Pedidos = (function () {
     return items.map(function (item) {
       var product = item.match && item.match.product || {};
       var qty = Math.max(1, _num(item.qty) || 1);
-      var unitPrice = _productPriceForSalesChannel(product, channelName);
+      var choices = _orderImportChoicesForItem(item);
+      if (!choices.length) {
+        choices = (item.choices || []).map(function (choice) {
+          return {
+            name: choice.name,
+            label: choice.name,
+            qty: choice.qty,
+            quantity: choice.qty,
+            source: 'glovo'
+          };
+        });
+      }
+      var choiceExtra = _detailChoiceExtraTotal(choices);
+      var unitPrice = _productPriceForSalesChannel(product, channelName) + choiceExtra;
       var lineTotal = +(unitPrice * qty).toFixed(2);
-      var choices = (item.choices || []).map(function (choice) {
-        return {
-          name: choice.name,
-          label: choice.name,
-          qty: choice.qty,
-          quantity: choice.qty,
-          source: 'glovo'
-        };
-      });
       return {
         id: product.id || '',
         productId: product.id || '',
@@ -8949,6 +9091,7 @@ Modules.Pedidos = (function () {
         selectedOptions: choices,
         variants: choices,
         options: choices,
+        stockChoices: _manualOrderStockChoicesFromChoices(choices),
         choiceDetails: choices,
         menuChoices: choices,
         fichaTecnicaId: _firstText(product.fichaTecnicaId, product.fichaId, product.recipeId, ''),
@@ -9188,13 +9331,13 @@ Modules.Pedidos = (function () {
         _orderImportStat('Avisos', alerts) +
       '</div>' +
       '<div style="overflow:auto;border:1px solid #EEE5DE;border-radius:14px;background:#fff;">' +
-        '<table style="width:100%;border-collapse:collapse;min-width:980px;">' +
+        '<table style="width:100%;border-collapse:collapse;min-width:1040px;table-layout:fixed;">' +
+          '<colgroup><col style="width:118px;"><col style="width:150px;"><col style="width:138px;"><col><col style="width:190px;"></colgroup>' +
           '<thead><tr style="background:#FAF7F3;color:#6F6860;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">' +
             '<th style="text-align:left;padding:11px 12px;">Pedido</th>' +
             '<th style="text-align:left;padding:11px 12px;">Data e status</th>' +
             '<th style="text-align:left;padding:11px 12px;">Valores</th>' +
             '<th style="text-align:left;padding:11px 12px;">Itens e vínculos</th>' +
-            '<th style="text-align:left;padding:11px 12px;">Herança do canal</th>' +
             '<th style="text-align:left;padding:11px 12px;">Avisos</th>' +
           '</tr></thead><tbody>' +
           rows.map(_orderImportPreviewRowHtml).join('') +
@@ -9250,18 +9393,16 @@ Modules.Pedidos = (function () {
       var choices = item.choices && item.choices.length ? ' <span style="color:#8A7E7C;">(' + _esc(item.choices.map(function (c) { return c.name; }).join(', ')) + ')</span>' : '';
       var product = item.match && item.match.product;
       var selectedId = product && product.id || '';
-      return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,240px);gap:8px;align-items:start;padding:5px 0;border-bottom:1px solid #F4ECE6;">' +
-        '<div style="min-width:0;"><div style="font-weight:750;color:#1F1F1F;">' + _esc(item.qty) + 'x ' + _esc(item.name) + '</div>' + choices + '<div style="margin-top:5px;">' + _orderImportMatchBadge(item.match) + '</div></div>' +
-        '<select data-key="' + _esc(item.itemKey || '') + '" onchange="Modules.Pedidos._setOrderImportItemMapping(this.dataset.key,this.value)" style="width:100%;height:34px;border:1px solid #E8DCD7;border-radius:10px;background:#FFFCF8;color:#1F1F1F;font-size:12px;font-family:inherit;padding:0 9px;">' + _orderImportProductOptions(selectedId) + '</select>' +
+      var choiceEditor = _orderImportChoiceEditorHtml(item);
+      return '<div style="display:grid;gap:8px;padding:9px 0;border-bottom:1px solid #F4ECE6;">' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,300px);gap:10px;align-items:start;">' +
+          '<div style="min-width:0;"><div style="font-weight:750;color:#1F1F1F;line-height:1.25;">' + _esc(item.qty) + 'x ' + _esc(item.name) + '</div>' + choices + '<div style="margin-top:5px;">' + _orderImportMatchBadge(item.match) + '</div></div>' +
+          '<select data-key="' + _esc(item.itemKey || '') + '" onchange="Modules.Pedidos._setOrderImportItemMapping(this.dataset.key,this.value)" style="width:100%;height:34px;border:1px solid #E8DCD7;border-radius:10px;background:#FFFCF8;color:#1F1F1F;font-size:12px;font-family:inherit;padding:0 9px;">' + _orderImportProductOptions(selectedId) + '</select>' +
+        '</div>' +
+        choiceEditor +
       '</div>';
     }).join('');
     if (row.items.length > 4) items += '<div style="color:#8A7E7C;">+' + (row.items.length - 4) + ' item(ns)</div>';
-    var inheritance = [
-      row.channelName ? 'Canal: ' + row.channelName : 'Canal não selecionado',
-      row.paymentMethod ? 'Pagamento: ' + _paymentMethodLabel(row.paymentMethod) : 'Pagamento sem padrão',
-      row.bankAccountId ? 'Conta definida' : 'Conta sem padrão',
-      row.category && (row.category.name || row.category.id) ? 'Categoria: ' + (row.category.name || row.category.id) : 'Categoria sem padrão'
-    ].map(function (txt) { return '<div>' + _esc(txt) + '</div>'; }).join('');
     var warnings = row.warnings.length ? row.warnings.map(function (w) { return '<div style="color:#B45309;">' + _esc(w) + '</div>'; }).join('') : '<span style="color:#1A9E5A;">Sem avisos</span>';
     var imported = _orderImportRowImported(row);
     return '<tr style="border-top:1px solid #F0E8E0;font-size:12.5px;color:#332F2D;vertical-align:top;">' +
@@ -9269,9 +9410,36 @@ Modules.Pedidos = (function () {
       '<td style="padding:12px;"><div>' + _esc(row.receivedAt || 'Sem data') + '</div><div style="font-weight:700;color:' + (row.status.key === 'cancelado' ? '#B42318' : '#1A9E5A') + ';">' + _esc(row.status.label) + '</div></td>' +
       '<td style="padding:12px;"><div>Bruto: <strong>' + UI.fmt(row.gross) + '</strong></div><div>Taxas: ' + UI.fmt(row.feesTotal) + '</div><div>Saldo: <strong>' + UI.fmt(row.net) + '</strong></div></td>' +
       '<td style="padding:12px;line-height:1.45;">' + (items || '<span style="color:#8A7E7C;">Nenhum item lido</span>') + '</td>' +
-      '<td style="padding:12px;line-height:1.45;">' + inheritance + '</td>' +
       '<td style="padding:12px;line-height:1.45;">' + warnings + '</td>' +
     '</tr>';
+  }
+
+  function _orderImportChoiceEditorHtml(item) {
+    var product = item && item.match && item.match.product;
+    var groups = _detailProductChoiceGroups(product);
+    if (!groups.length) return '';
+    var selected = _orderImportChoicesForItem(item);
+    var selectedKeys = {};
+    selected.forEach(function (choice) { selectedKeys[_orderImportChoiceKey(choice)] = true; });
+    var complete = _orderImportItemChoicesComplete(item);
+    return '<div style="border:1px solid ' + (complete ? '#EADFD8' : '#F0D5A8') + ';border-radius:12px;background:' + (complete ? '#FFFCF8' : '#FFF8E8') + ';padding:9px;display:grid;gap:8px;">' +
+      '<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:' + (complete ? '#6F6860' : '#8A5A18') + ';line-height:1.25;"><span class="mi" style="font-size:14px;">tune</span>Escolhas do menu/combo</div>' +
+      groups.map(function (group, groupIdx) {
+        var inputType = group.max === 1 ? 'radio' : 'checkbox';
+        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '')) : ('Até ' + group.max);
+        return '<div style="display:grid;gap:5px;">' +
+          '<div style="font-size:11px;color:#6F6860;font-weight:750;line-height:1.25;">' + _esc(group.title) + ' <span style="font-weight:500;color:#8A7E7C;">' + _esc(rule) + '</span></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:5px;">' + (group.options || []).map(function (option, optionIdx) {
+            var key = _orderImportChoiceOptionKey(group, option);
+            var checked = selectedKeys[key] ? ' checked' : '';
+            return '<label style="display:flex;align-items:center;gap:6px;border:1px solid #EFE4DC;border-radius:9px;background:#fff;padding:6px 7px;cursor:pointer;min-width:0;">' +
+              '<input type="' + inputType + '" name="order-import-choice-' + _esc(String(item.itemKey || '').replace(/[^a-zA-Z0-9_-]/g, '_')) + '-' + groupIdx + '" data-import-choice-key="' + _esc(item.itemKey || '') + '" onchange="Modules.Pedidos._setOrderImportChoiceMapping(this.dataset.importChoiceKey,' + groupIdx + ',' + optionIdx + ',this.checked)"' + checked + ' style="width:14px;height:14px;accent-color:#B42318;flex:0 0 auto;">' +
+              '<span style="min-width:0;font-size:11.5px;color:#1F1F1F;line-height:1.25;">' + _esc(option.label) + (option.priceExtra ? ' <span style="color:#8A7E7C;">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') + '</span>' +
+            '</label>';
+          }).join('') + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
   }
 
   function _bankAccountOptions(selected) {
@@ -9778,7 +9946,7 @@ Modules.Pedidos = (function () {
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
     _sendDetailWhatsapp: _sendDetailWhatsapp,
     _saveKitchenDetail: _saveKitchenDetail, _waFromDetail: _waFromDetail, _waFromKitchenDetail: _waFromKitchenDetail, _whatsapp: _whatsapp, _cancelOrder: _cancelOrder,
-    _openNewOrder: _openNewOrder, _openOrderImportPreview: _openOrderImportPreview, _handleOrderImportFile: _handleOrderImportFile, _refreshOrderImportPreview: _refreshOrderImportPreview, _setOrderImportItemMapping: _setOrderImportItemMapping, _setOrderImportStockMode: _setOrderImportStockMode, _importGlovoPreviewOrders: _importGlovoPreviewOrders, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
+    _openNewOrder: _openNewOrder, _openOrderImportPreview: _openOrderImportPreview, _handleOrderImportFile: _handleOrderImportFile, _refreshOrderImportPreview: _refreshOrderImportPreview, _setOrderImportItemMapping: _setOrderImportItemMapping, _setOrderImportChoiceMapping: _setOrderImportChoiceMapping, _setOrderImportStockMode: _setOrderImportStockMode, _importGlovoPreviewOrders: _importGlovoPreviewOrders, _openTpvOrder: _openTpvOrder, _createTpvOrder: _createTpvOrder, _saveNewOrder: _saveNewOrder,
     _manualOrderSearchCustomers: _manualOrderSearchCustomers,
     _manualOrderFocusCustomers: _manualOrderFocusCustomers,
     _manualOrderChooseCustomer: _manualOrderChooseCustomer,
