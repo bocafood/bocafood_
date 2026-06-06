@@ -3057,6 +3057,21 @@ Modules.Catalogo = (function () {
         }
       });
     });
+    _normalizeFichaDirectIngredients(recipe).forEach(function (ing) {
+      var item = _itensCusto.find(function (x) { return String(x.id || '') === String(ing.insumoId || ''); }) || {};
+      var cls = _stockClassFromCostItem(item || ing);
+      var qty = _parseFichaNum(ing.qty || ing.quantity || 0);
+      var perUnit = qty / Math.max(1, recipeYieldQty);
+      if (ing.insumoId && perUnit > 0) {
+        reqs.push({
+          key: cls + ':' + ing.insumoId,
+          name: item.nome || ing.supplyName || 'Ingrediente avulso',
+          unit: ing.unit || item.unidade_base || '',
+          requiredPerUnit: perUnit,
+          kind: cls === 'embalagem' ? 'embalagem' : 'ingrediente'
+        });
+      }
+    });
     _normalizeFichaPackaging(recipe).forEach(function (pkg) {
       var item = _itensCusto.find(function (x) { return String(x.id || '') === String(pkg.insumoId || ''); }) || {};
       var qty = _parseFichaNum(pkg.qty || pkg.quantity || 0);
@@ -9714,7 +9729,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _calcFichaCosts(f) {
     var yieldQty = _parseFichaNum(f.yieldQuantity || f.yield) || 1;
-    var costs = _calcFichaComponentCosts(_normalizeFichaComponents(f), yieldQty, f.yieldUnit || 'unidades', _normalizeFichaPackaging(f));
+    var costs = _calcFichaComponentCosts(_normalizeFichaComponents(f), yieldQty, f.yieldUnit || 'unidades', _normalizeFichaPackaging(f), _normalizeFichaDirectIngredients(f));
     var indirectInfo = _getIndirectCostInfo();
     var indirect = costs.direct * (indirectInfo.percent / 100);
     var totalCost = costs.direct + indirect;
@@ -9980,7 +9995,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var comps = Array.isArray(f.components) ? f.components : [];
     if (!comps.length && Array.isArray(f.recipeComponents)) comps = f.recipeComponents;
     if (!comps.length && Array.isArray(f.ingredients) && f.ingredients.length) {
-      comps = [{ name: 'Outro', note: '', ingredients: f.ingredients }];
+      var legacyIngredients = f.ingredients.filter(function (ing) {
+        return !(ing.directIngredient || ing.looseIngredient || ing.componentName === 'Ingredientes avulsos' || ing.componentName === 'Embalagens da receita');
+      });
+      if (legacyIngredients.length) comps = [{ name: 'Outro', note: '', ingredients: legacyIngredients }];
     }
     if (!comps.length) comps = [{ name: '', note: '', ingredients: [] }];
     return comps.map(function (comp) {
@@ -10022,6 +10040,38 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     });
   }
 
+  function _normalizeFichaDirectIngredients(f) {
+    f = f || {};
+    var list = Array.isArray(f.directIngredients) ? f.directIngredients : (Array.isArray(f.looseIngredients) ? f.looseIngredients : []);
+    if (!list.length && Array.isArray(f.ingredients)) {
+      list = f.ingredients.filter(function (ing) {
+        return ing && (ing.directIngredient || ing.looseIngredient || ing.componentName === 'Ingredientes avulsos');
+      });
+    }
+    return list.map(function (ing) {
+      return {
+        insumoId: ing.insumoId || ing.itemId || '',
+        supplyName: ing.supplyName || ing.name || '',
+        qty: _parseFichaNum(ing.qty != null ? ing.qty : ing.quantity),
+        unit: ing.unit || '',
+        lossPercent: _parseFichaNum(ing.lossPercent || 0),
+        grossQuantityCalculated: _parseFichaNum(ing.grossQuantityCalculated || ing.grossQuantity || ing.qty || ing.quantity || 0),
+        unitCost: _parseFichaNum(ing.unitCost || 0),
+        totalCost: _parseFichaNum(ing.totalCost || 0),
+        itemClass: ing.itemClass || ing.classe || ing.stockItemType || 'insumo',
+        classe: ing.classe || ing.itemClass || ing.stockItemType || 'insumo',
+        costType: ing.costType || 'insumo',
+        rawQty: _parseFichaNum(ing.rawQty != null ? ing.rawQty : ing.qty),
+        rawGrossQuantity: _parseFichaNum(ing.rawGrossQuantity || ing.grossQuantityCalculated || ing.grossQuantity || ing.qty || ing.quantity || 0),
+        rawTotalCost: _parseFichaNum(ing.rawTotalCost || ing.totalCost || 0),
+        directIngredient: true,
+        looseIngredient: true
+      };
+    }).filter(function (ing) {
+      return ing.insumoId || ing.qty > 0 || ing.supplyName;
+    });
+  }
+
   function _normalizeFichaPackaging(f) {
     f = f || {};
     var list = Array.isArray(f.packagingItems) ? f.packagingItems : (Array.isArray(f.packaging) ? f.packaging : []);
@@ -10044,7 +10094,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     });
   }
 
-  function _calcFichaComponentCosts(components, recipeYieldQty, recipeYieldUnit, packagingItems) {
+  function _calcFichaComponentCosts(components, recipeYieldQty, recipeYieldUnit, packagingItems, directIngredients) {
     var ingredientCost = 0;
     var packagingCost = 0;
     var details = [];
@@ -10078,6 +10128,26 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var calc = _calcFichaIng(ins, item.qty);
       packagingCost += calc.totalCost || _parseFichaNum(item.totalCost || 0);
     });
+    var directCost = 0;
+    (directIngredients || []).forEach(function (ing) {
+      var ins = _itensCusto.find(function (i) { return String(i.id) === String(ing.insumoId || ing.itemId || ''); });
+      var calc = _calcFichaIng(ins, ing.qty);
+      var lineCost = calc.totalCost || _parseFichaNum(ing.totalCost || 0);
+      directCost += lineCost;
+      if (_recipeCostTarget('Ingredientes avulsos', ins || ing) === 'packaging') packagingCost += lineCost;
+      else ingredientCost += lineCost;
+    });
+    if (directCost > 0) {
+      details.push({
+        name: 'Ingredientes avulsos',
+        rawCost: _roundFichaCost(directCost, 4),
+        appliedCost: _roundFichaCost(directCost, 4),
+        ingredientCost: _roundFichaCost(directCost, 4),
+        packagingCost: 0,
+        ratio: 1,
+        proportional: false
+      });
+    }
     return {
       ingredients: _roundFichaCost(ingredientCost, 4),
       packaging: _roundFichaCost(packagingCost, 4),
@@ -10115,12 +10185,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _fichaIngredientsViewHtml(f) {
     var comps = _normalizeFichaComponents(f);
+    var directIngredients = _normalizeFichaDirectIngredients(f);
     var recipeYieldQty = _parseFichaNum(f.yieldQuantity || f.yield || 0);
     var recipeYieldUnit = f.yieldUnit || 'unidades';
-    if (!comps.length) {
+    var blocks = [];
+    if (!comps.length && !directIngredients.length) {
       return '<div class="recipe-view-empty">Nenhum ingrediente cadastrado.</div>';
     }
-    return comps.map(function (comp) {
+    comps.forEach(function (comp) {
+      if (!(comp.name || '').trim() && !(comp.ingredients || []).length) return;
       var ratioInfo = _componentUsageRatio(comp, recipeYieldQty, recipeYieldUnit);
       var list = (comp.ingredients || []).map(function (ing) {
         var ins = _itensCusto.find(function (i) { return i.id === ing.insumoId; });
@@ -10141,18 +10214,44 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var yieldNote = ratioInfo.proportional && ratioInfo.stageYieldQuantity
         ? '<div class="recipe-view-step-note">Usa ' + _esc(_roundFichaCost(ratioInfo.stageUsageQuantity || 0, 4)) + ' ' + _esc(ratioInfo.stageUsageUnit || ratioInfo.stageYieldUnit || recipeYieldUnit) + ' de uma base que rende ' + _esc(_roundFichaCost(ratioInfo.stageYieldQuantity, 4)) + ' ' + _esc(ratioInfo.stageYieldUnit || recipeYieldUnit) + '.</div>'
         : '';
-      return '<div class="recipe-view-step-card">' +
+      blocks.push('<div class="recipe-view-step-card">' +
         '<div class="recipe-view-step-head">' +
           '<div class="recipe-view-step-info">' +
             '<div class="recipe-view-step-title">' + _esc(comp.name || 'Base da receita') + '</div>' +
             (comp.note ? '<div class="recipe-view-step-note">' + _esc(comp.note) + '</div>' : '') +
             yieldNote +
           '</div>' +
-          '<div class="recipe-view-step-cost">' + _fmtFichaMoney(stepCost) + '</div>' +
+        '<div class="recipe-view-step-cost">' + _fmtFichaMoney(stepCost) + '</div>' +
+      '</div>' +
+      list +
+      '</div>');
+    });
+    if (directIngredients.length) {
+      var directList = directIngredients.map(function (ing) {
+        var ins = _itensCusto.find(function (i) { return String(i.id) === String(ing.insumoId); });
+        var calc = _calcFichaIng(ins, ing.qty);
+        var lineCost = calc.totalCost || _parseFichaNum(ing.totalCost || 0);
+        return '<div class="recipe-view-ingredient-row">' +
+          '<div class="recipe-view-ingredient-main">' +
+            '<div class="recipe-view-ingredient-name">' + _esc((ins && ins.nome) || ing.supplyName || 'Ingrediente') + '</div>' +
+            '<div class="recipe-view-ingredient-meta">' + _esc(_parseFichaNum(ing.qty || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })) + ' ' + _esc(ing.unit || (ins && ins.unidade_base) || '') + '</div>' +
+          '</div>' +
+          '<div class="recipe-view-ingredient-cost">' + (lineCost > 0 ? _fmtFichaMoney(lineCost) : '€0,00') + '</div>' +
+          '</div>';
+      }).join('');
+      var directCost = _calcFichaComponentCosts([], recipeYieldQty, recipeYieldUnit, [], directIngredients).direct;
+      blocks.push('<div class="recipe-view-step-card">' +
+        '<div class="recipe-view-step-head">' +
+          '<div class="recipe-view-step-info">' +
+            '<div class="recipe-view-step-title">Ingredientes avulsos</div>' +
+            '<div class="recipe-view-step-note">Itens que entram direto na receita, fora das bases reutilizáveis.</div>' +
+          '</div>' +
+          '<div class="recipe-view-step-cost">' + _fmtFichaMoney(directCost) + '</div>' +
         '</div>' +
-        list +
-        '</div>';
-    }).join('');
+        directList +
+        '</div>');
+    }
+    return blocks.length ? blocks.join('') : '<div class="recipe-view-empty">Nenhum ingrediente cadastrado.</div>';
   }
 
   function _fichaPackagingViewHtml(f) {
@@ -10334,6 +10433,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       window._fichaCompCount = i + 1;
       return _fichaComponentHtml(i, comp);
     }).join('');
+    var directIngredientRows = _normalizeFichaDirectIngredients(f).map(function (ing) {
+      var idx = window._fichaIngCount || 0;
+      window._fichaIngCount = idx + 1;
+      return _fichaIngRow(idx, 'direct', ing.insumoId, ing.rawQty || ing.qty || 0);
+    }).join('');
     var packagingRows = _normalizeFichaPackaging(f).map(function (item, i) {
       window._fichaPkgCount = i + 1;
       return _fichaPackagingRow(i, item.insumoId, item.qty || '');
@@ -10375,6 +10479,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-component-head{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr) 34px;gap:10px;align-items:end;margin-bottom:12px;}' +
       '.recipe-component-base{display:grid;grid-template-columns:minmax(220px,1fr) minmax(130px,.4fr) minmax(180px,.58fr);gap:10px;align-items:end;background:#FFFCF8;border:1px solid #EAE4DA;border-radius:14px;padding:10px;margin-bottom:12px;}' +
       '.recipe-component-base label{display:flex;align-items:center;gap:8px;font-size:12px;color:#1F1F1F;font-weight:500;line-height:1.35;}' +
+      '.recipe-loose-ingredients{background:#fff;border:1px solid #EAE4DA;border-radius:16px;padding:13px;margin-top:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
+      '.recipe-loose-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}' +
+      '.recipe-loose-title{font-size:12px;font-weight:800;color:#1F1F1F;line-height:1.25;}' +
+      '.recipe-loose-desc{font-size:11.5px;color:#6F6860;line-height:1.42;margin-top:3px;}' +
       '.recipe-ingredient-row{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(86px,.42fr) minmax(62px,.28fr) minmax(72px,.32fr) minmax(82px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
       '.recipe-packaging-row{display:grid;grid-template-columns:minmax(230px,1.25fr) minmax(120px,.42fr) minmax(70px,.28fr) minmax(92px,.34fr) 30px;gap:8px;align-items:center;padding:9px;border:1px solid #EAE4DA;border-radius:12px;background:#FFFCF8;box-shadow:none;}' +
       '.recipe-ingredient-picker{position:relative;}' +
@@ -10467,6 +10575,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
       '<div id="fc-components" style="display:flex;flex-direction:column;gap:12px;">' + componentRows + '</div>' +
       '<button type="button" onclick="Modules.Catalogo._addFichaComponent()" class="recipe-dashed-btn recipe-add-stage-btn">+ Adicionar base</button>' +
+      '<div class="recipe-loose-ingredients">' +
+        '<div class="recipe-loose-head"><div><div class="recipe-loose-title">Ingredientes avulsos da receita</div><div class="recipe-loose-desc">Use quando um ingrediente entra direto nesta receita e não pertence a uma base reutilizável.</div></div></div>' +
+        '<div id="fc-direct-ingredients-list" style="display:flex;flex-direction:column;gap:8px;">' + directIngredientRows + '</div>' +
+        '<button type="button" onclick="Modules.Catalogo._addFichaDirectIngredient()" class="recipe-dashed-btn">+ Adicionar ingrediente avulso</button>' +
+      '</div>' +
       '</div>' +
 
       '<div class="recipe-modal-card recipe-modal-packaging">' +
@@ -10710,6 +10823,98 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }).join('');
   }
 
+  function _recipeComponentSearchText(value) {
+    var text = String(value || '').toLowerCase();
+    if (text.normalize) text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  function _recipeComponentNameMeta(name) {
+    var comp = _recipeComponentByName(name) || {};
+    var yieldQty = _parseFichaNum(comp.yieldQuantity || comp.baseYieldQuantity || comp.stockYieldQuantity || 0);
+    var yieldUnit = comp.yieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
+    var parts = [];
+    if (yieldQty > 0 || yieldUnit) parts.push('Rendimento: ' + (yieldQty > 0 ? _displayFichaQty(yieldQty) + ' ' : '') + (yieldUnit || ''));
+    var ingCount = (comp.ingredients || []).length;
+    if (ingCount) parts.push(ingCount + ' ingrediente' + (ingCount === 1 ? '' : 's'));
+    return parts.join(' · ') || 'Base cadastrada para reutilizar em receitas.';
+  }
+
+  function _filterRecipeComponentOptions(compIdx, query) {
+    var dropdown = document.getElementById('fc-comp-dropdown-' + compIdx);
+    if (!dropdown) return;
+    var hidden = document.querySelector('[data-comp-name="' + compIdx + '"]');
+    var current = hidden ? String(hidden.value || '').trim() : '';
+    var typed = String(query || '').trim();
+    if (hidden && typed !== current) hidden.value = '';
+    var search = _recipeComponentSearchText(typed);
+    var names = _recipeComponentNames(current);
+    var matches = names.filter(function (name) {
+      return !search || _recipeComponentSearchText(name).indexOf(search) >= 0;
+    }).slice(0, 40);
+    if (!matches.length) {
+      dropdown.innerHTML = '<div class="recipe-ingredient-option">' +
+        '<div class="recipe-ingredient-option-name">Nenhuma base encontrada</div>' +
+        '<div class="recipe-ingredient-option-meta">Cadastre uma nova base ou ajuste a busca.</div>' +
+        '</div>';
+    } else {
+      dropdown.innerHTML = matches.map(function (name) {
+        return '<div class="recipe-ingredient-option" data-comp-option-name="' + _esc(name) + '" onclick="Modules.Catalogo._selectRecipeComponentOption(' + compIdx + ', this)">' +
+          '<div class="recipe-ingredient-option-name">' + _esc(name) + '</div>' +
+          '<div class="recipe-ingredient-option-meta">' + _esc(_recipeComponentNameMeta(name)) + '</div>' +
+          '</div>';
+      }).join('');
+    }
+    dropdown.style.display = 'block';
+    _syncRecipeComponentUsageUnit(compIdx);
+    _updateFichaCost();
+  }
+
+  function _selectRecipeComponentOption(compIdx, optionEl) {
+    var name = optionEl ? String(optionEl.getAttribute('data-comp-option-name') || '').trim() : '';
+    var hidden = document.querySelector('[data-comp-name="' + compIdx + '"]');
+    var display = document.querySelector('[data-comp-display="' + compIdx + '"]');
+    var dropdown = document.getElementById('fc-comp-dropdown-' + compIdx);
+    if (hidden) hidden.value = name;
+    if (display) display.value = name;
+    if (dropdown) dropdown.style.display = 'none';
+    _applyRecipeComponentTemplate(compIdx, false);
+  }
+
+  function _commitRecipeComponentSearch(compIdx) {
+    var hidden = document.querySelector('[data-comp-name="' + compIdx + '"]');
+    var display = document.querySelector('[data-comp-display="' + compIdx + '"]');
+    if (!hidden || !display) return;
+    var typed = String(display.value || '').trim();
+    if (!typed) {
+      if (hidden.value) {
+        hidden.value = '';
+        _syncRecipeComponentUsageUnit(compIdx);
+        _updateFichaCost();
+      }
+      return;
+    }
+    if (String(hidden.value || '').trim() === typed) return;
+    var typedKey = _recipeComponentSearchText(typed);
+    var exact = _recipeComponentNames(typed).find(function (name) {
+      return _recipeComponentSearchText(name) === typedKey;
+    });
+    if (exact) {
+      hidden.value = exact;
+      display.value = exact;
+      _applyRecipeComponentTemplate(compIdx, false);
+      return;
+    }
+    hidden.value = '';
+    _syncRecipeComponentUsageUnit(compIdx);
+    _updateFichaCost();
+  }
+
+  function _hideRecipeComponentOptions(compIdx) {
+    var dropdown = document.getElementById('fc-comp-dropdown-' + compIdx);
+    if (dropdown) dropdown.style.display = 'none';
+  }
+
   function _recipeUnitOptionsHtml(selected) {
     var fallback = [
       { name: 'Quilograma', symbol: 'kg' },
@@ -10857,13 +11062,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _refreshRecipeComponentSelects(selectedName, targetIdx) {
-    var selects = [].slice.call(document.querySelectorAll('[data-comp-name]'));
-    selects.forEach(function (select) {
-      var current = select.value || '';
-      var compIdx = select.getAttribute('data-comp-name');
+    var fields = [].slice.call(document.querySelectorAll('[data-comp-name]'));
+    fields.forEach(function (field) {
+      var current = field.value || '';
+      var compIdx = field.getAttribute('data-comp-name');
       var nextValue = String(compIdx) === String(targetIdx) ? selectedName : current;
-      select.innerHTML = _recipeComponentOptionsHtml(nextValue);
-      select.value = nextValue;
+      field.value = nextValue;
+      var display = document.querySelector('[data-comp-display="' + compIdx + '"]');
+      if (display) display.value = nextValue;
     });
     if (targetIdx != null && targetIdx !== undefined) _applyRecipeComponentTemplate(targetIdx, false);
     else _updateFichaCost();
@@ -10888,10 +11094,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var componentDefaults = _recipeComponentStageDefaults((comp.name || '').trim());
     var lockedUsageUnit = componentDefaults.stageYieldUnit || '';
     var usageUnit = lockedUsageUnit || comp.stageUsageUnit || comp.usageUnit || comp.unitPerUnit || comp.baseUsageUnit || comp.stageYieldUnit || comp.baseYieldUnit || comp.stockYieldUnit || '';
+    var componentName = (comp.name || '').trim();
     return '<div id="fc-comp-' + compIdx + '" class="fc-component recipe-component" data-comp-idx="' + compIdx + '">' +
       '<div class="recipe-stage-guidance"><strong>Escolha uma base já cadastrada.</strong> Se essa mesma base aparece em outras receitas, use exatamente a mesma base para manter a produção conectada.</div>' +
       '<div class="recipe-component-head">' +
-      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Base reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ base</button></div><div class="supplier-field-control"><select data-comp-name="' + compIdx + '" onchange="Modules.Catalogo._applyRecipeComponentTemplate(' + compIdx + ', false)">' + _recipeComponentOptionsHtml((comp.name || '').trim()) + '</select></div><div class="recipe-component-hint">Exemplo: Recheio de frango, Massa de coxinha, Creme branco ou Molho especial.</div></div>' +
+      '<div><div class="recipe-inline-label"><label style="' + _fichaLbl() + 'margin-bottom:0;">Base reutilizável *</label><button type="button" class="recipe-inline-add" onclick="Modules.Catalogo._openRecipeComponentCreateModal(' + compIdx + ')">+ base</button></div><div class="recipe-ingredient-picker"><div class="supplier-field-control"><input type="text" data-comp-display="' + compIdx + '" value="' + _esc(componentName) + '" placeholder="Selecionar base..." autocomplete="off" onfocus="Modules.Catalogo._filterRecipeComponentOptions(' + compIdx + ', this.value)" oninput="Modules.Catalogo._filterRecipeComponentOptions(' + compIdx + ', this.value)" onblur="setTimeout(function(){ Modules.Catalogo._commitRecipeComponentSearch(' + compIdx + '); Modules.Catalogo._hideRecipeComponentOptions(' + compIdx + '); }, 180)"><input type="hidden" data-comp-name="' + compIdx + '" value="' + _esc(componentName) + '"></div><div id="fc-comp-dropdown-' + compIdx + '" class="recipe-ingredient-dropdown"></div></div><div class="recipe-component-hint">Digite para buscar e selecione a base usada nesta receita.</div></div>' +
       '<div><label style="' + _fichaLbl() + '">Anotação desta receita</label><div class="supplier-field-control"><input data-comp-note="' + compIdx + '" value="' + _esc(comp.note || '') + '" placeholder="Ex: usar fria ou bater antes de misturar"></div><div class="recipe-component-hint">Use só para orientação desta receita. Não altera a base reaproveitada.</div></div>' +
       '<button type="button" onclick="Modules.Catalogo._removeFichaComponent(' + compIdx + ')" title="Remover base desta receita" style="width:34px;height:34px;border-radius:9px;border:1px solid #E6E1D8;background:#fff;color:#B42318;cursor:pointer;font-size:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);">✕</button>' +
       '</div>' +
@@ -11109,6 +11316,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _updateFichaCost();
   }
 
+  function _addFichaDirectIngredient() {
+    var container = document.getElementById('fc-direct-ingredients-list');
+    if (!container) return;
+    var idx = window._fichaIngCount || 0;
+    window._fichaIngCount = idx + 1;
+    container.insertAdjacentHTML('beforeend', _fichaIngRow(idx, 'direct', '', 0));
+    _updateFichaCost();
+  }
+
   function _removeFichaIng(idx) {
     var el = document.getElementById('fc-ing-' + idx);
     if (el) el.remove();
@@ -11234,6 +11450,21 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         }
       });
     });
+    var directContainer = document.getElementById('fc-direct-ingredients-list');
+    if (directContainer) directContainer.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
+      var idx = sel.dataset.ingIdx;
+      var insId = sel.value;
+      var qtyEl = directContainer.querySelector('[data-ing-qty="' + idx + '"]');
+      var qty = _parseFichaNum(qtyEl ? qtyEl.value : 0);
+      var ins = insId ? _itensCusto.find(function (i) { return i.id === insId; }) : null;
+      var costEl = document.getElementById('fc-ing-cost-' + idx);
+      if (!ins || !qty) { if (costEl) costEl.textContent = '—'; return; }
+      var calc = _calcFichaIng(ins, qty);
+      var target = _recipeCostTarget('Ingredientes avulsos', ins);
+      if (target === 'packaging') packagingCost += calc.totalCost;
+      else ingredientCost += calc.totalCost;
+      if (costEl) costEl.textContent = calc.totalCost > 0 ? _fmtFichaMoney(calc.totalCost) : '—';
+    });
     var packagingContainer = document.getElementById('fc-packaging-list');
     (packagingContainer || document).querySelectorAll('[data-pkg-idx]').forEach(function (hidden) {
       var idx = hidden.dataset.pkgIdx;
@@ -11344,9 +11575,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var container = document.getElementById('fc-components');
     var ingredients = [];
     var packagingItems = [];
+    var directIngredients = [];
     var components = [];
     var missingComponentName = false;
     var invalidIngredientRow = false;
+    var invalidDirectIngredientRow = false;
     var invalidPackagingRow = false;
     if (container) {
       container.querySelectorAll('.fc-component').forEach(function (compEl) {
@@ -11450,6 +11683,40 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         }
       });
     }
+    var directContainer = document.getElementById('fc-direct-ingredients-list');
+    if (directContainer) directContainer.querySelectorAll('[data-ing-idx]').forEach(function (sel) {
+      var idx = sel.dataset.ingIdx;
+      var insumoId = sel.value;
+      var qtyEl = directContainer.querySelector('[data-ing-qty="' + idx + '"]');
+      var qty = _parseFichaNum(qtyEl ? qtyEl.value : 0);
+      if (!insumoId && qty > 0) { invalidDirectIngredientRow = true; return; }
+      if (insumoId && qty <= 0) { invalidDirectIngredientRow = true; return; }
+      if (!insumoId) return;
+      var ins = _itensCusto.find(function (i) { return i.id === insumoId; });
+      var calc = _calcFichaIng(ins, qty);
+      var itemClass = ins ? (ins.classe || ins.itemClass || '') : '';
+      directIngredients.push({
+        insumoId: insumoId,
+        supplyName: ins ? ins.nome : '',
+        itemClass: itemClass || 'insumo',
+        classe: itemClass || 'insumo',
+        costType: itemClass === 'embalagem' ? 'embalagem' : 'insumo',
+        qty: qty,
+        unit: ins ? (ins.unidade_base || '') : '',
+        lossPercent: calc.lossPercent,
+        grossQuantityCalculated: calc.grossQuantity,
+        unitCost: _roundFichaCost(calc.unitCost, 6),
+        totalCost: _roundFichaCost(calc.totalCost, 4),
+        rawQty: qty,
+        rawGrossQuantity: calc.grossQuantity,
+        rawTotalCost: _roundFichaCost(calc.totalCost, 4),
+        directIngredient: true,
+        looseIngredient: true,
+        componentName: 'Ingredientes avulsos',
+        recipeYieldQuantity: yieldQty,
+        recipeYieldUnit: yieldUnit
+      });
+    });
     var packagingContainer = document.getElementById('fc-packaging-list');
     (packagingContainer || document).querySelectorAll('[data-pkg-idx]').forEach(function (hidden) {
       var idx = hidden.dataset.pkgIdx;
@@ -11483,6 +11750,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     });
     if (missingComponentName) { UI.toast('Selecione o componente da receita', 'error'); return; }
     if (invalidIngredientRow) { UI.toast('Complete o ingrediente e a quantidade, ou remova a linha vazia.', 'error'); return; }
+    if (invalidDirectIngredientRow) { UI.toast('Complete o ingrediente avulso e a quantidade, ou remova a linha vazia.', 'error'); return; }
     if (invalidPackagingRow) { UI.toast('Complete a embalagem e a quantidade, ou remova a linha vazia.', 'error'); return; }
     components.forEach(function (comp) {
       var ratio = _parseFichaNum(comp.stageUsageRatio || 1) || 1;
@@ -11500,8 +11768,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     packagingItems.forEach(function (item) {
       ingredients.push(Object.assign({ componentName: 'Embalagens da receita' }, item));
     });
+    directIngredients.forEach(function (item) {
+      ingredients.push(Object.assign({ componentName: 'Ingredientes avulsos', directIngredient: true, looseIngredient: true }, item));
+    });
     if (ingredients.length === 0) { UI.toast('Adicione pelo menos 1 ingrediente ou embalagem', 'error'); return; }
-    var componentCosts = _calcFichaComponentCosts(components, yieldQty, yieldUnit, packagingItems);
+    var componentCosts = _calcFichaComponentCosts(components, yieldQty, yieldUnit, packagingItems, directIngredients);
     var indirectCostInfo = _getIndirectCostInfo();
     var indirectCostPercent = indirectCostInfo.percent;
     var indirectCost = componentCosts.direct * (indirectCostPercent / 100);
@@ -11518,6 +11789,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       unitWeightGrams: unitWeightG || null,
       totalProducedGrams: (unitWeightG && (yieldUnit === 'unidades' || yieldUnit === 'porções')) ? yieldQty * unitWeightG : null,
       components: components,
+      directIngredients: directIngredients,
+      looseIngredients: directIngredients,
       packagingItems: packagingItems,
       packaging: packagingItems,
       ingredients: ingredients,
@@ -11950,6 +12223,33 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         recipeYieldUnit: yieldUnit
       };
     });
+    var directIngredients = _normalizeFichaDirectIngredients(source).map(function (ing) {
+      var ins = _itensCusto.find(function (stockItem) { return String(stockItem.id) === String(ing.insumoId || ing.itemId || ''); });
+      var qty = _parseFichaNum(ing.rawQty || ing.qty || ing.quantity || 0);
+      var calc = ins ? _calcFichaIng(ins, qty) : null;
+      var itemClass = (ins && (ins.classe || ins.itemClass)) || ing.itemClass || ing.classe || 'insumo';
+      return {
+        insumoId: ing.insumoId || ing.itemId || '',
+        supplyName: (ins && ins.nome) || ing.supplyName || ing.name || '',
+        itemClass: itemClass,
+        classe: itemClass,
+        costType: itemClass === 'embalagem' ? 'embalagem' : 'insumo',
+        qty: qty,
+        unit: (ins && (ins.unidade_base || ins.unidadeBase)) || ing.unit || '',
+        lossPercent: calc ? calc.lossPercent : _parseFichaNum(ing.lossPercent || 0),
+        grossQuantityCalculated: calc ? calc.grossQuantity : _parseFichaNum(ing.grossQuantityCalculated || ing.grossQuantity || qty),
+        unitCost: calc ? calc.unitCost : _parseFichaNum(ing.unitCost || 0),
+        totalCost: calc ? calc.totalCost : _parseFichaNum(ing.totalCost || 0),
+        rawQty: qty,
+        rawGrossQuantity: calc ? calc.grossQuantity : _parseFichaNum(ing.rawGrossQuantity || ing.grossQuantityCalculated || ing.grossQuantity || qty),
+        rawTotalCost: calc ? calc.totalCost : _parseFichaNum(ing.rawTotalCost || ing.totalCost || 0),
+        directIngredient: true,
+        looseIngredient: true,
+        componentName: 'Ingredientes avulsos',
+        recipeYieldQuantity: yieldQty,
+        recipeYieldUnit: yieldUnit
+      };
+    });
     var ingredients = [];
     components.forEach(function (comp) {
       var ratio = _parseFichaNum(comp.stageUsageRatio || 1) || 1;
@@ -11967,7 +12267,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     packagingItems.forEach(function (item) {
       ingredients.push(Object.assign({ componentName: 'Embalagens da receita' }, item));
     });
-    var componentCosts = _calcFichaComponentCosts(components, yieldQty, yieldUnit, packagingItems);
+    directIngredients.forEach(function (item) {
+      ingredients.push(Object.assign({ componentName: 'Ingredientes avulsos', directIngredient: true, looseIngredient: true }, item));
+    });
+    var componentCosts = _calcFichaComponentCosts(components, yieldQty, yieldUnit, packagingItems, directIngredients);
     var indirectCostInfo = _getIndirectCostInfo();
     var indirectCostPercent = indirectCostInfo.percent;
     var indirectCost = componentCosts.direct * (indirectCostPercent / 100);
@@ -11986,6 +12289,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     clone.id = cloneId;
     clone.name = cloneName;
     clone.components = components;
+    clone.directIngredients = directIngredients;
+    clone.looseIngredients = directIngredients;
     clone.packagingItems = packagingItems;
     clone.packaging = packagingItems;
     clone.ingredients = ingredients;
@@ -12142,11 +12447,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _openItemCustoModal: _openItemCustoModal, _saveItemCusto: _saveItemCusto, _deleteItemCusto: _deleteItemCusto,
     _filterItensCusto: _filterItensCusto, _setItensCustoFilter: _setItensCustoFilter, _onItemTipoChange: _onItemTipoChange,
     _openFichaViewModal: _openFichaViewModal, _editFichaFromView: _editFichaFromView,
-    _openFichaModal: _openFichaModal, _addFichaComponent: _addFichaComponent, _removeFichaComponent: _removeFichaComponent, _addFichaIng: _addFichaIng, _removeFichaIng: _removeFichaIng,
+    _openFichaModal: _openFichaModal, _addFichaComponent: _addFichaComponent, _removeFichaComponent: _removeFichaComponent, _addFichaIng: _addFichaIng, _addFichaDirectIngredient: _addFichaDirectIngredient, _removeFichaIng: _removeFichaIng,
     _addFichaPackaging: _addFichaPackaging, _removeFichaPackaging: _removeFichaPackaging,
     _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp, _toggleFichaPackagingHelp: _toggleFichaPackagingHelp,
     _openRecipeCategoryCreateModal: _openRecipeCategoryCreateModal, _saveRecipeCategoryFromModal: _saveRecipeCategoryFromModal,
-    _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal, _applyRecipeComponentTemplate: _applyRecipeComponentTemplate,
+    _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal, _applyRecipeComponentTemplate: _applyRecipeComponentTemplate, _filterRecipeComponentOptions: _filterRecipeComponentOptions, _selectRecipeComponentOption: _selectRecipeComponentOption, _commitRecipeComponentSearch: _commitRecipeComponentSearch, _hideRecipeComponentOptions: _hideRecipeComponentOptions,
     _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onFichaUnitWeightInput: _onFichaUnitWeightInput, _onYieldUnitChange: _onYieldUnitChange,
     _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _selectFichaIngredient: _selectFichaIngredient,
     _filterFichaPackagingOptions: _filterFichaPackagingOptions, _selectFichaPackaging: _selectFichaPackaging, _onFichaPackagingChange: _onFichaPackagingChange,

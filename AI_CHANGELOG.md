@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: ingredientes avulsos na ficha
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, adicionei a seção `Ingredientes avulsos da receita` dentro do card `Bases e ingredientes`.
+- A usuária pode incluir ingredientes que entram direto na receita, sem precisar criar uma base reutilizável só para isso.
+- Esses itens entram no custo em tempo real, no salvamento, na duplicação da receita, nos detalhes da receita e na leitura de disponibilidade/baixa da cadeia de estoque.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
+## 2026-06-06 — Receitas: busca no campo de base reutilizável
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, o campo `Base reutilizável *` passou a juntar busca e seleção no mesmo campo.
+- A usuária pode digitar para filtrar as bases cadastradas e selecionar a base correta na própria lista do campo.
+- Mantive o valor interno usado pelo salvamento e pelos cálculos, para preservar ingredientes herdados, custo e proporção da base na receita.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Receitas: custo por unidade em tempo real
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Editar Receita`, corrigi o `Custo por unidade` exibido no card `Unidade da ficha` para atualizar em tempo real junto com os demais cálculos.
