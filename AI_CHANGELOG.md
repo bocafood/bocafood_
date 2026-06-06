@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: desbloqueio financeiro após ajuste de importação
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A sincronização do pedido com o Financeiro agora recalcula a divergência entre o total importado da Glovo e a soma atual dos itens do pedido antes de criar a entrada financeira.
+- Enquanto os valores não batem, o pedido continua como pendente de ajuste e não envia entrada ao Financeiro.
+- Depois que a usuária ajusta itens, escolhas ou preços e a soma passa a bater com o total importado, a trava financeira é removida automaticamente no próximo salvamento do pedido.
+- Ajustei o card `Comissões, impostos e taxas` no detalhe do pedido para mostrar apenas um campo por cobrança, evitando duplicidade entre resumo e edição.
+- Em pedidos importados, comissão, imposto e outras taxas passam a ser editados como valores reais do marketplace, não como percentuais zerados.
+
 ## 2026-06-06 — Pedidos: taxas e ajuste financeiro na importação Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei o cache-buster de `pedidos.js` para garantir que o Admin carregue a regra nova da importação.

@@ -3831,6 +3831,50 @@ Modules.Pedidos = (function () {
     };
   }
 
+  function _orderItemsSubtotalValue(order) {
+    return +_orderItemsArray(order).reduce(function (sum, item) {
+      var qty = _num(item.qty != null ? item.qty : item.quantity != null ? item.quantity : 1) || 1;
+      var total = item.total != null ? item.total
+        : item.subtotal != null ? item.subtotal
+        : item.lineTotal != null ? item.lineTotal
+        : (_num(item.finalPrice != null ? item.finalPrice : item.price != null ? item.price : item.unitPrice) * qty);
+      return sum + _num(total);
+    }, 0).toFixed(2);
+  }
+
+  function _importSubtotalReviewPatch(order) {
+    order = order || {};
+    var importSource = _fold(_firstText(order.importSource, order.importedFrom, order.marketplace, ''));
+    var isImportedMarketplace = importSource.indexOf('glovo') >= 0 || !!order.importCsvGrossTotal || !!order.marketplaceGrossTotal;
+    if (!isImportedMarketplace) return null;
+    var gross = _num(order.importCsvGrossTotal != null ? order.importCsvGrossTotal : order.marketplaceGrossTotal);
+    if (!(gross > 0)) return null;
+    var systemSubtotal = _orderItemsSubtotalValue(order);
+    var diff = +(gross - systemSubtotal).toFixed(2);
+    var mismatch = Math.abs(diff) >= 0.01;
+    return {
+      subtotalOriginal: systemSubtotal,
+      subtotal: systemSubtotal,
+      subtotalFinal: systemSubtotal,
+      systemItemsSubtotal: systemSubtotal,
+      total: gross,
+      amount: gross,
+      grandTotal: gross,
+      manualAdjustmentValue: diff,
+      importPriceAdjustment: diff,
+      manualAdjustment: diff !== 0,
+      importSubtotalMismatch: mismatch,
+      importFinanceBlocked: mismatch,
+      importFinanceBlockReason: mismatch ? 'subtotal_glovo_diferente_soma_produtos' : '',
+      requiresImportReview: mismatch,
+      financeReviewPending: true,
+      requiresFinanceConfirmation: true,
+      financeMovementStatus: mismatch ? 'pendente_ajuste' : _firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''),
+      financeStatus: mismatch ? 'pendente_ajuste' : _firstText(order.financeStatus, order.financeMovementStatus, order.financialStatus, ''),
+      financialStatus: mismatch ? 'pendente_ajuste' : _firstText(order.financialStatus, order.financeStatus, order.financeMovementStatus, '')
+    };
+  }
+
   function _removeDetailItem(orderId, idx) {
     var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
     if (!order) return;
@@ -3866,6 +3910,9 @@ Modules.Pedidos = (function () {
     var channelCommissionInput = document.getElementById('detail-channel-commission-pct');
     var channelTaxInput = document.getElementById('detail-channel-tax-pct');
     var channelFixedInput = document.getElementById('detail-channel-fixed-fee');
+    var channelCommissionAmountInput = document.getElementById('detail-channel-commission-amount');
+    var channelTaxAmountInput = document.getElementById('detail-channel-tax-amount');
+    var channelFixedAmountInput = document.getElementById('detail-channel-fixed-amount');
     var scheduleDateSel = document.getElementById('detail-delivery-date');
     var scheduleTimeSel = document.getElementById('detail-delivery-time');
     if (!sel) return;
@@ -3907,7 +3954,28 @@ Modules.Pedidos = (function () {
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
     var channelFeePatch = null;
     var channelFeeChanged = false;
-    if (channelCommissionInput || channelTaxInput || channelFixedInput) {
+    if (channelCommissionAmountInput || channelTaxAmountInput || channelFixedAmountInput) {
+      var currentChannelCosts = _orderChannelFinancialPatch(order || {}, _detailPaymentInfo(order || {}).total);
+      var nextCommissionAmount = _num(channelCommissionAmountInput ? channelCommissionAmountInput.value : currentChannelCosts.channelCommissionAmount);
+      var nextTaxAmount = _num(channelTaxAmountInput ? channelTaxAmountInput.value : currentChannelCosts.channelCommissionTaxAmount);
+      var nextFixedAmount = _num(channelFixedAmountInput ? channelFixedAmountInput.value : currentChannelCosts.channelFixedFeeAmount);
+      var nextFeeTotal = +(nextCommissionAmount + nextTaxAmount + nextFixedAmount).toFixed(2);
+      channelFeeChanged = Math.abs(nextCommissionAmount - _num(currentChannelCosts.channelCommissionAmount)) > 0.001 ||
+        Math.abs(nextTaxAmount - _num(currentChannelCosts.channelCommissionTaxAmount)) > 0.001 ||
+        Math.abs(nextFixedAmount - _num(currentChannelCosts.channelFixedFeeAmount)) > 0.001;
+      if (channelFeeChanged) {
+        channelFeePatch = {
+          channelFeesManual: true,
+          channelFeeManual: true,
+          channelFeesEdited: true,
+          channelCommissionAmountManual: nextCommissionAmount,
+          channelCommissionTaxAmountManual: nextTaxAmount,
+          channelFixedFeeAmountManual: nextFixedAmount,
+          channelFeeTotalManual: nextFeeTotal,
+          channelFeesEditedAt: _nowIso()
+        };
+      }
+    } else if (channelCommissionInput || channelTaxInput || channelFixedInput) {
       var currentChannelCosts = _orderChannelFinancialPatch(order || {}, _detailPaymentInfo(order || {}).total);
       var nextCommissionPct = _num(channelCommissionInput ? channelCommissionInput.value : currentChannelCosts.channelCommissionPct);
       var nextTaxPct = _num(channelTaxInput ? channelTaxInput.value : currentChannelCosts.channelCommissionTaxPct);
@@ -9749,21 +9817,24 @@ Modules.Pedidos = (function () {
     var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0 || commissionAmount > 0 || commissionTaxAmount > 0 || fixedFeeAmount > 0;
     if (!hasRule) return '';
     var disabled = locked ? ' disabled' : '';
+    var useAmountInputs = costs.channelFeesManual || commissionAmount > 0 || commissionTaxAmount > 0 || fixedFeeAmount > 0;
+    var feeInputs = useAmountInputs
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:9px;align-items:end;min-width:0;max-width:100%;">' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-amount" type="number" step="0.01" value="' + _esc(String(commissionAmount)) + '"' + disabled + '></div></div>' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto da comissão</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-amount" type="number" step="0.01" value="' + _esc(String(commissionTaxAmount)) + '"' + disabled + '></div></div>' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Outras taxas</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-amount" type="number" step="0.01" value="' + _esc(String(fixedFeeAmount)) + '"' + disabled + '></div></div>' +
+        '</div>'
+      : '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:9px;align-items:end;min-width:0;max-width:100%;">' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"' + disabled + '></div></div>' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto da comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"' + disabled + '></div></div>' +
+          '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Outras taxas</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"' + disabled + '></div></div>' +
+        '</div>';
     return '<div style="margin-top:10px;border:1px solid #EFE4DC;border-radius:14px;background:#FFFCF8;padding:12px;display:grid;gap:11px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #F1E6DF;">' +
         '<div style="min-width:0;"><div style="font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.2;">Comissões, impostos e taxas</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(channelName) + ' · valores descontados pelo canal antes do repasse ao Financeiro.</div></div>' +
         '<span style="font-size:10px;font-weight:850;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;white-space:nowrap;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;min-width:0;max-width:100%;">' +
-        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Comissão</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(commissionAmount)) + '</strong></div>' +
-        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Imposto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(commissionTaxAmount)) + '</strong></div>' +
-        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Outras taxas</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(fixedFeeAmount)) + '</strong></div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;align-items:end;min-width:0;max-width:100%;">' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"' + disabled + '></div></div>' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto da comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"' + disabled + '></div></div>' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Outras taxas</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"' + disabled + '></div></div>' +
-      '</div>' +
+      feeInputs +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;min-width:0;max-width:100%;">' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Total bruto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1F1F1F;">' + _esc(UI.fmt(costs.grossOrderTotal || costs.grossAmount || 0)) + '</strong></div>' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Taxas calculadas</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(costs.channelFeeTotal || 0)) + '</strong></div>' +
@@ -9807,11 +9878,13 @@ Modules.Pedidos = (function () {
     orderId = String(orderId || '');
     if (!orderId) return Promise.resolve(false);
     order = order || {};
+    var importReviewPatch = _importSubtotalReviewPatch(order);
+    if (importReviewPatch) Object.assign(order, importReviewPatch);
     var orderStatus = String(order.status || order.orderStatus || '');
     var existingFinanceStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
     var currentPaymentState = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
     if (order.importFinanceBlocked || order.importSubtotalMismatch) {
-      return DB.update('orders', orderId, {
+      var blockedPatch = Object.assign({}, importReviewPatch || {}, {
         financeMovementId: '',
         financeMovementStatus: 'pendente_ajuste',
         financeStatus: 'pendente_ajuste',
@@ -9821,7 +9894,8 @@ Modules.Pedidos = (function () {
         importFinanceBlocked: true,
         importFinanceBlockReason: order.importFinanceBlockReason || 'subtotal_importado_divergente',
         financeMovementSyncedAt: _nowIso()
-      }).then(function () { return false; }).catch(function () { return false; });
+      });
+      return DB.update('orders', orderId, blockedPatch).then(function () { return false; }).catch(function () { return false; });
     }
     if (currentPaymentState === 'estornado' || currentPaymentState === 'estornada' || currentPaymentState === 'canceled' || currentPaymentState === 'cancelado') {
       return Promise.resolve(false);
@@ -9847,7 +9921,7 @@ Modules.Pedidos = (function () {
     var channelMeta = _orderChannelMeta(order);
     var incomeCategory = _orderIncomeCategoryMeta(order);
     function persistOrderFinancialPatch(extra) {
-      var patch = Object.assign({}, channelFinancial, extra || {}, {
+      var patch = Object.assign({}, channelFinancial, importReviewPatch || {}, extra || {}, {
         financeMovementSyncedAt: _nowIso()
       });
       Object.assign(order, patch);
