@@ -8398,7 +8398,25 @@ Modules.Pedidos = (function () {
     return _firstText(channel && channel.name, channel && channel.nome, channel && channel.label, channel && channel.key, '');
   }
 
+  function _refreshOrderImportMeta() {
+    return Promise.all([
+      DB.getAll('products').catch(function () { return _products || []; }),
+      DB.getAll('variantGroups').catch(function () { return _variantGroups || []; }),
+      DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null)
+    ]).then(function (res) {
+      _products = (res[0] || []).slice();
+      _variantGroups = (res[1] || []).slice();
+      if (res[2]) _canais = _normalizeCanais(res[2]);
+    });
+  }
+
   function _openOrderImportPreview() {
+    _refreshOrderImportMeta().then(_openOrderImportPreviewReady).catch(function () {
+      _openOrderImportPreviewReady();
+    });
+  }
+
+  function _openOrderImportPreviewReady() {
     var importableChannels = _importableSalesChannels();
     var glovo = importableChannels.find(function (channel) {
       return _channelAliasKey(_channelDisplayName(channel)) === 'glovo';
@@ -8453,16 +8471,18 @@ Modules.Pedidos = (function () {
     _renderOrderImportPreview();
     var reader = new FileReader();
     reader.onload = function (ev) {
-      try {
-        var parsed = _parseGlovoImportPreview(String(ev && ev.target && ev.target.result || ''), state.channel);
-        state.rows = parsed.rows;
-        state.parsed = parsed.preview;
-        state.error = parsed.error || '';
-      } catch (err) {
-        state.error = err && err.message ? err.message : 'Não foi possível ler o arquivo.';
-      }
-      window._orderImportPreviewState = state;
-      _renderOrderImportPreview();
+      _refreshOrderImportMeta().then(function () {
+        try {
+          var parsed = _parseGlovoImportPreview(String(ev && ev.target && ev.target.result || ''), state.channel);
+          state.rows = parsed.rows;
+          state.parsed = parsed.preview;
+          state.error = parsed.error || '';
+        } catch (err) {
+          state.error = err && err.message ? err.message : 'Não foi possível ler o arquivo.';
+        }
+        window._orderImportPreviewState = state;
+        _renderOrderImportPreview();
+      });
     };
     reader.onerror = function () {
       state.error = 'Não foi possível abrir o arquivo selecionado.';

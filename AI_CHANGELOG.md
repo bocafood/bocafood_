@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: prévia recarrega variantes atualizadas
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- A `Prévia de importação de pedidos` agora recarrega produtos, grupos de variantes e canais de venda antes de abrir o modal.
+- Ao selecionar um CSV, a prévia também recarrega esses dados antes de montar os vínculos e escolhas.
+- Isso evita usar variantes antigas em memória quando a usuária acabou de editar um grupo no Cardápio.
+- Atualizei o cache-buster de `pedidos.js` no Admin.
+
 ## 2026-06-06 — Cardápio: layout do modal de variantes
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Reorganizei o modal `Editar grupo` / `Novo grupo de variantes`.
