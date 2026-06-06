@@ -156,6 +156,8 @@ Modules.Receitas = (function () {
 
   function render(sub) {
     var normalized = _normalizeSub(sub || 'receitas');
+    var previousSub = _activeSub;
+    _handleSubLeave(previousSub, normalized.key);
     _activeSub = normalized.key;
     var app = document.getElementById('app');
     app.innerHTML = '<section class="module-page">' +
@@ -179,6 +181,7 @@ Modules.Receitas = (function () {
 
   function _switchSub(key) {
     key = _normalizeSub(key).key;
+    _handleSubLeave(_activeSub, key);
     _activeSub = key;
     _renderTabs();
     _syncSideNav();
@@ -193,6 +196,27 @@ Modules.Receitas = (function () {
 
   function _mainSub(key) {
     return String(key || '').split('/')[0] || 'receitas';
+  }
+
+  function _handleSubLeave(previous, next) {
+    var prevMain = _mainSub(previous);
+    var nextMain = _mainSub(next);
+    if (prevMain === 'etapas' && nextMain !== 'etapas') _resetRecipeComponentFilters();
+    if (prevMain === 'insumos' && nextMain !== 'insumos' && window.Modules && Modules.Compras && typeof Modules.Compras._resetItensFilters === 'function') {
+      Modules.Compras._resetItensFilters();
+    }
+  }
+
+  function _resetRecipeComponentFilters() {
+    _configSearch = '';
+    _recipeComponentPage.page = 1;
+  }
+
+  function destroy() {
+    if (_mainSub(_activeSub) === 'etapas') _resetRecipeComponentFilters();
+    if (_mainSub(_activeSub) === 'insumos' && window.Modules && Modules.Compras && typeof Modules.Compras._resetItensFilters === 'function') {
+      Modules.Compras._resetItensFilters();
+    }
   }
 
   function _configSub(key) {
@@ -4768,6 +4792,7 @@ Modules.Receitas = (function () {
     _deleteRecipeComponent: _deleteRecipeComponent,
     _setRecipeComponentPage: _setRecipeComponentPage,
     _setRecipeComponentPageSize: _setRecipeComponentPageSize,
+    _resetRecipeComponentFilters: _resetRecipeComponentFilters,
     _addProductionStageIngredient: _addProductionStageIngredient,
     _removeProductionStageIngredient: _removeProductionStageIngredient,
     _stageIngredientSearch: _stageIngredientSearch,
@@ -4781,6 +4806,7 @@ Modules.Receitas = (function () {
     _deleteIngredientCatalog: _deleteIngredientCatalog,
     _openUnitModal: _openUnitModal,
     _saveUnit: _saveUnit,
-    _deleteUnit: _deleteUnit
+    _deleteUnit: _deleteUnit,
+    destroy: destroy
   };
 })();

@@ -76,7 +76,9 @@ Modules.Compras = (function () {
   var UNIDADES_COMPRA_MAP = { g: ['g', 'kg'], kg: ['kg', 'g'], ml: ['ml', 'L'], L: ['L', 'ml'], un: ['un'], unidade: ['unidade'], pct: ['pct'] };
 
   function render(sub) {
+    var previousSub = _activeSub;
     _activeSub = sub || 'registros';
+    if (previousSub === 'itens' && _activeSub !== 'itens') _resetItensFiltersState();
     var app = document.getElementById('app');
     app.innerHTML = '<div id="compras-root" style="display:flex;flex-direction:column;height:100%;">' +
       '<div id="compras-content" style="flex:1;overflow-y:auto;padding:24px;"><div class="loading-inline">Carregando...</div></div>' +
@@ -85,12 +87,13 @@ Modules.Compras = (function () {
   }
 
   function _switchSub(key) {
-    _activeSub = key;
     _loadSub(key);
     Router.navigate('compras/' + key);
   }
 
   function _loadSub(key) {
+    if (_activeSub === 'itens' && key !== 'itens') _resetItensFiltersState();
+    _activeSub = key;
     var content = document.getElementById('compras-content');
     if (content) content.innerHTML = '<div class="loading-inline">Carregando...</div>';
     if (key === 'registros') return _renderRegistros();
@@ -2893,9 +2896,17 @@ Modules.Compras = (function () {
   }
 
   function _clearItensFilters() {
+    _resetItensFiltersState();
+    _paintItens();
+  }
+
+  function _resetItensFiltersState() {
     _itensFilters = { q: '', classe: '', categoria: '', fornecedor: '', ativo: '' };
     _pag.itens.page = 1;
-    _paintItens();
+  }
+
+  function destroy() {
+    if (_activeSub === 'itens') _resetItensFiltersState();
   }
 
   function _openItemModal(id) {
@@ -3031,7 +3042,7 @@ Modules.Compras = (function () {
       '</div>' +
       '</div>' +
       '<div class="item-modal-card item-modal-fiscal">' +
-        '<details class="item-fiscal-details" open>' +
+        '<details class="item-fiscal-details">' +
           '<summary>' +
             '<div class="item-modal-head"><span class="mi">request_quote</span><div><div style="' + sectionTitle + '">Dados fiscais da compra</div><div style="' + sectionHint + 'margin-bottom:0;">Padrões usados quando este item entra em uma compra.</div></div></div>' +
             '<span class="mi item-fiscal-chevron">expand_more</span>' +
@@ -5478,11 +5489,15 @@ Modules.Compras = (function () {
     el.value = _moneyFieldText(_parseMoneyField(el.value));
     _updateItemCurrentCostPreview();
   }
-  function _fmtCostValue(value) {
+  function _fmtCostValue(value, options) {
     var n = _num(value);
     if (!n) return '-';
+    if (options && options.compactLarge && Math.abs(n) >= 1000) {
+      return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
     if (Math.abs(n) >= 1) return UI.fmt(n);
-    return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+    var decimals = Math.abs(n) >= 0.01 ? 2 : 4;
+    return '€' + n.toLocaleString('pt-PT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
   function _normUnitKey(unit) {
     var u = String(unit || '').trim().toLowerCase();
@@ -5506,7 +5521,7 @@ Modules.Compras = (function () {
     var mainStyle = compact ? 'font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.25;' : '';
     var subStyle = compact ? 'font-size:11px;font-weight:600;color:#6F6860;line-height:1.25;margin-top:2px;' : '';
     return '<span class="item-current-cost-main" style="' + mainStyle + '">' + main + '</span>' +
-      (showKg ? '<span class="item-current-cost-sub" style="' + subStyle + '">Também ' + _fmtCostValue(kgCost) + '/kg</span>' : '');
+      (showKg ? '<span class="item-current-cost-sub" style="' + subStyle + '">Também ' + _fmtCostValue(kgCost, { compactLarge: true }) + '/kg</span>' : '');
   }
   function _updateItemCurrentCostPreview() {
     var el = document.getElementById('it-current-cost-preview');
@@ -5645,8 +5660,9 @@ Modules.Compras = (function () {
     _openSimpleModal: _openSimpleModal, _saveSimple: _saveSimple, _deleteSimple: _deleteSimple, _renderUnidades: _renderUnidades, _renderSimpleList: _renderSimpleList,
     _switchConfigSub: _switchConfigSub, _setSimpleListQ: _setSimpleListQ, _repaintSimpleTable: _repaintSimpleTable,
     _paintRegistrosTable: _paintRegistrosTable, _clearRegistrosFilters: _clearRegistrosFilters, _toggleRegistrosOrdem: _toggleRegistrosOrdem, _toggleCompraItensHelp: _toggleCompraItensHelp,
-    _clearItensFilters: _clearItensFilters,
+    _clearItensFilters: _clearItensFilters, _resetItensFilters: _resetItensFiltersState,
     _filterFornecedores: _filterFornecedores, _paintFornecedoresTable: _paintFornecedoresTable, _clearFornecedoresFilters: _clearFornecedoresFilters,
-    _initAddressAutocomplete: _initAddressAutocomplete
+    _initAddressAutocomplete: _initAddressAutocomplete,
+    destroy: destroy
   };
 })();

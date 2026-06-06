@@ -9733,8 +9733,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _filteredFichas() {
     var q = String((_fichaFilters && _fichaFilters.q) || '').trim().toLowerCase();
-    if (!q) return _fichas.slice();
-    return _fichas.filter(function (f) {
+    var list = !q ? _fichas.slice() : _fichas.filter(function (f) {
       var hay = [
         f.name,
         f.category,
@@ -9744,6 +9743,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         f.preparationMode
       ].join(' ').toLowerCase();
       return hay.indexOf(q) >= 0;
+    });
+    return list.sort(function (a, b) {
+      return String(a.name || '').localeCompare(String(b.name || ''), 'pt', { sensitivity: 'base' });
     });
   }
 
@@ -9980,7 +9982,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!comps.length && Array.isArray(f.ingredients) && f.ingredients.length) {
       comps = [{ name: 'Outro', note: '', ingredients: f.ingredients }];
     }
-    if (!comps.length) comps = [{ name: _defaultRecipeComponentName(), note: '', ingredients: [] }];
+    if (!comps.length) comps = [{ name: '', note: '', ingredients: [] }];
     return comps.map(function (comp) {
       return {
         name: comp.name || comp.componentName || '',
@@ -10294,6 +10296,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     window._fichaIngCount = 0;
     window._fichaCompCount = 0;
     window._fichaPkgCount = 0;
+    window._fcAutoUnitWeightValue = null;
+    window._fcUnitWeightManual = _parseFichaNum(f.unitWeightGrams || 0) > 0;
 
     var YIELD_UNITS = ['unidades', 'porções', 'gramas', 'kg', 'ml', 'litros'];
     var CONSERV = ['Ambiente', 'Refrigerado', 'Congelado'];
@@ -10344,7 +10348,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.recipe-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2;}' +
       '.recipe-modal-title{font-size:13px;font-weight:800;line-height:1.25;color:#1F1F1F;margin-bottom:3px;}' +
       '.recipe-modal-desc{font-size:12px;line-height:1.4;color:#8A7E7C;margin:0;max-width:760px;}' +
-      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}.recipe-stock-grid{grid-template-columns:minmax(130px,.38fr) minmax(130px,.38fr);justify-content:start;}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.68fr);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
+      '.recipe-modal-grid{display:grid;gap:11px 12px;align-items:end}.recipe-modal-main-grid{grid-template-columns:minmax(280px,1fr) minmax(180px,.55fr)}.recipe-yield-grid{grid-template-columns:minmax(140px,.42fr) minmax(190px,.62fr)}.recipe-stock-grid{grid-template-columns:minmax(130px,.38fr) minmax(130px,.38fr);justify-content:start;}#fc-peso-section{grid-template-columns:minmax(150px,.5fr) minmax(190px,.65fr)!important;}.recipe-production-top{margin-bottom:12px}.recipe-production-top .recipe-modal-head{margin-bottom:0}.recipe-production-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:12px;align-items:start}.recipe-production-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0}.recipe-production-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px}.recipe-production-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(96px,.42fr);gap:9px;align-items:end}.recipe-production-full{grid-column:1/-1}' +
       '.recipe-cost-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(260px,.72fr);gap:12px;align-items:stretch;}' +
       '.recipe-cost-group{background:#FFFCF8;border:1px solid #EADFD8;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);min-width:0;}' +
       '.recipe-cost-group-title{font-size:11px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:9px;}' +
@@ -10424,7 +10428,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '</div>' +
       '<div id="fc-peso-section" class="recipe-modal-grid" style="display:' + (showPeso ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:12px;margin-top:11px;">' +
       '<div><label style="' + _fichaLbl() + '">Peso por unidade (g)</label>' +
-      '<div class="supplier-field-control"><input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._updateFichaPesoTotal()"></div></div>' +
+      '<div class="supplier-field-control"><input id="fc-unit-weight" type="text" value="' + _esc(f.unitWeightGrams || '') + '" placeholder="Ex: 120" oninput="Modules.Catalogo._onFichaUnitWeightInput()"></div><div id="fc-unit-weight-note" style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:6px;"></div></div>' +
       '<div><label style="' + _fichaLbl() + '">Peso total produzido</label>' +
       '<div class="supplier-field-control"><input id="fc-peso-total" type="text" readonly placeholder="Calculado automaticamente" style="color:#8A7E7C;"></div></div>' +
       '</div>' +
@@ -10575,13 +10579,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     };
   }
 
-  function _componentHasRealIngredients(compIdx) {
+  function _componentHasManualIngredients(compIdx) {
     var compEl = document.getElementById('fc-comp-' + compIdx);
     if (!compEl) return false;
     return [].slice.call(compEl.querySelectorAll('[data-ing-idx]')).some(function (hidden) {
       var idx = hidden.getAttribute('data-ing-idx');
+      var rawQty = compEl.querySelector('[data-ing-raw-qty="' + idx + '"]');
       var qtyEl = compEl.querySelector('[data-ing-qty="' + idx + '"]');
-      return String(hidden.value || '').trim() || _moneyLike(qtyEl && qtyEl.value) > 0;
+      var hasValue = String(hidden.value || '').trim() || _moneyLike(qtyEl && qtyEl.value) > 0;
+      return hasValue && !rawQty;
     });
   }
 
@@ -10646,7 +10652,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       _updateFichaCost();
       return;
     }
-    if (!force && _componentHasRealIngredients(compIdx)) {
+    if (!force && _componentHasManualIngredients(compIdx)) {
       UI.toast('A base já tem ingredientes nesta receita. Mantive a edição manual.', 'info');
       _updateFichaCost();
       return;
@@ -10864,9 +10870,11 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _fichaComponentHtml(compIdx, comp) {
-    comp = comp || { name: _defaultRecipeComponentName(), note: '', ingredients: [] };
+    comp = comp || { name: '', note: '', ingredients: [] };
     var hasStageTemplate = !!_recipeComponentByName((comp.name || '').trim());
-    var rows = (comp.ingredients || []).map(function (ing) {
+    var templateIngredients = hasStageTemplate ? _recipeComponentTemplateIngredients((comp.name || '').trim()) : [];
+    var rowIngredients = templateIngredients.length ? templateIngredients : (comp.ingredients || []);
+    var rows = rowIngredients.map(function (ing) {
       var idx = window._fichaIngCount || 0;
       window._fichaIngCount = idx + 1;
       return _fichaIngRow(idx, compIdx, ing.insumoId, ing.rawQty || ing.qty || 0, { stageManaged: hasStageTemplate || ing.stageManaged || ing.stageUsageRatio > 0 });
@@ -11082,8 +11090,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (!container) return;
     var compIdx = window._fichaCompCount || 0;
     window._fichaCompCount = compIdx + 1;
-    container.insertAdjacentHTML('beforeend', _fichaComponentHtml(compIdx, { name: _defaultRecipeComponentName(), note: '', ingredients: [] }));
-    _applyRecipeComponentTemplate(compIdx, true);
+    container.insertAdjacentHTML('beforeend', _fichaComponentHtml(compIdx, { name: '', note: '', ingredients: [] }));
+    _updateFichaCost();
   }
 
   function _removeFichaComponent(compIdx) {
@@ -11107,9 +11115,88 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _updateFichaCost();
   }
 
+  function _recipeWeightUnitToGrams(qty, unit) {
+    var key = String(unit || '').trim().toLowerCase();
+    if (key === 'g' || key === 'gr' || key === 'grama' || key === 'gramas') return _parseFichaNum(qty);
+    if (key === 'kg' || key === 'kgs' || key === 'quilo' || key === 'kilo' || key === 'quilograma' || key === 'quilogramas') return _parseFichaNum(qty) * 1000;
+    return null;
+  }
+
+  function _recipeUnitWeightSuggestionFromModal() {
+    var yieldUnit = ((document.getElementById('fc-yield-unit') || {}).value) || 'unidades';
+    if (yieldUnit !== 'unidades' && yieldUnit !== 'porções') return { status: 'hidden', grams: 0, mixed: false };
+    var container = document.getElementById('fc-components');
+    if (!container) return { status: 'empty', grams: 0, mixed: false };
+    var grams = 0;
+    var hasWeight = false;
+    var mixed = false;
+    container.querySelectorAll('.fc-component').forEach(function (compEl) {
+      var compIdx = compEl.dataset.compIdx;
+      var qty = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
+      var unit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
+      if (!(qty > 0)) return;
+      var converted = _recipeWeightUnitToGrams(qty, unit);
+      if (converted == null) {
+        mixed = true;
+        return;
+      }
+      grams += converted;
+      hasWeight = true;
+    });
+    if (mixed) return { status: 'mixed', grams: grams, mixed: true };
+    if (!hasWeight || !(grams > 0)) return { status: 'empty', grams: 0, mixed: false };
+    return { status: 'ok', grams: _roundFichaCost(grams, 4), mixed: false };
+  }
+
+  function _setFichaUnitWeightNote(text, tone) {
+    var note = document.getElementById('fc-unit-weight-note');
+    if (!note) return;
+    note.textContent = text || '';
+    note.style.color = tone === 'warn' ? '#B45309' : '#6F6860';
+  }
+
+  function _syncFichaSuggestedUnitWeight() {
+    var input = document.getElementById('fc-unit-weight');
+    if (!input) return;
+    var suggestion = _recipeUnitWeightSuggestionFromModal();
+    var current = _parseFichaNum(input.value);
+    var previousAuto = _parseFichaNum(window._fcAutoUnitWeightValue || 0);
+    var matchesPreviousAuto = previousAuto > 0 && Math.abs(current - previousAuto) < 0.0001;
+    if (suggestion.status === 'ok') {
+      var canApply = !window._fcUnitWeightManual || !(current > 0) || matchesPreviousAuto;
+      if (canApply) {
+        input.value = _displayFichaQty(suggestion.grams);
+        window._fcAutoUnitWeightValue = suggestion.grams;
+        window._fcUnitWeightManual = false;
+        _setFichaUnitWeightNote('Calculado pela Qtd. usada por unidade das bases em gramas. Ajuste se o peso final mudar no preparo.');
+      } else {
+        _setFichaUnitWeightNote('Sugestão pelas bases: ' + _displayFichaQty(suggestion.grams) + ' g. Mantive o peso que você editou.', 'warn');
+      }
+      _refreshFichaPesoTotalDisplay();
+      return;
+    }
+    if (matchesPreviousAuto && !window._fcUnitWeightManual) {
+      input.value = '';
+      window._fcAutoUnitWeightValue = null;
+    }
+    if (suggestion.status === 'mixed') {
+      _setFichaUnitWeightNote('Complete manualmente: esta receita mistura bases em peso com bases em volume ou unidade.');
+    } else {
+      _setFichaUnitWeightNote('Preencha manualmente ou informe bases em g/kg para sugerir este peso.');
+    }
+    _refreshFichaPesoTotalDisplay();
+  }
+
+  function _onFichaUnitWeightInput() {
+    window._fcUnitWeightManual = true;
+    window._fcAutoUnitWeightValue = null;
+    _updateFichaPesoTotal();
+  }
+
   function _updateFichaCost() {
     var container = document.getElementById('fc-components');
     if (!container) return;
+    _syncFichaSuggestedUnitWeight();
     var yieldQty = _parseFichaNum((document.getElementById('fc-yield-qty') || {}).value) || 1;
     var yieldUnit = ((document.getElementById('fc-yield-unit') || {}).value) || 'unidades';
     var ingredientCost = 0;
@@ -11202,7 +11289,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
   }
 
-  function _updateFichaPesoTotal() {
+  function _refreshFichaPesoTotalDisplay() {
     var qty = _parseFichaNum((document.getElementById('fc-yield-qty') || {}).value);
     var unitWeight = _parseFichaNum((document.getElementById('fc-unit-weight') || {}).value);
     var pesoEl = document.getElementById('fc-peso-total');
@@ -11214,6 +11301,10 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         pesoEl.value = '';
       }
     }
+  }
+
+  function _updateFichaPesoTotal() {
+    _refreshFichaPesoTotalDisplay();
     _updateFichaCost();
   }
 
@@ -11221,6 +11312,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var unit = ((document.getElementById('fc-yield-unit') || {}).value) || 'unidades';
     var pesoSection = document.getElementById('fc-peso-section');
     if (pesoSection) pesoSection.style.display = (unit === 'unidades' || unit === 'porções') ? 'grid' : 'none';
+    if (unit !== 'unidades' && unit !== 'porções') _setFichaUnitWeightNote('');
     _updateFichaCost();
   }
 
@@ -12053,7 +12145,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _toggleFichaYieldHelp: _toggleFichaYieldHelp, _toggleFichaIngredientsHelp: _toggleFichaIngredientsHelp, _toggleFichaPackagingHelp: _toggleFichaPackagingHelp,
     _openRecipeCategoryCreateModal: _openRecipeCategoryCreateModal, _saveRecipeCategoryFromModal: _saveRecipeCategoryFromModal,
     _openRecipeComponentCreateModal: _openRecipeComponentCreateModal, _saveRecipeComponentFromModal: _saveRecipeComponentFromModal, _applyRecipeComponentTemplate: _applyRecipeComponentTemplate,
-    _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onYieldUnitChange: _onYieldUnitChange,
+    _updateFichaCost: _updateFichaCost, _updateFichaPesoTotal: _updateFichaPesoTotal, _onFichaUnitWeightInput: _onFichaUnitWeightInput, _onYieldUnitChange: _onYieldUnitChange,
     _onFichaIngChange: _onFichaIngChange, _filterFichaIngredientOptions: _filterFichaIngredientOptions, _selectFichaIngredient: _selectFichaIngredient,
     _filterFichaPackagingOptions: _filterFichaPackagingOptions, _selectFichaPackaging: _selectFichaPackaging, _onFichaPackagingChange: _onFichaPackagingChange,
     _onFichaImgChange: _onFichaImgChange,

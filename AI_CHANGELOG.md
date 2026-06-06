@@ -1,5 +1,46 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: proporção dos cards de produção
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, reduzi a largura do card `Conservação e validade` para ficar proporcional aos campos.
+- O card `Preparo` ganha mais espaço na seção `Produção`, deixando os textos de modo de preparo e cuidados mais confortáveis.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
+## 2026-06-06 — Receitas: troca de base atualiza ingredientes herdados
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- Corrigi o modal `Editar Receita` para diferenciar ingredientes herdados da base reutilizável de ingredientes manuais.
+- Ao trocar a `Base reutilizável *`, os ingredientes herdados da base anterior são substituídos pelos ingredientes da nova base selecionada.
+- Ao reabrir uma receita, quando a base reutilizável existe no cadastro de bases, a tela monta os ingredientes a partir dessa base cadastrada, evitando manter uma cópia antiga ou errada.
+
+## 2026-06-06 — Receitas: base reutilizável sem pré-seleção
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, o campo `Base reutilizável *` passa a abrir sem seleção, mostrando `Selecionar base...`.
+- O botão `+ Adicionar base` também cria uma linha vazia, sem puxar automaticamente a primeira base da lista.
+
+## 2026-06-06 — Receitas: sugestão de peso por unidade
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- No modal `Editar Receita`, o campo `Peso por unidade (g)` passa a ser sugerido automaticamente pela soma da `Qtd. usada por unidade` das bases quando todas as quantidades estão em `g` ou `kg`.
+- A sugestão converte `kg` para `g`, mantém o campo editável e não sobrescreve um valor alterado manualmente pela usuária.
+- Quando a receita mistura bases em peso com `ml`, `L`, unidade ou outra unidade sem conversão segura, o campo continua manual e mostra uma orientação curta.
+
+## 2026-06-06 — Receitas: lista em ordem alfabética
+- Arquivos alterados: `public/js/modules/catalogo.js`, `AI_CHANGELOG.md`.
+- A lista `Receitas de produção → Lista de receitas` agora é exibida em ordem alfabética pelo nome da receita, inclusive quando há busca ativa.
+
+## 2026-06-06 — Filtros: limpar ao sair das telas de itens e bases
+- Arquivos alterados: `public/js/modules/compras.js`, `public/js/modules/receitas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ao sair da tela `Ingredientes, Embalagens e Produtos` em Compras, os filtros da listagem de itens são limpos para a próxima entrada.
+- Ao sair da tela `Produção → Ingredientes e Embalagens`, o filtro herdado da listagem de itens também é limpo.
+- Ao sair de `Produção → Bases de produção`, a busca e a página da lista de bases voltam ao estado inicial.
+- Atualizei os cache-busters de `compras.js` e `receitas.js` no Admin.
+
+## 2026-06-06 — Compras: arredondamento do custo atual
+- Arquivos alterados: `public/js/modules/compras.js`, `AI_CHANGELOG.md`.
+- Ajustei a exibição do `Custo atual` no modal de ingrediente/embalagem/produto para não mostrar custos como `€0,444444/kg`.
+- O cálculo interno continua preservando a precisão; a tela passa a mostrar 2 casas para valores a partir de 1 cêntimo e 4 casas apenas para custos unitários muito pequenos.
+- O card `Dados fiscais da compra` passa a abrir fechado por padrão no modal de item.
+- O equivalente secundário `Também .../kg` deixa de mostrar centavos quando o valor é muito alto, evitando leituras como `Também €10.000,00/kg`.
+
 ## 2026-06-06 — Compras: dados fiscais em card próprio do item
 - Arquivos alterados: `public/js/modules/compras.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - No modal `Editar Ingrediente/Embalagem`, movi `IVA padrão (%)`, `Dedutível para IVA nas compras` e `Dedutível para IRPF nas compras` para o card expansível `Dados fiscais da compra`, logo depois de `Compra e custo`.
