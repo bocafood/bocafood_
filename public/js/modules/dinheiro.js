@@ -181,6 +181,7 @@ Modules.Dinheiro = (function () {
       indirectCost: cost.indirect,
       directCost: cost.direct,
       totalCost: cost.total,
+      costDetails: cost.details || { ingredients: [], packaging: [] },
       price: price,
       fees: fee.total,
       profit: profit,
@@ -200,6 +201,7 @@ Modules.Dinheiro = (function () {
     var ingredients = 0;
     var packaging = 0;
     var source = 'sem dados';
+    var details = { ingredients: [], packaging: [] };
 
     if (p.type === 'menu') {
       var menu = _menuCost(p);
@@ -207,12 +209,14 @@ Modules.Dinheiro = (function () {
       packaging = menu.packaging;
       direct = menu.direct;
       source = menu.source;
+      details = menu.details || details;
     } else if (_hasInternalComposition(p)) {
       var internal = _internalCompositionCost(p);
       ingredients = internal.ingredients;
       packaging = internal.packaging;
       direct = internal.direct;
       source = 'montagem interna';
+      details = internal.details || details;
     } else if (p.fichaId) {
       var recipe = _byId(_data.receitas, p.fichaId);
       var rc = _recipeDirectCost(recipe);
@@ -220,15 +224,18 @@ Modules.Dinheiro = (function () {
       packaging = rc.packaging;
       direct = rc.direct;
       source = recipe ? 'receita' : 'receita não encontrada';
+      details = rc.details || details;
     } else if (p.sourceItemId || p.produtoProntoId) {
       var item = _byId(_data.itens, p.sourceItemId || p.produtoProntoId);
       direct = _itemCost(item);
       ingredients = direct;
       source = item ? 'produto único' : 'produto único não encontrado';
+      if (direct > 0) details.ingredients.push({ label: item && item.nome || p.name || 'Produto pronto', value: direct });
     } else {
       direct = _num(p.directCost || p.cost || p.custo || 0);
       ingredients = direct;
       source = direct > 0 ? 'manual/legado' : 'sem dados';
+      if (direct > 0) details.ingredients.push({ label: 'Custo manual', value: direct });
     }
 
     var indirect = direct * (indirectInfo.percent / 100);
@@ -252,7 +259,8 @@ Modules.Dinheiro = (function () {
       indirectPercent: indirectInfo.percent,
       indirectMode: indirectInfo.modeUsed,
       source: source,
-      range: range
+      range: range,
+      details: _normalizeCostDetails(details, ingredients, packaging)
     };
   }
 
@@ -260,6 +268,7 @@ Modules.Dinheiro = (function () {
     var direct = 0;
     var ingredients = 0;
     var packaging = 0;
+    var details = { ingredients: [], packaging: [] };
     var minDirect = 0;
     var avgDirect = 0;
     var maxDirect = 0;
@@ -283,6 +292,7 @@ Modules.Dinheiro = (function () {
           direct += c.direct;
           ingredients += c.ingredients;
           packaging += c.packaging;
+          _appendCostDetails(details, c.details, 1);
           maxDirect += c.direct;
         });
       });
@@ -293,12 +303,13 @@ Modules.Dinheiro = (function () {
         direct += c.direct * qty;
         ingredients += c.ingredients * qty;
         packaging += c.packaging * qty;
+        _appendCostDetails(details, c.details, qty);
         minDirect += c.direct * qty;
         avgDirect += c.direct * qty;
         maxDirect += c.direct * qty;
       });
     }
-    return { direct: direct, ingredients: ingredients, packaging: packaging, source: source, range: { min: minDirect, avg: avgDirect, max: maxDirect } };
+    return { direct: direct, ingredients: ingredients, packaging: packaging, details: details, source: source, range: { min: minDirect, avg: avgDirect, max: maxDirect } };
   }
 
   function _averageMenuCost(optionCosts, count) {
@@ -327,7 +338,7 @@ Modules.Dinheiro = (function () {
   }
 
   function _internalCompositionCost(product) {
-    var result = { direct: 0, ingredients: 0, packaging: 0 };
+    var result = { direct: 0, ingredients: 0, packaging: 0, details: { ingredients: [], packaging: [] } };
     _internalCompositionItems(product).forEach(function (part) {
       var qty = _num(part.quantity != null ? part.quantity : (part.qty != null ? part.qty : 1)) || 1;
       var ref = String(part.ref || '').trim();
@@ -336,23 +347,31 @@ Modules.Dinheiro = (function () {
       var refId = pieces.slice(1).join(':');
       var stockType = String(part.stockItemType || part.itemClass || part.classe || '').toLowerCase();
       var id = part.itemId || refId || part.fichaTecnicaId || part.fichaId || part.sourceItemId || part.produtoProntoId || '';
-      var line = { direct: 0, ingredients: 0, packaging: 0 };
+      var line = { direct: 0, ingredients: 0, packaging: 0, details: { ingredients: [], packaging: [] } };
       if (refType === 'ficha' || stockType === 'produto_produzido' || part.fichaTecnicaId || part.fichaId) {
         line = _recipeDirectCost(_byId(_data.receitas, id));
         if (!line.direct) {
           line.direct = _num(part.unitCost);
           line.ingredients = line.direct;
+          line.details = { ingredients: [{ label: part.name || part.label || 'Receita', value: line.direct }], packaging: [] };
         }
       } else {
         var item = _byId(_data.itens, id);
         var cost = _itemCost(item) || _num(part.unitCost);
+        var label = part.name || part.label || item && item.nome || 'Item';
         line.direct = cost;
-        if (stockType === 'embalagem' || (item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem')) line.packaging = cost;
-        else line.ingredients = cost;
+        if (stockType === 'embalagem' || (item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem')) {
+          line.packaging = cost;
+          line.details.packaging.push({ label: label, value: cost });
+        } else {
+          line.ingredients = cost;
+          line.details.ingredients.push({ label: label, value: cost });
+        }
       }
       result.direct += line.direct * qty;
       result.ingredients += line.ingredients * qty;
       result.packaging += line.packaging * qty;
+      _appendCostDetails(result.details, line.details, qty);
     });
     return result;
   }
@@ -366,39 +385,126 @@ Modules.Dinheiro = (function () {
       var item = _byId(_data.itens, id);
       var direct = _itemCost(item);
       var packaging = item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem';
-      return { direct: direct, ingredients: packaging ? 0 : direct, packaging: packaging ? direct : 0 };
+      return {
+        direct: direct,
+        ingredients: packaging ? 0 : direct,
+        packaging: packaging ? direct : 0,
+        details: {
+          ingredients: packaging || !direct ? [] : [{ label: item && item.nome || 'Produto pronto', value: direct }],
+          packaging: packaging && direct ? [{ label: item && item.nome || 'Embalagem', value: direct }] : []
+        }
+      };
     }
-    return { direct: 0, ingredients: 0, packaging: 0 };
+    return { direct: 0, ingredients: 0, packaging: 0, details: { ingredients: [], packaging: [] } };
   }
 
   function _recipeDirectCost(recipe) {
-    if (!recipe) return { direct: 0, ingredients: 0, packaging: 0 };
+    if (!recipe) return { direct: 0, ingredients: 0, packaging: 0, details: { ingredients: [], packaging: [] } };
     var ingredients = _num(recipe.ingredientCost);
     var packaging = _num(recipe.packagingCost);
     var direct = _num(recipe.directCost);
+    var yieldQty = _recipeYieldQty(recipe);
+    var details = _recipeCostDetails(recipe, yieldQty);
     if (!direct && (ingredients || packaging)) direct = ingredients + packaging;
     if (!direct && Array.isArray(recipe.components)) {
+      details = { ingredients: [], packaging: [] };
       recipe.components.forEach(function (comp) {
         var target = String(comp.name || '').toLowerCase().indexOf('embal') >= 0 ? 'packaging' : 'ingredients';
+        var compIngredient = 0;
+        var compPackaging = 0;
         (comp.ingredients || []).forEach(function (ing) {
           var val = _num(ing.totalCost);
           if (!val) {
             var item = _byId(_data.itens, ing.insumoId);
             val = _itemCost(item) * _num(ing.grossQuantityCalculated || ing.qty || ing.quantity);
           }
-          if (target === 'packaging') packaging += val;
-          else ingredients += val;
+          if (target === 'packaging') {
+            packaging += val;
+            compPackaging += val;
+          } else {
+            ingredients += val;
+            compIngredient += val;
+          }
         });
+        if (compIngredient > 0) details.ingredients.push({ label: comp.name || 'Base de produção', value: compIngredient / yieldQty });
+        if (compPackaging > 0) details.packaging.push({ label: comp.name || 'Embalagem', value: compPackaging / yieldQty });
       });
       direct = ingredients + packaging;
     }
-    var yieldQty = _recipeYieldQty(recipe);
     var baseIngredients = ingredients || direct;
     return {
       direct: direct / yieldQty,
       ingredients: baseIngredients / yieldQty,
-      packaging: packaging / yieldQty
+      packaging: packaging / yieldQty,
+      details: _normalizeCostDetails(details, baseIngredients / yieldQty, packaging / yieldQty)
     };
+  }
+
+  function _recipeCostDetails(recipe, yieldQty) {
+    var details = { ingredients: [], packaging: [] };
+    var breakdown = Array.isArray(recipe.componentCostBreakdown) ? recipe.componentCostBreakdown : [];
+    breakdown.forEach(function (item) {
+      var label = item.name || 'Base de produção';
+      var ingredient = _num(item.ingredientCost != null ? item.ingredientCost : item.appliedCost);
+      var pack = _num(item.packagingCost);
+      if (ingredient > 0) details.ingredients.push({ label: label, value: ingredient / yieldQty });
+      if (pack > 0) details.packaging.push({ label: label, value: pack / yieldQty });
+    });
+    (recipe.packagingItems || recipe.packaging || recipe.embalagens || []).forEach(function (item) {
+      var value = _num(item.totalCost || item.rawTotalCost);
+      if (!value) {
+        var ins = _byId(_data.itens, item.insumoId || item.itemId || item.packagingId || '');
+        value = _itemCost(ins) * _num(item.grossQuantityCalculated || item.qty || item.quantity || 0);
+      }
+      if (value > 0) details.packaging.push({ label: item.supplyName || item.name || 'Embalagem', value: value / yieldQty });
+    });
+    if (!breakdown.length) {
+      (recipe.directIngredients || recipe.looseIngredients || []).forEach(function (item) {
+        var value = _num(item.totalCost || item.rawTotalCost);
+        if (!value) {
+          var ins = _byId(_data.itens, item.insumoId || item.itemId || '');
+          value = _itemCost(ins) * _num(item.grossQuantityCalculated || item.qty || item.quantity || 0);
+        }
+        if (value > 0) details.ingredients.push({ label: item.supplyName || item.name || 'Ingrediente avulso', value: value / yieldQty });
+      });
+    }
+    return details;
+  }
+
+  function _appendCostDetails(target, source, factor) {
+    target = target || { ingredients: [], packaging: [] };
+    source = source || { ingredients: [], packaging: [] };
+    factor = _num(factor || 1) || 1;
+    ['ingredients', 'packaging'].forEach(function (key) {
+      (source[key] || []).forEach(function (item) {
+        var value = _num(item.value) * factor;
+        if (value > 0) target[key].push({ label: item.label || 'Item', value: value });
+      });
+    });
+    return target;
+  }
+
+  function _normalizeCostDetails(details, ingredientTotal, packagingTotal) {
+    details = details || { ingredients: [], packaging: [] };
+    var normalized = { ingredients: [], packaging: [] };
+    ['ingredients', 'packaging'].forEach(function (key) {
+      var total = key === 'ingredients' ? _num(ingredientTotal) : _num(packagingTotal);
+      var list = (details[key] || []).filter(function (item) { return _num(item.value) > 0; });
+      var grouped = {};
+      list.forEach(function (item) {
+        var label = item.label || (key === 'ingredients' ? 'Custo base' : 'Embalagem');
+        grouped[label] = (grouped[label] || 0) + _num(item.value);
+      });
+      normalized[key] = Object.keys(grouped).map(function (label) {
+        return { label: label, value: grouped[label] };
+      }).filter(function (item) { return item.value > 0; });
+      var sum = normalized[key].reduce(function (s, item) { return s + _num(item.value); }, 0);
+      var diff = total - sum;
+      if (diff > 0.005) {
+        normalized[key].push({ label: key === 'ingredients' ? 'Outros custos base' : 'Outras embalagens', value: diff });
+      }
+    });
+    return normalized;
   }
 
   function _recipeYieldQty(recipe) {
@@ -918,7 +1024,7 @@ Modules.Dinheiro = (function () {
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
             '<div style="overflow:auto;"><table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1120px;">' +
               '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-                ['Produto','Custo base','Embalagem','Indireto','Custo total','Preço atual','Lucro/unid.','Margem','Markup','Preço mín.','Preço sugerido','Status'].map(_priceTh).join('') +
+                ['Produto','Custo base','Embalagem','Indireto','Custo total','Preço atual','Lucro/unid.','Margem','Markup','Preço margem mín.','Preço margem desejada','Status'].map(_priceTh).join('') +
               '</tr></thead>' +
               '<tbody id="din-products-tbody">' + _productRows(paging.items) + '</tbody>' +
             '</table></div>' +
@@ -1253,12 +1359,12 @@ Modules.Dinheiro = (function () {
       _priceDistribution(analysis) +
       '</section>' +
       '<section style="' + _priceModalCardStyle() + '">' +
-      _priceModalSectionTitle('Preço mínimo e recomendado', 'Use esta leitura para decidir se vale ajustar o preço do produto.', 'trending_up') +
+      _priceModalSectionTitle('Preços sugeridos', 'Compare o preço para proteger a margem mínima e o preço para chegar na margem desejada.', 'trending_up') +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
-      _priceMetric('Markup mínimo', minMarkup ? minMarkup.toFixed(2).replace('.', ',') + 'x' : '—', minMarkup ? 'margem mínima ' + minMarginRule.toFixed(1).replace('.', ',') + '%' : 'regra de preço') +
-      _priceMetric('Preço mínimo', UI.fmt(minimumRulePrice), 'margem aprox. ' + minMarkupMargin.toFixed(1).replace('.', ',') + '%') +
-      _priceMetric('Markup recomendado', recommendedMarkup ? recommendedMarkup.toFixed(2).replace('.', ',') + 'x' : '—', recommendedMarkup ? 'margem desejada ' + desiredMarginRule.toFixed(1).replace('.', ',') + '%' : 'regra de preço') +
-      _priceMetric('Preço sugerido', UI.fmt(analysis.suggestedPrice), 'margem aprox. ' + recommendedMarkupMargin.toFixed(1).replace('.', ',') + '%') +
+      _priceMetric('Preço com margem mínima', UI.fmt(minimumRulePrice), 'margem mínima ' + minMarginRule.toFixed(1).replace('.', ',') + '%') +
+      _priceMetric('Markup da margem mínima', minMarkup ? minMarkup.toFixed(2).replace('.', ',') + 'x' : '—', 'margem aprox. ' + minMarkupMargin.toFixed(1).replace('.', ',') + '%') +
+      _priceMetric('Preço com margem desejada', UI.fmt(analysis.suggestedPrice), 'margem desejada ' + desiredMarginRule.toFixed(1).replace('.', ',') + '%') +
+      _priceMetric('Markup da margem desejada', recommendedMarkup ? recommendedMarkup.toFixed(2).replace('.', ',') + 'x' : '—', 'margem aprox. ' + recommendedMarkupMargin.toFixed(1).replace('.', ',') + '%') +
       '</div>' + suggestedWarning + '</section>';
   }
 
@@ -1321,8 +1427,8 @@ Modules.Dinheiro = (function () {
   function _priceDistribution(analysis) {
     var price = Math.max(analysis.price || 0, 0);
     var parts = [
-      { label: 'Custo base', value: analysis.ingredientCost, color: '#C4362A', percentBase: price, group: 'cost' },
-      { label: 'Embalagem', value: analysis.packagingCost, color: '#E6A93B', percentBase: price, group: 'cost' },
+      { label: 'Custo base', value: analysis.ingredientCost, color: '#C4362A', percentBase: price, group: 'cost', details: analysis.costDetails && analysis.costDetails.ingredients || [] },
+      { label: 'Embalagem', value: analysis.packagingCost, color: '#E6A93B', percentBase: price, group: 'cost', details: analysis.costDetails && analysis.costDetails.packaging || [] },
       { label: 'Custos indiretos', value: analysis.indirectCost, color: '#6B7280', percentBase: price, group: 'cost' }
     ].filter(function (p) { return p.value > 0; });
     (_feeBreakdown(price, analysis.channel, analysis.product) || []).forEach(function (fee) {
@@ -1371,7 +1477,22 @@ Modules.Dinheiro = (function () {
       opts = opts || {};
       var base = p.percentBase || price;
       var separate = p.label.indexOf('Comissão ') === 0 || p.label === 'Imposto sobre comissão';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:' + (separate ? '10px 8px' : '8px 0') + ';border-bottom:1px solid #F2EDED;' + (separate ? 'background:#FFFCF8;border-radius:10px;' : '') + '"><span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;"><i style="width:9px;height:9px;border-radius:50%;background:' + p.color + ';display:inline-block;flex:0 0 auto;"></i>' + _esc(p.label) + '</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(p.value, base, opts.mutedPct) + '</span></div>';
+      var details = _costDetailRows(p, base);
+      return '<div style="border-bottom:1px solid #F2EDED;' + (separate ? 'background:#FFFCF8;border-radius:10px;padding:0 8px;' : '') + '">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:' + (separate ? '10px 0' : '8px 0') + ';"><span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1F1F1F;line-height:1.35;"><i style="width:9px;height:9px;border-radius:50%;background:' + p.color + ';display:inline-block;flex:0 0 auto;"></i>' + _esc(p.label) + '</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(p.value, base, opts.mutedPct) + '</span></div>' +
+        details +
+      '</div>';
+    }
+    function _costDetailRows(p, base) {
+      var details = (p.details || []).filter(function (item) { return _num(item.value) > 0; });
+      if (!details.length) return '';
+      return '<div style="display:flex;flex-direction:column;gap:4px;padding:0 0 8px 21px;">' + details.map(function (item) {
+        var pct = base > 0 ? (_num(item.value) / base) * 100 : 0;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;color:#6F6860;font-size:12px;line-height:1.35;">' +
+          '<span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(item.label || 'Item') + '</span>' +
+          '<span style="white-space:nowrap;"><strong style="color:#1F1F1F;font-weight:650;">' + UI.fmt(_num(item.value)) + '</strong> · ' + pct.toFixed(1).replace('.', ',') + '%</span>' +
+        '</div>';
+      }).join('') + '</div>';
     }
     var costLikeParts = parts.filter(function (p) { return p.group !== 'result'; });
     var resultParts = parts.filter(function (p) { return p.group === 'result'; });
@@ -1391,12 +1512,12 @@ Modules.Dinheiro = (function () {
     var priceCoverageNote = hasLoss && costLikeTotal > 0 ? 'cobre ' + ((price / costLikeTotal) * 100).toFixed(1).replace('.', ',') + '% do custo + taxas' : '100,0% do preço';
     var summaries = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">' +
       summaryCard('Custos', costsTotal, '#C4362A') +
-      summaryCard('Taxas e impostos', feesTotal, '#6B7280') +
+      summaryCard('Taxas, impostos e comissões', feesTotal, '#6B7280') +
       (hasLoss ? summaryCard('Falta para cobrir', lossAmount, '#991B1B', pctText(lossAmount) + ' além do preço atual') : summaryCard('Resultado', resultTotal, '#1A9E5A')) +
       summaryCard(hasLoss ? 'Preço atual' : 'Total distribuído', hasLoss ? price : distributedTotal, '#1A1A1A', priceCoverageNote) +
       '</div>';
     var totalRow = parts.length ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0 0;border-top:1px solid #E8DCD7;"><span style="font-weight:700;color:#1F1F1F;">' + (hasLoss ? 'Preço atual' : 'Soma total') + '</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(hasLoss ? price : distributedTotal, price, false) + '</span></div>' : '';
-    var lossNotice = hasLoss ? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#FFF0EE;border:1px solid #F2C8C2;color:#7A271A;font-size:12.5px;line-height:1.45;">O preço atual não cobre custo e taxas. A diferença aparece como falta para cobrir, não como parte distribuída do preço.</div>' : '';
+    var lossNotice = hasLoss ? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#FFF0EE;border:1px solid #F2C8C2;color:#7A271A;font-size:12.5px;line-height:1.45;">O preço atual não cobre custo e taxas.</div>' : '';
     return summaries + lossNotice + '<div style="display:flex;overflow:hidden;border-radius:999px;background:#F8F1ED;margin-bottom:10px;">' + bar + '</div>' + rows + totalRow + empty;
   }
 

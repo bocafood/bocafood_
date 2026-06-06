@@ -12,6 +12,10 @@
 - Ajustei os KPIs do `Radar` para considerar a matriz produto x canal, contando produtos afetados e mostrando em quantos canais o alerta aparece.
 - Corrigi os botões de `Produtos para revisar primeiro` para abrir diretamente o modal de composição do produto no canal usado no cálculo.
 - Corrigi a `Distribuição do preço` quando há prejuízo: a diferença agora aparece como `Falta para cobrir`, sem inflar o `Total distribuído` acima de 100% como se fosse parte do preço.
+- Simplifiquei a copy do aviso de prejuízo para mostrar apenas que o preço atual não cobre custo e taxas.
+- Na `Distribuição do preço`, o `Custo base` e a `Embalagem` passam a mostrar sublinhas com as bases de produção, ingredientes avulsos, produtos prontos ou embalagens que formam o total.
+- Na composição do preço, a seção de recomendação passa a mostrar explicitamente `Preço com margem mínima` e `Preço com margem desejada`, com seus respectivos markups.
+- Na `Distribuição do preço`, o resumo passa a chamar o bloco de `Taxas, impostos e comissões`.
 - Atualizei o cache-buster de `dinheiro.js` no Admin.
 
 ## 2026-06-06 — Receitas: peso dos ingredientes avulsos por rendimento
