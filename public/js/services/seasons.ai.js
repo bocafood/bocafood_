@@ -13,21 +13,27 @@ window.SeasonsAI = (function () {
     'Não altere a quantidade de jogadas, prazos, status, resultado, score ou risco; isso é função do motor determinístico do BocaFood.',
     'Transforme os dados em orientação prática, simples e executável.',
     'Não invente números, clientes, campanhas ou métricas.',
-    'Toda jogada precisa ser mensurável pelo BocaFood depois: produto vendido, canal, horário, cupom, promoção, upsell, pontos, recompra, ticket médio ou pedido registrado.',
+    'Toda jogada precisa ser mensurável pelo BocaFood depois: produto vendido, canal, cupom, promoção, upsell, pontos, recompra, ticket médio ou pedido registrado.',
     'Não transforme em jogada principal uma ação que o sistema não consiga ler nos pedidos ou cadastros.',
     'Venda ligada à jogada é sinal de leitura, não motivo para trocar automaticamente a jogada antes da janela de resultado.',
-    'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, horário, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
+    'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
+    'Não use horário como critério para criar, priorizar ou explicar uma jogada. Horário pode existir em dados operacionais, mas não deve virar recomendação.',
     'Use salesIntelligence para escolher a jogada mais específica possível: melhor produto, melhor combinação de menu, melhor canal, público provável, ação de venda disponível e sinais dos últimos 30 dias.',
     'Use businessPossibilities para saber quais caminhos a usuária pode usar dentro do BocaFood: canais cadastrados, canais ainda pouco explorados, produtos do cardápio, menus/combos, escolhas internas, cupons, promoções, upsells e programa de pontos.',
+    'Quando businessPossibilities.recommendedPaths existir, escolha um caminho dali antes de criar qualquer recomendação própria. Esses caminhos já combinam produto, canal, margem líquida, ação de venda disponível e motivo.',
+    'A próxima jogada deve preferir uma ação de venda concreta quando existir: cupom específico, promoção específica, upsell específico, programa de pontos, combo, ajuste de preço ou revisão de produto.',
+    'Formato esperado da ação: use a ação de venda X com o produto Y no canal Z porque o dado W mostra oportunidade. Se não houver X pronto, diga para criar X antes de tratar como jogada de venda.',
+    'Ao escolher canal, considere margem líquida, taxas, comissões, descontos e saúde do canal, não apenas volume de pedidos.',
     'Use playHistory para não repetir uma jogada sem resposta. Repita apenas quando a jogada anterior teve resultado ou quando não existir alternativa melhor no contexto.',
     'Se houver mais de uma jogada, cada uma precisa ter foco diferente: outro produto, outra combinação, outro canal, outro público ou outro mecanismo de venda.',
     'Quando salesIntelligence.realMenuCombinations existir, use essas combinações reais vendidas para escolher sabor/menu/oferta com mais precisão do que uma análise genérica do produto.',
     'Se uma combinação real vende bem mas tem margem baixa, prefira ajuste de preço, troca de oferta, upsell sem desconto ou destaque de combinação mais saudável.',
     'A jogada deve vir pronta para execução, dizendo exatamente o que fazer, com qual produto/oferta, para qual público/canal, em qual janela e qual dado vai provar se funcionou.',
-    'Se não houver produto/canal/público suficiente, diga que a jogada é criar base e peça registro de pedidos com produto, canal e horário, sem fingir que já existe produto vencedor.',
+    'Se não houver produto/canal/público suficiente, diga que a jogada é criar base e peça para continuar registrando tudo que acontece na operação, sem fingir que já existe produto vencedor.',
     'Se existir executionPlan.actions, use essas ações como fonte principal da Próxima Jogada e melhore apenas clareza, prioridade e linguagem.',
     'Quando executionPlan.actions trouxer measurement, respeite esses campos como a regra de leitura do resultado da jogada.',
-    'Se uma ação citar produto, combinação, canal, horário, cupom, promoção, upsell ou pontos, preserve esses objetos concretos e não troque por termos genéricos.',
+    'Se uma ação citar produto, combinação, canal, cupom, promoção, upsell ou pontos, preserve esses objetos concretos e não troque por termos genéricos.',
+    'Evite verbos vagos como levar, reforçar, destacar ou usar melhor quando eles não dizem uma ação concreta. Troque por algo executável: criar cupom X, ativar promoção Y, cadastrar upsell Z, ajustar preço, montar combo, chamar grupo de clientes ou revisar produto específico.',
     'Quando o produto for menu/combo e existir optionGroups ou realMenuCombinations, cite a escolha interna útil. Evite dizer só o nome genérico do menu quando a melhor ação depende de sabor, bebida, adicional ou combinação.',
     'Não recomende desconto sem preço, custo, margem e desconto saudável já calculados no contexto.',
     'Upsell só pode ser tratado como jogada do canal Cardápio.',
@@ -78,7 +84,7 @@ window.SeasonsAI = (function () {
       activeSalesDays: _round(_num(metrics.activeDays)),
       weakDays: _round(_num(metrics.weakDays)),
       strongDays: _safeSimpleList(relatedData.strongDays || metrics.strongDays || [], 4),
-      strongHours: _safeSimpleList(relatedData.strongHours || metrics.strongHours || [], 4),
+      strongHours: [],
       topProducts: _safeProducts(relatedData.topProducts || []),
       lowSellingProducts: _safeProducts(relatedData.lowSellingProducts || []),
       recurringCustomersCount: _round(_num(metrics.recurringCustomers)),
@@ -219,7 +225,16 @@ window.SeasonsAI = (function () {
     var status = context.status || {};
     var executionPlan = status.executionPlan || context.executionPlan || {};
     var firstAction = executionPlan.actions && executionPlan.actions[0];
+    var firstPath = data.salesIntelligence && data.salesIntelligence.businessPossibilities && data.salesIntelligence.businessPossibilities.recommendedPaths && data.salesIntelligence.businessPossibilities.recommendedPaths[0];
     var progress = _num(status.progressPercent);
+    if (firstPath && (firstPath.actionName || firstPath.actionType)) {
+      return _seasonReading(
+        progress < 75 ? 'A temporada precisa de uma ação de venda mais clara' : 'A temporada tem um caminho de venda concreto',
+        [firstPath.evidence || firstPath.reason || 'Existe uma ação de venda possível com os dados atuais.'],
+        [],
+        _pathActionText(firstPath)
+      );
+    }
     if (firstAction && firstAction.description) {
       return _seasonReading(
         progress < 75 ? 'A temporada precisa de uma ação prática agora' : 'A temporada tem uma próxima ação clara',
@@ -235,19 +250,28 @@ window.SeasonsAI = (function () {
     return _sellMoreRecommendation(data, progress);
   }
 
+  function _pathActionText(path) {
+    path = path || {};
+    var action = path.actionName || path.actionType || 'ação de venda';
+    var product = path.productName ? ' com ' + path.productName : '';
+    var channel = path.channelName ? ' no canal ' + path.channelName : '';
+    var reason = path.reason || path.evidence || '';
+    return 'Use ' + action + product + channel + (reason ? ', porque ' + reason + '.' : '.');
+  }
+
   function _sellMoreRecommendation(data, progress) {
     var product = _firstProductName(data);
     return _seasonReading(
       progress < 75 ? 'A temporada está abaixo do ritmo esperado' : 'A temporada está mantendo o ritmo de venda',
       [
         product ? product + ' está puxando as vendas.' : 'Há pedidos reais suficientes para acompanhar o ritmo.',
-        data.strongHours && data.strongHours.length ? 'Existe horário com resposta melhor.' : ''
+        data.topChannels && data.topChannels.length ? 'Existe canal com resposta melhor.' : ''
       ],
       [
         progress < 75 ? 'O progresso ainda está abaixo do ideal para este momento.' : '',
         'Use desconto apenas quando ele tiver regra clara, produto certo e acompanhamento de pedidos.'
       ],
-      product ? 'Reforce ' + product + ' no melhor horário identificado nesta temporada.' : 'Reforce o produto com melhor saída nesta temporada.'
+      product ? 'Escolha uma ação concreta para ' + product + ': cupom, promoção, upsell, combo ou chamada para clientes, conforme o que já estiver cadastrado.' : 'Escolha uma ação concreta para o produto com melhor saída: cupom, promoção, upsell, combo ou chamada para clientes.'
     );
   }
 
@@ -287,13 +311,13 @@ window.SeasonsAI = (function () {
       'A consistência precisa de uma ação nos dias fracos',
       [
         data.activeSalesDays > 0 ? 'Já existem dias com venda para comparar.' : '',
-        data.strongHours && data.strongHours.length ? 'Há horário com melhor resposta.' : ''
+        data.topChannels && data.topChannels.length ? 'Há canal com melhor resposta.' : ''
       ],
       [
         data.weakDays > 0 ? data.weakDays + ' dia(s) fraco(s) ainda pesam no ritmo.' : '',
         'Vendas concentradas em poucos dias deixam a temporada mais instável.'
       ],
-      'Use o produto mais forte em um dia fraco e repita o melhor horário identificado.'
+      'Use o produto mais forte em um dia fraco com uma ação concreta que o BocaFood consiga reconhecer nos pedidos.'
     );
   }
 
@@ -302,7 +326,7 @@ window.SeasonsAI = (function () {
       headline: headline || 'A temporada precisa de leitura nos próximos dias',
       helpingSignals: _cleanList(helpingSignals).slice(0, 4),
       blockingSignals: _cleanList(blockingSignals).slice(0, 4),
-      nextAction: nextAction || 'Use o produto, canal ou horário mais forte da temporada para a próxima ação.'
+      nextAction: nextAction || 'Escolha uma ação concreta para o produto ou canal com melhor resposta da temporada.'
     };
   }
 
@@ -531,7 +555,7 @@ window.SeasonsAI = (function () {
       activeDays: _round(_num(info.activeDays)),
       topProducts: _safeProducts(info.topProducts || []),
       topChannels: _safeChannels(info.topChannels || []),
-      strongHours: _safeSimpleList(info.strongHours || [], 4),
+      strongHours: [],
       lowSellingProducts: _safeProducts(info.lowSellingProducts || []),
       realMenuCombinations: _safeRealMenuCombinations(info.realMenuCombinations || []),
       actionPerformance: {
@@ -548,11 +572,14 @@ window.SeasonsAI = (function () {
         upsells: _safeActionList(available.upsells || [], 4)
       },
       businessPossibilities: {
+        businessConfig: _safeBusinessConfig(possibilities.businessConfig || {}),
         salesChannels: _safePossibilityChannels(possibilities.salesChannels || []),
+        bestMarginChannels: _safePerformanceChannels(possibilities.bestMarginChannels || []),
         unexploredChannels: _safePossibilityChannels(possibilities.unexploredChannels || []),
         catalogProducts: _safeCatalogPossibilities(possibilities.catalogProducts || [], 12),
         menuProducts: _safeCatalogPossibilities(possibilities.menuProducts || [], 8),
-        availableSalesLevers: _safeSalesLevers(possibilities.availableSalesLevers || [])
+        availableSalesLevers: _safeSalesLevers(possibilities.availableSalesLevers || []),
+        recommendedPaths: _safeRecommendedPaths(possibilities.recommendedPaths || [])
       },
       playHistory: _safePlayHistory(info.playHistory || {}),
       pointsProgram: {
@@ -583,9 +610,74 @@ window.SeasonsAI = (function () {
         name: item.name || item.label || '',
         commissionPct: _round(_num(item.commissionPct)),
         fixedFee: _round(_num(item.fixedFee)),
-        taxPct: _round(_num(item.taxPct))
+        taxPct: _round(_num(item.taxPct)),
+        netRevenue: _round(_num(item.netRevenue)),
+        netMarginPct: _round(_num(item.netMarginPct)),
+        healthLabel: item.healthLabel || '',
+        actionAdvice: item.actionAdvice || ''
       };
     }).filter(function (item) { return item.name || item.key; });
+  }
+
+  function _safePerformanceChannels(items) {
+    return (items || []).slice(0, 6).map(function (item) {
+      item = item || {};
+      return {
+        key: item.key || '',
+        name: item.name || '',
+        orders: _round(_num(item.orders)),
+        revenue: _round(_num(item.revenue)),
+        netRevenue: _round(_num(item.netRevenue)),
+        netMarginPct: _round(_num(item.netMarginPct)),
+        channelCostPct: _round(_num(item.channelCostPct)),
+        healthLabel: item.healthLabel || '',
+        actionAdvice: item.actionAdvice || ''
+      };
+    }).filter(function (item) { return item.name || item.key; });
+  }
+
+  function _safeBusinessConfig(config) {
+    config = config || {};
+    return {
+      businessName: config.businessName || '',
+      city: config.city || '',
+      country: config.country || '',
+      language: config.language || '',
+      deliveryEnabled: config.deliveryEnabled !== false,
+      pickupEnabled: config.pickupEnabled !== false,
+      onlineStoreEnabled: config.onlineStoreEnabled !== false,
+      paymentMethods: (config.paymentMethods || []).slice(0, 6).map(function (method) {
+        method = method || {};
+        return {
+          name: method.name || '',
+          active: method.active !== false,
+          provider: method.provider || '',
+          feePct: _round(_num(method.feePct)),
+          fixedFee: _round(_num(method.fixedFee))
+        };
+      }).filter(function (method) { return method.name; })
+    };
+  }
+
+  function _safeRecommendedPaths(items) {
+    return (items || []).slice(0, 8).map(function (item) {
+      item = item || {};
+      return {
+        actionType: item.actionType || '',
+        actionName: item.actionName || '',
+        productId: item.productId || '',
+        productName: item.productName || '',
+        channelKey: item.channelKey || '',
+        channelName: item.channelName || '',
+        evidence: item.evidence || '',
+        reason: item.reason || '',
+        whenToUse: item.whenToUse || '',
+        channelNetMarginPct: _round(_num(item.channelNetMarginPct)),
+        channelHealth: item.channelHealth || ''
+      };
+    }).filter(function (item) {
+      return item.actionType || item.actionName || item.productName;
+    });
   }
 
   function _safeCatalogPossibilities(items, limit) {

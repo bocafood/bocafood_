@@ -1,5 +1,17 @@
 # AI Changelog
 
+## 2026-06-06 — Temporadas: jogadas sem critério de horário
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi horário como critério de geração, priorização, explicação e medição das próximas jogadas de Temporadas.
+- O prompt da IA agora proíbe usar horário para criar jogadas e exige ações concretas, evitando frases vagas como `levar`, `reforçar`, `destacar` ou `usar melhor` quando não explicam exatamente o que fazer.
+- O motor determinístico deixou de gerar ações do tipo `canal + horário`; ações por canal agora precisam virar uma ação mensurável, como cupom, promoção, upsell, combo, ajuste de preço ou chamada para clientes.
+- O contexto enviado para a IA não inclui mais `strongHours` como sinal útil para recomendação.
+- Atualizei textos de fallback e medição para falar de produto, canal, forma de pagamento e ação concreta, sem orientar jogadas por horário.
+- O contexto da IA agora inclui configuração compacta do negócio, formas de pagamento e canais com custo, taxa, receita líquida, margem líquida e saúde do canal.
+- A IA recebe `recommendedPaths`, uma lista pré-calculada de caminhos de venda que combinam ação de venda, produto, canal, margem/saúde do canal e motivo para usar.
+- O prompt passa a priorizar ações de venda específicas: `use a ação X com produto Y no canal Z porque o dado W mostra oportunidade`.
+- Atualizei o cache-buster de `temporadas.js` e `seasons.ai.js` no Admin.
+
 ## 2026-06-06 — Temporadas: IA com contexto de possibilidades e memória de jogadas
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - O contexto enviado para a IA de Temporadas agora inclui um mapa compacto das possibilidades do negócio: canais de venda cadastrados, canais ainda pouco explorados, produtos do cardápio, menus/combos, escolhas internas, ações disponíveis, upsells, cupons, promoções e programa de pontos.
