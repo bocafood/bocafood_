@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: editar menu pela combinação
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal de composição de uma combinação de menu, incluí a orientação: `Para ajustar esta combinação, revise o preço base do menu ou o valor extra das escolhas que fazem parte dela.`
+- Incluí o botão `Editar menu`, que leva ao cadastro do produto/menu no Cardápio para revisar preço base, escolhas e valores extras.
+- Ao fechar o cadastro do produto, o sistema volta para `Composição do Preço` e reabre a análise da combinação com os dados recarregados.
+- O modal da combinação agora mostra também `Markup`, `Markup da margem mínima` e `Markup da margem desejada`, deixando os cards de preços sugeridos no mesmo padrão da análise normal.
+- Atualizei os cache-busters de `catalogo.js` e `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Preços: combinações na lista principal
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - A lista principal de `Composição do Preço` agora mostra menus por combinação possível, com uma linha para cada combinação calculada.

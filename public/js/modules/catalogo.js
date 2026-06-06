@@ -357,7 +357,73 @@ Modules.Catalogo = (function () {
       _promotions = r[3] || [];
       _orders = r[4] || [];
       _paintProdutos();
+      _openPendingPriceCompositionProduct();
     });
+  }
+
+  function _pendingPriceCompositionProduct() {
+    try {
+      var raw = sessionStorage.getItem('dinheiro_price_catalog_return');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function _savePendingPriceCompositionProduct(pending) {
+    try { sessionStorage.setItem('dinheiro_price_catalog_return', JSON.stringify(pending || {})); } catch (e) {}
+  }
+
+  function _returnToPriceCompositionFromProduct(pending) {
+    if (!pending || pending.__returned) return;
+    pending.__returned = true;
+    try {
+      sessionStorage.removeItem('dinheiro_price_catalog_return');
+      sessionStorage.setItem('dinheiro_price_composition_return', JSON.stringify({
+        productId: pending.productId || '',
+        combinationLabel: pending.combinationLabel || '',
+        channelIndex: pending.channelIndex == null ? 0 : pending.channelIndex,
+        createdAt: Date.now()
+      }));
+    } catch (e) {}
+    setTimeout(function () { Router.navigate('dinheiro/precos'); }, 120);
+  }
+
+  function _bindPriceCompositionProductReturn(pending) {
+    var attempts = 0;
+    var timer = setInterval(function () {
+      attempts += 1;
+      var modal = window._productModal;
+      if (!modal || !modal.el) {
+        if (attempts > 80) clearInterval(timer);
+        return;
+      }
+      clearInterval(timer);
+      if (modal.__priceCompositionReturnBound) return;
+      modal.__priceCompositionReturnBound = true;
+      var originalClose = modal.close;
+      modal.close = function () {
+        if (typeof originalClose === 'function') originalClose.call(modal);
+        _returnToPriceCompositionFromProduct(pending);
+      };
+    }, 80);
+  }
+
+  function _openPendingPriceCompositionProduct() {
+    var pending = _pendingPriceCompositionProduct();
+    if (!pending || !pending.productId || pending.opened) return;
+    var exists = (_products || []).some(function (product) { return String(product && product.id || '') === String(pending.productId || ''); });
+    if (!exists) {
+      try { sessionStorage.removeItem('dinheiro_price_catalog_return'); } catch (e) {}
+      UI.toast('Produto não encontrado para edição.', 'error');
+      return;
+    }
+    pending.opened = true;
+    _savePendingPriceCompositionProduct(pending);
+    setTimeout(function () {
+      _openProductModal(pending.productId);
+      _bindPriceCompositionProductReturn(pending);
+    }, 120);
   }
 
   function _refreshProductPromotions() {
