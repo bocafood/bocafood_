@@ -582,22 +582,21 @@ Modules.Dinheiro = (function () {
     var worstChannelLabel = worstChannel && (worstChannel.impactPct > 0 || worstChannel.fixedFee > 0)
       ? 'Atenção em ' + worstChannel.name + ': este canal é o que mais pesa na margem, com cerca de ' + worstChannel.impactPct.toFixed(1).replace('.', ',') + '% sobre a venda' + (worstChannel.fixedFee > 0 ? ' e ' + UI.fmt(worstChannel.fixedFee) + ' por pedido' : '') + '.'
       : '';
-    var priorities = _financialPriorities(rows, channels);
+    var channelRows = _channelPriorityRows();
+    var priorities = _financialPriorities(channelRows);
     var riskCount = loss.length + low.length + noCost.length + noPrice.length;
+    var lowMarginNote = low.length
+      ? 'abaixo da margem mínima'
+      : (attention.length ? attention.length + ' perto do limite' : 'nenhum abaixo da mínima');
     var kpis = [
       _radarKpi('Produtos analisados', rows.length, 'Produtos do Cardápio', 'neutral', 'inventory_2'),
-      _radarKpi('Risco crítico', riskCount, loss.length ? loss.length + ' podem dar prejuízo' : 'olhar custo, preço ou margem', riskCount ? 'danger' : 'success', 'warning'),
-      _radarKpi('Margem baixa', low.length, attention.length ? attention.length + ' pedem atenção' : 'abaixo do ideal', low.length ? 'danger' : 'success', 'trending_down'),
+      _radarKpi('Risco crítico', riskCount, riskCount ? 'corrigir antes de vender' : 'nenhum produto crítico agora', riskCount ? 'danger' : 'success', 'warning'),
+      _radarKpi('Margem baixa', low.length, lowMarginNote, low.length ? 'danger' : (attention.length ? 'warning' : 'success'), 'trending_down'),
       _radarKpi('Sem custo', noCost.length, 'precisam ser completados', noCost.length ? 'warning' : 'success', 'link_off'),
       _radarKpi('Saudáveis', healthy.length, 'com boa margem', healthy.length ? 'success' : 'neutral', 'check_circle'),
       _radarKpi('Lucro médio', avgProfit == null ? 'sem dados' : UI.fmt(avgProfit), validRows.length + ' com custo e preço', avgProfit == null ? 'neutral' : (avgProfit < 0 ? 'danger' : 'success'), 'query_stats')
     ].join('');
-    var priorityHtml = [
-      _prioritySummary(noCost.length, 'produtos ainda sem custo', 'Completar custo', 'sem-custo', 'Sem custo, fica difícil saber se o produto dá lucro'),
-      _prioritySummary(low.length, 'produtos com margem apertada', 'Revisar preços', 'margem-baixa'),
-      _prioritySummary(noPrice.length, 'produtos sem preço', 'Ver produtos', 'sem-preco'),
-      _prioritySummary(belowSuggested.length, 'produtos abaixo do preço sugerido', 'Ver produtos', 'abaixo-recomendado', 'O preço atual pode estar deixando pouco espaço para lucro')
-    ].join('');
+    var priorityHtml = _channelPrioritySummary(channelRows);
     var channelImpact = channels.map(function (c) {
       var tone = c.status === 'margem baixa' ? '#B42318' : (c.status === 'atenção' || c.status === 'maior custo' ? '#D97706' : (c.status === 'melhor margem' || c.status === 'saudável' ? '#1F6F43' : '#6F6860'));
       return '<div style="' + _radarInnerCardStyle('display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,max-content);gap:14px;align-items:start;') + '">' +
@@ -622,7 +621,7 @@ Modules.Dinheiro = (function () {
       '</div>' +
       '<div class="growth-grid" style="margin-bottom:0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">' + kpis + '</div>' +
       '<div style="display:grid;grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr);gap:14px;margin-bottom:0;align-items:start;">' +
-      '<section style="' + _priorityFinanceCardStyle() + '">' + _sectionTitle('Prioridades financeiras', 'Comece por estes pontos para proteger o lucro da loja.', 'priority_high') + (priorityHtml || '<div style="color:#1F6F43;font-size:14px;font-weight:600;">Nenhuma revisão urgente com os dados atuais.</div>') + '</section>' +
+      '<section style="' + _priorityFinanceCardStyle() + '">' + _sectionTitle('Prioridades financeiras', 'Veja por canal onde custo, preço ou margem pedem revisão primeiro.', 'priority_high') + (priorityHtml || '<div style="color:#1F6F43;font-size:14px;font-weight:600;">Nenhuma revisão urgente com os dados atuais.</div>') + '</section>' +
       '<section style="' + _radarPatternCardStyle() + '">' + _radarSectionTitle('Canais de venda', 'Compare onde a venda fica mais pesada para a margem.', 'toll') + (worstChannelLabel ? _radarChannelHighlight(worstChannelLabel) : '') + (channelImpact ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;align-items:stretch;">' + channelImpact + '</div>' : _radarEmptyBox('Quando você configurar taxas dos canais de venda, o impacto na margem aparece aqui.')) + '</section>' +
       '</div>' +
       '<section style="' + _radarPatternCardStyle() + '">' + _radarSectionTitle('Produtos para revisar primeiro', 'Veja por quais produtos começar para melhorar preço, custo ou margem.', 'manage_search') + _priorityProducts(priorities) + '</section>' +
@@ -637,6 +636,77 @@ Modules.Dinheiro = (function () {
       '<div><strong style="font-size:20px;font-weight:700;color:' + color + ';">' + count + '</strong><span style="font-size:14px;font-weight:600;color:#1F1F1F;"> ' + _esc(label) + '</span>' + (note ? '<div style="font-size:12px;color:#6F6860;margin-top:3px;">' + _esc(note) + '</div>' : '') + '</div>' +
       '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + filter + '\')" style="height:34px;padding:0 12px;background:#fff;color:' + color + ';border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">' + _esc(action) + '</button>' +
       '</div>';
+  }
+
+  function _channelPriorityRows() {
+    var channels = _data.canais || [_defaultChannel()];
+    if (!channels.length) channels = [_defaultChannel()];
+    var rows = [];
+    channels.forEach(function (ch, idx) {
+      _productsAnalysisForChannel(ch).forEach(function (r) {
+        rows.push(Object.assign({}, r, {
+          priorityChannel: ch,
+          priorityChannelIndex: idx,
+          priorityChannelName: ch.name || ('Canal ' + (idx + 1))
+        }));
+      });
+    });
+    return rows;
+  }
+
+  function _channelPrioritySummary(rows) {
+    var grouped = {};
+    (rows || []).forEach(function (r) {
+      var key = String(r.priorityChannelIndex != null ? r.priorityChannelIndex : 0);
+      if (!grouped[key]) grouped[key] = {
+        channelIndex: r.priorityChannelIndex || 0,
+        channelName: r.priorityChannelName || 'Canal',
+        noCost: 0,
+        noPrice: 0,
+        low: 0,
+        belowSuggested: 0
+      };
+      if (!r.totalCost) grouped[key].noCost += 1;
+      if (!r.price) grouped[key].noPrice += 1;
+      if (r.status === 'margem baixa' || r.status === 'prejuízo') grouped[key].low += 1;
+      if (_isBelowSuggestedActionable(r)) grouped[key].belowSuggested += 1;
+    });
+    var items = Object.keys(grouped).map(function (key) { return grouped[key]; }).map(function (item) {
+      var score = item.low * 4 + item.noCost * 3 + item.noPrice * 2 + item.belowSuggested;
+      item.score = score;
+      return item;
+    }).filter(function (item) { return item.score > 0; }).sort(function (a, b) {
+      return b.score - a.score || a.channelName.localeCompare(b.channelName);
+    });
+    if (!items.length) return '';
+    return '<div style="display:flex;flex-direction:column;gap:10px;">' + items.slice(0, 6).map(function (item) {
+      var mainFilter = item.low ? 'margem-baixa' : (item.noCost ? 'sem-custo' : (item.noPrice ? 'sem-preco' : 'abaixo-recomendado'));
+      var mainAction = item.low ? 'Revisar margem' : (item.noCost ? 'Completar custo' : (item.noPrice ? 'Ver preço' : 'Ajustar preço'));
+      var color = item.low ? '#B42318' : '#D97706';
+      var bg = item.low ? '#FFF0EE' : '#FFF7ED';
+      return '<div style="padding:12px;border-radius:14px;background:' + bg + ';border:1px solid #EAE4DA;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:10.5px;color:#6F6860;font-weight:750;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;">Canal de venda</div>' +
+            '<strong style="display:block;font-size:14px;font-weight:700;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(item.channelName) + '</strong>' +
+          '</div>' +
+          '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + mainFilter + '\',' + item.channelIndex + ')" style="height:34px;padding:0 12px;background:#fff;color:' + color + ';border:1px solid #EAE4DA;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);white-space:nowrap;">' + _esc(mainAction) + '</button>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;">' +
+          _priorityChannelMetric('Margem baixa', item.low, item.low ? '#B42318' : '#1F6F43') +
+          _priorityChannelMetric('Sem custo', item.noCost, item.noCost ? '#D97706' : '#1F6F43') +
+          _priorityChannelMetric('Sem preço', item.noPrice, item.noPrice ? '#D97706' : '#1F6F43') +
+          _priorityChannelMetric('Abaixo sugerido', item.belowSuggested, item.belowSuggested ? '#B42318' : '#1F6F43') +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function _priorityChannelMetric(label, value, color) {
+    return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:11px;padding:8px;min-width:0;">' +
+      '<div style="font-size:10.5px;color:#6F6860;font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(label) + '</div>' +
+      '<div style="font-size:18px;font-weight:760;color:' + color + ';line-height:1;margin-top:5px;">' + value + '</div>' +
+    '</div>';
   }
 
   function _channelDiagnostics(rows) {
@@ -680,21 +750,17 @@ Modules.Dinheiro = (function () {
     return '<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:' + colors[0] + ';color:' + colors[1] + ';font-size:11px;font-weight:900;">' + _esc(status) + '</span>';
   }
 
-  function _financialPriorities(rows, channels) {
+  function _financialPriorities(rows) {
     var valid = rows.filter(function (r) { return r.totalCost > 0 && r.price > 0; });
     var lowestMargin = valid.slice().sort(function (a, b) { return a.margin - b.margin; })[0];
     var noCost = rows.filter(function (r) { return !r.totalCost && r.price > 0; }).sort(function (a, b) { return b.price - a.price; })[0] || rows.filter(function (r) { return !r.totalCost; })[0];
     var belowSuggested = valid.filter(_isBelowSuggestedActionable).sort(function (a, b) { return (b.suggestedPrice - b.price) - (a.suggestedPrice - a.price); })[0];
-    var worstCh = channels.slice().sort(function (a, b) { return b.impactPct - a.impactPct || b.fixedFee - a.fixedFee; })[0];
-    var highFeeProduct = worstCh ? valid.map(function (r) {
-      var a = _analyzeProduct(r.product, worstCh.channel);
-      return Object.assign({}, a, { feeChannel: worstCh.name });
-    }).sort(function (a, b) { return b.fees - a.fees; })[0] : null;
+    var highFeeProduct = valid.slice().sort(function (a, b) { return b.fees - a.fees; })[0];
     return [
       lowestMargin ? { label: 'Menor margem', row: lowestMargin, action: 'Ver composição', filter: 'margem-baixa' } : null,
       noCost ? { label: 'Sem custo mais relevante', row: noCost, action: 'Vincular receita', filter: 'sem-custo' } : null,
       belowSuggested ? { label: 'Preço abaixo do recomendado', row: belowSuggested, action: 'Ajustar preço', filter: 'abaixo-recomendado' } : null,
-      highFeeProduct ? { label: 'Maior impacto de comissão' + (highFeeProduct.feeChannel ? ' (' + highFeeProduct.feeChannel + ')' : ''), row: highFeeProduct, action: 'Revisar custo', filter: 'todos' } : null
+      highFeeProduct && highFeeProduct.fees > 0 ? { label: 'Maior impacto de comissão', row: highFeeProduct, action: 'Revisar custo', filter: 'todos' } : null
     ].filter(Boolean);
   }
 
@@ -704,24 +770,31 @@ Modules.Dinheiro = (function () {
       var r = item.row;
       var img = _productImage(r.product);
       var tone = !r.totalCost ? '#D97706' : (r.margin < 0 ? '#B42318' : (r.margin < _num(_data.dinheiro.minMarginPct || 40) ? '#B42318' : '#6F6860'));
+      var channelName = r.priorityChannelName || (r.channel && r.channel.name) || 'Canal';
+      var channelIndex = r.priorityChannelIndex != null ? r.priorityChannelIndex : 0;
       return '<div style="' + _radarInnerCardStyle('display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center;') + '" onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 34px rgba(31,31,31,.085)\'" onmouseleave="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 10px 24px rgba(31,31,31,.045)\'">' +
         '<div style="width:52px;height:52px;border-radius:15px;background:#FFFCF8;border:1px solid #E8DCD7;overflow:hidden;display:flex;align-items:center;justify-content:center;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:19px;color:#C9BCB8;">restaurant_menu</span>') + '</div>' +
         '<div style="min-width:0;">' +
           '<div style="font-size:10.5px;color:#6F6860;font-weight:650;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;">' + _esc(item.label) + '</div>' +
           '<strong style="display:block;font-size:14.5px;font-weight:650;line-height:1.25;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(r.product.name || 'Produto') + '</strong>' +
+          '<div style="font-size:11.5px;color:#6F6860;font-weight:650;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(channelName) + '</div>' +
           '<div style="font-size:12px;color:' + tone + ';font-weight:650;margin-top:4px;">' + (r.totalCost ? 'Margem ' + r.margin.toFixed(1).replace('.', ',') + '%' : 'sem custo definido') + '</div>' +
-          '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + item.filter + '\')" style="margin-top:9px;height:32px;padding:0 12px;background:#B42318;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 7px 16px rgba(180,35,24,.14);">' + _esc(item.action) + '</button>' +
+          '<button onclick="Modules.Dinheiro._goPriceFilter(\'' + item.filter + '\',' + channelIndex + ')" style="margin-top:9px;height:32px;padding:0 12px;background:#B42318;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 7px 16px rgba(180,35,24,.14);">' + _esc(item.action) + '</button>' +
         '</div>' +
         '</div>';
     }).join('') + '</div>';
   }
 
-  function _goPriceFilter(filter) {
+  function _goPriceFilter(filter, channelIndex) {
     var next = filter || 'todos';
     try {
       if (next === 'todos') sessionStorage.removeItem('dinheiro_price_filter');
       else sessionStorage.setItem('dinheiro_price_filter', next);
     } catch (e) {}
+    if (channelIndex != null && channelIndex !== '') {
+      _priceCompositionChannel = String(channelIndex);
+    }
+    _priceView.page = 1;
     if (_activeSub === 'precos') {
       _renderPrecos();
       return;
@@ -1066,7 +1139,7 @@ Modules.Dinheiro = (function () {
       '<input id="din-modal-product-id" type="hidden" value="' + _esc(id) + '">' +
       '<div id="din-price-modal-body" class="din-price-modal-body"></div>' +
       '<div class="din-price-modal-foot">' +
-      '<button onclick="Modules.Dinheiro._closeProductModal()" style="height:40px;background:#fff;color:#1F1F1F;border:1px solid #E8DCD7;padding:0 16px;border-radius:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Cancelar</button>' +
+      '<button onclick="Modules.Dinheiro._closeProductModal()" style="height:40px;background:#fff;color:#1F1F1F;border:1px solid #E8DCD7;padding:0 16px;border-radius:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Fechar</button>' +
       '<button onclick="Modules.Dinheiro._saveProductPrice(\'' + _esc(id) + '\')" style="height:40px;background:#B42318;color:#fff;border:none;padding:0 18px;border-radius:12px;font-weight:650;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.18);">Salvar preço</button>' +
       '</div>' +
       '</div></div>';

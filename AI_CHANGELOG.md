@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: botão fechar no modal de composição
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal de detalhes da `Composição do Preço`, o botão do rodapé passa a aparecer como `Fechar`.
+- A ação continua apenas encerrando o modal; os cálculos e o botão `Salvar preço` não foram alterados.
+- No `Radar`, ajustei o card `Margem baixa` para não mostrar `0` junto de uma frase que parecia contraditória; produtos em atenção agora aparecem como `perto do limite`.
+- No card `Risco crítico`, quando não há produto crítico, a leitura passa a mostrar `nenhum produto crítico agora`.
+- No card `Prioridades financeiras`, as leituras passam a ser agrupadas por canal de venda, e os produtos para revisar primeiro também mostram o canal usado no cálculo.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Receitas: peso dos ingredientes avulsos por rendimento
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a sugestão de `Peso por unidade (g)` para tratar ingredientes avulsos como quantidade do rendimento total da receita.
