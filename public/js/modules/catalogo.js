@@ -8820,9 +8820,16 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.catalog-config-checkline{display:flex;align-items:center;gap:8px;min-height:40px;}' +
       '.catalog-config-checkline input{width:16px;height:16px;accent-color:#B42318;}' +
       '.catalog-config-checkline label{font-size:13px;font-weight:500;color:#211815;cursor:pointer;}' +
-      '.catalog-config-option-row{display:grid;grid-template-columns:22px minmax(0,1fr) 110px minmax(0,210px) 34px 32px;gap:10px;align-items:start;padding:12px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:9px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
+      '.catalog-config-option-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:start;padding:13px;border:1px solid #E8DCD7;border-radius:14px;background:#FFFCF8;margin-bottom:10px;max-width:100%;box-sizing:border-box;overflow:hidden;}' +
       '.catalog-config-option-row>*{min-width:0;}' +
-      '.catalog-config-option-row .option-remove-btn{align-self:end;flex:0 0 auto;}' +
+      '.catalog-config-option-main{display:grid;gap:11px;min-width:0;}' +
+      '.catalog-config-option-head{display:grid;grid-template-columns:minmax(180px,1fr) minmax(96px,124px);gap:10px;align-items:end;}' +
+      '.catalog-config-option-stock{display:grid;grid-template-columns:minmax(220px,1fr) minmax(92px,116px) minmax(82px,104px);gap:10px;align-items:end;padding:10px;border:1px solid #EFE4DC;border-radius:12px;background:#fff;}' +
+      '.catalog-config-option-media{padding:10px;border:1px solid #EFE4DC;border-radius:12px;background:#fff;}' +
+      '.catalog-config-option-actions{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start;}' +
+      '.catalog-config-variant-top{display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,360px);gap:12px;align-items:start;}' +
+      '.catalog-config-variant-rules{display:grid;grid-template-columns:minmax(120px,1fr) 92px 92px;gap:10px;align-items:end;}' +
+      '.catalog-config-option-row .option-remove-btn{flex:0 0 auto;}' +
       '.catalog-config-image-tools{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;align-items:center;min-width:0;}' +
       '.catalog-config-image-preview{width:42px;height:42px;border-radius:11px;border:1px solid #E8DCD7;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#C9BCB8;flex:0 0 auto;}' +
       '.catalog-config-image-preview img{width:100%;height:100%;object-fit:cover;display:block;}' +
@@ -8835,8 +8842,8 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       '.catalog-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:19px;color:#6F6860;line-height:1;pointer-events:none;}' +
       '.catalog-config-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;}' +
       '.catalog-config-tag-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
-      '@media(max-width:980px){.catalog-config-option-row{grid-template-columns:22px minmax(0,1fr) 110px 34px 32px;}.catalog-config-option-row>div:nth-child(4){grid-column:1/-1}.catalog-config-option-row .option-remove-btn{grid-column:5;grid-row:1;justify-self:end}}' +
-      '@media(max-width:760px){.catalog-config-section-head{flex-direction:column}.catalog-config-primary{width:100%}.catalog-config-grid,.catalog-config-grid.compact,.catalog-config-option-row{grid-template-columns:1fr}.catalog-config-item,.catalog-config-tag-row{align-items:flex-start}.catalog-config-actions{align-self:flex-start}.catalog-config-option-row .option-remove-btn{grid-column:auto;grid-row:auto;justify-self:start}}';
+      '@media(max-width:980px){.catalog-config-option-head,.catalog-config-option-stock{grid-template-columns:1fr 1fr}.catalog-config-option-stock label:first-child{grid-column:1/-1}.catalog-config-option-actions{align-items:flex-end}}' +
+      '@media(max-width:760px){.catalog-config-section-head{flex-direction:column}.catalog-config-primary{width:100%}.catalog-config-grid,.catalog-config-grid.compact,.catalog-config-option-row,.catalog-config-option-head,.catalog-config-option-stock,.catalog-config-variant-top,.catalog-config-variant-rules{grid-template-columns:1fr}.catalog-config-item,.catalog-config-tag-row{align-items:flex-start}.catalog-config-actions{align-self:flex-start}.catalog-config-option-actions{align-items:flex-start;flex-direction:row;flex-wrap:wrap}.catalog-config-option-stock label:first-child{grid-column:auto}.catalog-config-option-row .option-remove-btn{grid-column:auto;grid-row:auto;justify-self:start}}';
     document.head.appendChild(style);
   }
 
@@ -9274,25 +9281,31 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var stockUnit = option.stockUnit || option.unit || stockMeta.unit || 'un';
     return '<div class="vg-option-row catalog-config-option-row" draggable="true" data-id="variant-option-' + index + '" data-option-index="' + index + '">' +
       '<span class="mi" title="Arrastar para ordenar" style="color:#D4C8C6;font-size:17px;cursor:grab;align-self:center;">drag_indicator</span>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Opção</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra</span><input class="vg-option-price" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(price)) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="' + _inputStyle() + 'text-align:right;"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Estoque</span><select class="vg-option-stock-ref" onchange="Modules.Catalogo._onVariantStockLinkChange(this)" style="' + _inputStyle() + '">' + _compositionAllOptionsHtml(stockRef) + '</select></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Qtd. estoque</span><input class="vg-option-stock-qty" type="text" inputmode="decimal" value="' + _esc(stockQty ? String(stockQty).replace('.', ',') : '') + '" placeholder="Ex: 1" style="' + _inputStyle() + 'text-align:right;"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Unid.</span><input class="vg-option-stock-unit" type="text" value="' + _esc(stockRef ? stockUnit : '') + '" readonly style="' + _inputStyle() + 'background:#F7F2ED!important;color:#6F6860!important;"></label>' +
-      '<div style="min-width:0;max-width:100%;"><span style="' + _labelStyle() + '">Imagem</span><div class="catalog-config-image-tools">' +
-        '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
-        '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
-        '<div style="min-width:0;"><div class="catalog-config-image-actions">' +
-          '<button type="button" class="catalog-config-image-btn primary" onclick="this.parentNode.querySelector(\'input[type=file]\').click()">Enviar imagem</button>' +
-          '<button type="button" class="catalog-config-image-btn ghost" onclick="Modules.Catalogo._removeVariantOptionImage(this)">Remover imagem</button>' +
-          '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;">' +
-        '</div><div class="catalog-config-help">JPG, PNG ou WebP. Opcional.</div></div>' +
-      '</div></div>' +
-      '<div style="display:flex;flex-direction:column;gap:4px;align-self:center;">' +
+      '<div class="catalog-config-option-main">' +
+        '<div class="catalog-config-option-head">' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Nome da opção *</span><input class="vg-option-label" type="text" value="' + _esc(option.label || option.name || '') + '" placeholder="Ex: Carne, queijo, grande..." style="' + _inputStyle() + '"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Valor extra</span><input class="vg-option-price" type="text" inputmode="decimal" value="' + _esc(_moneyDisplay(price)) + '" placeholder="€0,00" onfocus="Modules.Catalogo._moneyInputFocus(this)" onblur="Modules.Catalogo._moneyInputBlur(this)" style="' + _inputStyle() + 'text-align:right;"></label>' +
+        '</div>' +
+        '<div class="catalog-config-option-stock">' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Vínculo de estoque</span><select class="vg-option-stock-ref" onchange="Modules.Catalogo._onVariantStockLinkChange(this)" style="' + _inputStyle() + '">' + _compositionAllOptionsHtml(stockRef) + '</select></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Qtd.</span><input class="vg-option-stock-qty" type="text" inputmode="decimal" value="' + _esc(stockQty ? String(stockQty).replace('.', ',') : '') + '" placeholder="Ex: 1" style="' + _inputStyle() + 'text-align:right;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Unid.</span><input class="vg-option-stock-unit" type="text" value="' + _esc(stockRef ? stockUnit : '') + '" readonly style="' + _inputStyle() + 'background:#F7F2ED!important;color:#6F6860!important;"></label>' +
+        '</div>' +
+        '<div class="catalog-config-option-media"><span style="' + _labelStyle() + '">Imagem da opção</span><div class="catalog-config-image-tools">' +
+          '<input class="vg-option-img" type="hidden" value="' + _esc(img) + '">' +
+          '<div class="vg-option-preview catalog-config-image-preview">' + (img ? '<img src="' + _esc(img) + '" alt="">' : '<span class="mi" style="font-size:20px;">image</span>') + '</div>' +
+          '<div style="min-width:0;"><div class="catalog-config-image-actions">' +
+            '<button type="button" class="catalog-config-image-btn primary" onclick="this.parentNode.querySelector(\'input[type=file]\').click()">Enviar imagem</button>' +
+            '<button type="button" class="catalog-config-image-btn ghost" onclick="Modules.Catalogo._removeVariantOptionImage(this)">Remover imagem</button>' +
+            '<input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="Modules.Catalogo._onVariantOptionImageChange(event)" style="display:none;">' +
+          '</div><div class="catalog-config-help">Opcional. Aparece quando o template usa foto nas escolhas.</div></div>' +
+        '</div></div>' +
+      '</div>' +
+      '<div class="catalog-config-option-actions">' +
         '<button type="button" title="Subir" onclick="Modules.Catalogo._moveVariantOptionRow(this,-1)" style="width:30px;height:25px;border-radius:8px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">keyboard_arrow_up</span></button>' +
         '<button type="button" title="Descer" onclick="Modules.Catalogo._moveVariantOptionRow(this,1)" style="width:30px;height:25px;border-radius:8px;border:1px solid #EAE4DA;background:#fff;color:#6F6860;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">keyboard_arrow_down</span></button>' +
+        '<button type="button" class="option-remove-btn" title="Remover opção" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:30px;height:30px;border-radius:9px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
       '</div>' +
-      '<button type="button" class="option-remove-btn" onclick="Modules.Catalogo._removeVariantOptionRow(this)" style="width:32px;height:42px;border-radius:10px;border:1px solid #EAE4DA;background:#fff;color:#B42318;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;"><span class="mi" style="font-size:16px;">close</span></button>' +
       '</div>';
   }
 
@@ -9394,18 +9407,33 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     if (maxPerUnit < 1) maxPerUnit = 1;
     if (minPerUnit > maxPerUnit) minPerUnit = maxPerUnit;
 
-    var body = '<div class="catalog-config-modal-card">' +
-      '<label style="display:block;margin-bottom:12px;"><span style="' + _labelStyle() + '">Nome do grupo *</span>' +
-      '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, molhos..." style="' + _inputStyle() + '"></label>' +
-      '<div class="catalog-config-grid compact" style="margin-bottom:12px;">' +
-      '<div class="catalog-config-checkline">' +
-      '<input type="checkbox" id="vg-required"' + (vg.required ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
-      '<label for="vg-required" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Obrigatório</label></div>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Mínimo por item</span><input id="vg-min" type="number" min="0" step="1" value="' + minPerUnit + '" style="' + _inputStyle() + '"></label>' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Máximo por item</span><input id="vg-max" type="number" min="1" step="1" value="' + maxPerUnit + '" style="' + _inputStyle() + '"></label>' +
+    var body = '<div style="display:grid;gap:14px;">' +
+      '<div class="catalog-config-modal-card">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">' +
+          '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;">tune</span>' +
+          '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#211815;line-height:1.25;">Dados do grupo</div><div class="catalog-config-help" style="margin-top:3px;">Defina como essa escolha aparece no produto ou menu.</div></div>' +
+        '</div>' +
+        '<div class="catalog-config-variant-top">' +
+          '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Nome do grupo *</span>' +
+          '<input id="vg-title" type="text" value="' + _esc(vg.title || '') + '" placeholder="Ex: Tamanho, sabor, bebida..." style="' + _inputStyle() + '"></label>' +
+          '<div class="catalog-config-softbox catalog-config-variant-rules">' +
+            '<div class="catalog-config-checkline" style="min-height:38px;">' +
+              '<input type="checkbox" id="vg-required"' + (vg.required ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
+              '<label for="vg-required" style="font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;">Obrigatório</label>' +
+            '</div>' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Mínimo</span><input id="vg-min" type="number" min="0" step="1" value="' + minPerUnit + '" style="' + _inputStyle() + '"></label>' +
+            '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Máximo</span><input id="vg-max" type="number" min="1" step="1" value="' + maxPerUnit + '" style="' + _inputStyle() + '"></label>' +
+            '<div class="catalog-config-help" style="grid-column:1/-1;margin-top:0;">Exemplo: mínimo 1 e máximo 1 para escolher um sabor. Máximo maior que 1 permite múltiplas opções.</div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 8px;"><div><div style="font-size:13px;font-weight:650;color:#211815;">Opções</div><div class="catalog-config-help">Use valor positivo para acréscimo e negativo para desconto. A foto é opcional.</div></div><button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:34px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;">+ Opção</button></div>' +
-      '<div id="vg-options-list">' + _variantOptionRows(vg.options || []) + '</div>' +
+      '<div class="catalog-config-modal-card">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
+          '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:#211815;line-height:1.25;">Opções do grupo</div><div class="catalog-config-help">Cada opção pode ter preço extra, vínculo de estoque e imagem própria.</div></div>' +
+          '<button type="button" onclick="Modules.Catalogo._addVariantOptionRow()" style="height:36px;padding:0 13px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#B42318;font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;white-space:nowrap;">+ Opção</button>' +
+        '</div>' +
+        '<div id="vg-options-list">' + _variantOptionRows(vg.options || []) + '</div>' +
+      '</div>' +
       '</div>';
 
     var footer = '<button onclick="Modules.Catalogo._saveVariant()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar grupo' : 'Criar grupo') + '</button>';

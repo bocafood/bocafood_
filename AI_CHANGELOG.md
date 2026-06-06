@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-06 — Cardápio: layout do modal de variantes
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reorganizei o modal `Editar grupo` / `Novo grupo de variantes`.
+- Separei o topo em `Dados do grupo` e regras de escolha, com nome, obrigatório, mínimo e máximo mais claros.
+- Transformei cada opção em um card com áreas separadas para nome/preço, vínculo de estoque, imagem e ações.
+- Mantive as mesmas classes e campos usados para salvar, sem alterar a regra de cadastro ou o formato dos dados.
+- Ajustei a responsividade para o modal não ficar apertado em telas menores.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Pedidos: escolhas de menu na importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Corrigi a seleção das escolhas no modal de importação para não redesenhar a tabela inteira no mesmo clique.
