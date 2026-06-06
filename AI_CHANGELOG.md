@@ -1,5 +1,19 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: correção do custo por kg com unidades mistas
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a construção do peso sugerido para reconhecer variações de unidade como `kilo`, `kilogramo`, `gramo`, `gramos` e `grs`.
+- Quando a construção da receita indica algo como `0,3 kg`, o sistema passa a calcular `300 g` antes de calcular `Custo por kg`.
+- A tela de detalhes também usa o peso construído pela receita quando encontra um peso salvo incoerente, como `0,3 g` em uma receita que soma centenas de gramas.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
+## 2026-06-06 — Receitas: ingredientes avulsos no peso sugerido
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- A sugestão de `Peso por unidade (g)` agora considera a soma das bases e dos `Ingredientes avulsos da receita`.
+- Ingredientes avulsos entram nessa soma quando a unidade do item está em `g` ou `kg`; se houver volume ou unidade sem conversão segura, o campo continua manual.
+- Embalagens seguem fora do peso sugerido, porque ficam na seção própria da receita.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Receitas: ingredientes avulsos na ficha
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Editar Receita`, adicionei a seção `Ingredientes avulsos da receita` dentro do card `Bases e ingredientes`.

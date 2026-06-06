@@ -9916,12 +9916,13 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _recipeYieldUnitKey(unit) {
     var value = String(unit || '').trim().toLowerCase();
+    if (value.normalize) value = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (!value) return '';
-    if (['un', 'unid', 'unidade', 'unidades', 'porção', 'porções', 'porcao', 'porcoes'].indexOf(value) >= 0) return 'count';
-    if (['kg', 'quilo', 'quilos', 'quilograma', 'quilogramas'].indexOf(value) >= 0) return 'kg';
-    if (['g', 'gr', 'grama', 'gramas'].indexOf(value) >= 0) return 'g';
+    if (['un', 'unid', 'unidade', 'unidades', 'porcao', 'porcoes', 'porcion', 'porciones'].indexOf(value) >= 0) return 'count';
+    if (['kg', 'kgs', 'quilo', 'quilos', 'kilo', 'kilos', 'quilograma', 'quilogramas', 'kilogramo', 'kilogramos', 'kilogram', 'kilograms'].indexOf(value) >= 0) return 'kg';
+    if (['g', 'gr', 'grs', 'grama', 'gramas', 'gramo', 'gramos', 'gram'].indexOf(value) >= 0) return 'g';
     if (['l', 'litro', 'litros'].indexOf(value) >= 0) return 'l';
-    if (['ml', 'mililitro', 'mililitros'].indexOf(value) >= 0) return 'ml';
+    if (['ml', 'mililitro', 'mililitros', 'mililitro', 'mililitros'].indexOf(value) >= 0) return 'ml';
     return value;
   }
 
@@ -10164,7 +10165,14 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var yieldQty = _parseFichaNum(f.yieldQuantity || f.yield) || 0;
     var yieldUnit = f.yieldUnit || 'unidades';
     var unitWeight = _parseFichaNum(f.unitWeightGrams || 0) || 0;
+    var constructionWeight = _recipeUnitWeightSuggestionFromRecipe(f).grams || 0;
+    if (constructionWeight >= 50 && (!(unitWeight > 0) || unitWeight < 5 || Math.abs(unitWeight - constructionWeight) < 0.0001)) {
+      unitWeight = constructionWeight;
+    }
     var totalProduced = _parseFichaNum(f.totalProducedGrams || 0) || 0;
+    if (constructionWeight >= 50 && totalProduced > 0 && totalProduced < 5 && yieldQty > 0) {
+      totalProduced = yieldQty * constructionWeight;
+    }
     if (!totalProduced && unitWeight > 0 && (yieldUnit === 'unidades' || yieldUnit === 'porções')) {
       totalProduced = yieldQty * unitWeight;
     }
@@ -11332,10 +11340,47 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   }
 
   function _recipeWeightUnitToGrams(qty, unit) {
-    var key = String(unit || '').trim().toLowerCase();
-    if (key === 'g' || key === 'gr' || key === 'grama' || key === 'gramas') return _parseFichaNum(qty);
-    if (key === 'kg' || key === 'kgs' || key === 'quilo' || key === 'kilo' || key === 'quilograma' || key === 'quilogramas') return _parseFichaNum(qty) * 1000;
+    var key = _recipeYieldUnitKey(unit);
+    if (key === 'g') return _parseFichaNum(qty);
+    if (key === 'kg') return _parseFichaNum(qty) * 1000;
     return null;
+  }
+
+  function _recipeUnitWeightSuggestionFromRecipe(recipe) {
+    recipe = recipe || {};
+    var yieldUnit = recipe.yieldUnit || 'unidades';
+    if (yieldUnit !== 'unidades' && yieldUnit !== 'porções') return { status: 'hidden', grams: 0, mixed: false };
+    var grams = 0;
+    var hasWeight = false;
+    var mixed = false;
+    _normalizeFichaComponents(recipe).forEach(function (comp) {
+      var qty = _componentUsageQuantity(comp);
+      var unit = _componentUsageUnit(comp);
+      if (!(qty > 0)) return;
+      var converted = _recipeWeightUnitToGrams(qty, unit);
+      if (converted == null) {
+        mixed = true;
+        return;
+      }
+      grams += converted;
+      hasWeight = true;
+    });
+    _normalizeFichaDirectIngredients(recipe).forEach(function (ing) {
+      var item = _itensCusto.find(function (i) { return String(i.id) === String(ing.insumoId || ing.itemId || ''); }) || {};
+      var qty = _parseFichaNum(ing.qty || ing.quantity || 0);
+      var unit = ing.unit || item.unidade_base || item.unidadeBase || '';
+      if (!(qty > 0)) return;
+      var converted = _recipeWeightUnitToGrams(qty, unit);
+      if (converted == null) {
+        mixed = true;
+        return;
+      }
+      grams += converted;
+      hasWeight = true;
+    });
+    if (mixed) return { status: 'mixed', grams: grams, mixed: true };
+    if (!hasWeight || !(grams > 0)) return { status: 'empty', grams: 0, mixed: false };
+    return { status: 'ok', grams: _roundFichaCost(grams, 4), mixed: false };
   }
 
   function _recipeUnitWeightSuggestionFromModal() {
@@ -11351,6 +11396,22 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       var qty = _parseFichaNum((container.querySelector('[data-comp-stock-qty="' + compIdx + '"]') || {}).value);
       var unit = ((container.querySelector('[data-comp-stock-unit="' + compIdx + '"]') || {}).value || '').trim();
       if (!(qty > 0)) return;
+      var converted = _recipeWeightUnitToGrams(qty, unit);
+      if (converted == null) {
+        mixed = true;
+        return;
+      }
+      grams += converted;
+      hasWeight = true;
+    });
+    var directContainer = document.getElementById('fc-direct-ingredients-list');
+    if (directContainer) directContainer.querySelectorAll('[data-ing-idx]').forEach(function (hidden) {
+      var idx = hidden.dataset.ingIdx;
+      var itemId = hidden.value;
+      var qty = _parseFichaNum((directContainer.querySelector('[data-ing-qty="' + idx + '"]') || {}).value);
+      if (!itemId || !(qty > 0)) return;
+      var item = _itensCusto.find(function (i) { return String(i.id) === String(itemId); }) || {};
+      var unit = item.unidade_base || item.unidadeBase || '';
       var converted = _recipeWeightUnitToGrams(qty, unit);
       if (converted == null) {
         mixed = true;
@@ -11379,14 +11440,15 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     var previousAuto = _parseFichaNum(window._fcAutoUnitWeightValue || 0);
     var matchesPreviousAuto = previousAuto > 0 && Math.abs(current - previousAuto) < 0.0001;
     if (suggestion.status === 'ok') {
-      var canApply = !window._fcUnitWeightManual || !(current > 0) || matchesPreviousAuto;
+      var looksLikeKgTypedAsGrams = current > 0 && current < 5 && suggestion.grams >= 50;
+      var canApply = !window._fcUnitWeightManual || !(current > 0) || matchesPreviousAuto || looksLikeKgTypedAsGrams;
       if (canApply) {
         input.value = _displayFichaQty(suggestion.grams);
         window._fcAutoUnitWeightValue = suggestion.grams;
         window._fcUnitWeightManual = false;
-        _setFichaUnitWeightNote('Calculado pela Qtd. usada por unidade das bases em gramas. Ajuste se o peso final mudar no preparo.');
+        _setFichaUnitWeightNote('Calculado pelas bases e ingredientes avulsos em gramas. Ajuste se o peso final mudar no preparo.');
       } else {
-        _setFichaUnitWeightNote('Sugestão pelas bases: ' + _displayFichaQty(suggestion.grams) + ' g. Mantive o peso que você editou.', 'warn');
+        _setFichaUnitWeightNote('Sugestão pelas bases e ingredientes avulsos: ' + _displayFichaQty(suggestion.grams) + ' g. Mantive o peso que você editou.', 'warn');
       }
       _refreshFichaPesoTotalDisplay();
       return;
@@ -11396,9 +11458,9 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
       window._fcAutoUnitWeightValue = null;
     }
     if (suggestion.status === 'mixed') {
-      _setFichaUnitWeightNote('Complete manualmente: esta receita mistura bases em peso com bases em volume ou unidade.');
+      _setFichaUnitWeightNote('Complete manualmente: esta receita mistura bases ou ingredientes avulsos em peso com volume ou unidade.');
     } else {
-      _setFichaUnitWeightNote('Preencha manualmente ou informe bases em g/kg para sugerir este peso.');
+      _setFichaUnitWeightNote('Preencha manualmente ou informe bases e ingredientes avulsos em g/kg para sugerir este peso.');
     }
     _refreshFichaPesoTotalDisplay();
   }
