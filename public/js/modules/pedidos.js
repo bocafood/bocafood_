@@ -2482,9 +2482,9 @@ Modules.Pedidos = (function () {
     if (payment.discountTotal && !rows.some(function (line) { return line.indexOf('Promoções') >= 0 || line.indexOf('Cupom') >= 0 || line.indexOf('Pontos') >= 0; })) rows.push(_detailSmallLine('Descontos', '-' + UI.fmt(payment.discountTotal)));
     var channelCosts = payment.channelCosts || {};
     if (_num(channelCosts.channelFeeTotal) > 0) {
-      if (_num(channelCosts.channelCommissionAmount) > 0) rows.push(_detailSmallLine('Comissão do canal', '-' + UI.fmt(channelCosts.channelCommissionAmount)));
+      if (_num(channelCosts.channelCommissionAmount) > 0) rows.push(_detailSmallLine('Comissão', '-' + UI.fmt(channelCosts.channelCommissionAmount)));
       if (_num(channelCosts.channelCommissionTaxAmount) > 0) rows.push(_detailSmallLine('Imposto sobre comissão', '-' + UI.fmt(channelCosts.channelCommissionTaxAmount)));
-      if (_num(channelCosts.channelFixedFeeAmount) > 0) rows.push(_detailSmallLine('Taxa fixa do canal', '-' + UI.fmt(channelCosts.channelFixedFeeAmount)));
+      if (_num(channelCosts.channelFixedFeeAmount) > 0) rows.push(_detailSmallLine('Outras taxas', '-' + UI.fmt(channelCosts.channelFixedFeeAmount)));
       rows.push(_detailSmallLine('Líquido a receber', UI.fmt(channelCosts.netReceivable)));
     }
     return rows.length ? '<div style="margin:10px 0 12px;padding:10px 0;border-top:1px solid #F2EDED;border-bottom:1px solid #F2EDED;display:grid;gap:6px;">' + rows.join('') + '</div>' : '';
@@ -8892,7 +8892,7 @@ Modules.Pedidos = (function () {
     if (!_channelBankAccountId(channel)) warnings.push('Canal sem conta bancária.');
     if (!_channelPaymentMethod(channel)) warnings.push('Canal sem forma de pagamento.');
     if (items.some(function (item) { return item.match && item.match.product && !_orderImportItemChoicesComplete(item); })) warnings.push('Complete as escolhas do menu/combo antes de importar.');
-    if (Math.abs(subtotalDiff) >= 0.01) warnings.push('Subtotal da Glovo diferente da soma dos produtos. O pedido será importado sem enviar ao Financeiro até ajustar.');
+    if (Math.abs(subtotalDiff) >= 0.01) warnings.push('Subtotal da Glovo diferente da soma dos produtos. O pedido será importado como pendente de ajuste, sem enviar ao Financeiro até ajustar.');
     return {
       idx: idx,
       orderId: orderId,
@@ -8967,8 +8967,8 @@ Modules.Pedidos = (function () {
     var bankAccountId = _channelBankAccountId(channel);
     var paymentMethod = _channelPaymentMethod(channel);
     var parsedDate = _parseImportDateTime(row.receivedAt);
-    var status = _glovoAdminStatus(row.status);
-    var paymentStatus = _glovoPaymentStatus(row.status);
+    var glovoAdminStatus = _glovoAdminStatus(row.status);
+    var glovoPaymentStatus = _glovoPaymentStatus(row.status);
     var gross = _num(row.gross);
     var net = _num(row.net);
     var importedFees = Math.max(0, +(gross - (net || Math.max(0, gross - _num(row.feesTotal)))).toFixed(2));
@@ -8978,6 +8978,8 @@ Modules.Pedidos = (function () {
     var systemSubtotal = +items.reduce(function (sum, item) { return sum + _num(item.total); }, 0).toFixed(2);
     var importAdjustment = +(gross - systemSubtotal).toFixed(2);
     var hasSubtotalMismatch = Math.abs(importAdjustment) >= 0.01;
+    var status = hasSubtotalMismatch ? 'Pendente' : glovoAdminStatus;
+    var paymentStatus = hasSubtotalMismatch ? 'pending' : glovoPaymentStatus;
     var customerName = 'Cliente Glovo';
     var payload = {
       customerId: '',
@@ -9025,6 +9027,10 @@ Modules.Pedidos = (function () {
       importSubtotalMismatch: hasSubtotalMismatch,
       importFinanceBlocked: hasSubtotalMismatch,
       importFinanceBlockReason: hasSubtotalMismatch ? 'subtotal_glovo_diferente_soma_produtos' : '',
+      importOriginalStatus: glovoAdminStatus,
+      importOriginalPaymentStatus: glovoPaymentStatus,
+      glovoOriginalStatus: row.status && row.status.label || '',
+      requiresImportReview: hasSubtotalMismatch,
       total: gross,
       paymentMethod: paymentMethod,
       formaPagamento: paymentMethod,
@@ -9737,18 +9743,26 @@ Modules.Pedidos = (function () {
   function _detailChannelFeeInputsHTML(order, payment, locked) {
     var costs = (payment && payment.channelCosts) || _orderChannelFinancialPatch(order || {}, _num(payment && payment.total));
     var channelName = _firstText(costs.channelFeeBreakdown && costs.channelFeeBreakdown.channelName, order && order.channel, order && order.source, 'Canal');
-    var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0;
+    var commissionAmount = _num(costs.channelCommissionAmount);
+    var commissionTaxAmount = _num(costs.channelCommissionTaxAmount);
+    var fixedFeeAmount = _num(costs.channelFixedFeeAmount);
+    var hasRule = _num(costs.channelCommissionPct) > 0 || _num(costs.channelCommissionTaxPct) > 0 || _num(costs.channelFixedFee) > 0 || _num(costs.channelFeeTotal) > 0 || commissionAmount > 0 || commissionTaxAmount > 0 || fixedFeeAmount > 0;
     if (!hasRule) return '';
     var disabled = locked ? ' disabled' : '';
     return '<div style="margin-top:10px;border:1px solid #EFE4DC;border-radius:14px;background:#FFFCF8;padding:12px;display:grid;gap:11px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #F1E6DF;">' +
-        '<div style="min-width:0;"><div style="font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.2;">Taxas do canal de venda</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(channelName) + ' · valores abatidos antes da entrada no Financeiro.</div></div>' +
+        '<div style="min-width:0;"><div style="font-size:12px;font-weight:850;color:#1F1F1F;line-height:1.2;">Comissões, impostos e taxas</div><div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(channelName) + ' · valores descontados pelo canal antes do repasse ao Financeiro.</div></div>' +
         '<span style="font-size:10px;font-weight:850;color:' + (costs.channelFeesManual ? '#9A3412' : '#2F6B57') + ';background:#fff;border:1px solid #EADFD8;border-radius:999px;padding:5px 9px;white-space:nowrap;">' + (costs.channelFeesManual ? 'Editado manualmente' : 'Automático') + '</span>' +
       '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;min-width:0;max-width:100%;">' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Comissão</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(commissionAmount)) + '</strong></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Imposto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(commissionTaxAmount)) + '</strong></div>' +
+        '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Outras taxas</div><strong style="display:block;margin-top:3px;font-size:13px;color:#B42318;">-' + _esc(UI.fmt(fixedFeeAmount)) + '</strong></div>' +
+      '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;align-items:end;min-width:0;max-width:100%;">' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"' + disabled + '></div></div>' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto comissão %</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"' + disabled + '></div></div>' +
-        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Taxa fixa</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"' + disabled + '></div></div>' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-commission-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionPct))) + '"' + disabled + '></div></div>' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Imposto da comissão (%)</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-tax-pct" type="number" step="0.01" value="' + _esc(String(_num(costs.channelCommissionTaxPct))) + '"' + disabled + '></div></div>' +
+        '<div style="min-width:0;max-width:100%;"><label class="order-detail-label">Outras taxas</label><div class="order-detail-field-control order-detail-field-control-sm"><input id="detail-channel-fixed-fee" type="number" step="0.01" value="' + _esc(String(_num(costs.channelFixedFee))) + '"' + disabled + '></div></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;min-width:0;max-width:100%;">' +
         '<div style="background:#fff;border:1px solid #EFE4DC;border-radius:11px;padding:9px 10px;min-width:0;"><div style="font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Total bruto</div><strong style="display:block;margin-top:3px;font-size:13px;color:#1F1F1F;">' + _esc(UI.fmt(costs.grossOrderTotal || costs.grossAmount || 0)) + '</strong></div>' +

@@ -2,6 +2,10 @@
 
 ## 2026-06-06 — Pedidos: taxas e ajuste financeiro na importação Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Renomeei o card `Taxas do canal de venda` para `Comissões, impostos e taxas`.
+- O card agora mostra os valores em dinheiro de comissão, imposto sobre comissão e outras taxas, além dos campos percentuais/editáveis.
+- Quando o subtotal da Glovo diverge da soma dos produtos, o pedido importado agora fica como `Pendente`, mesmo que a Glovo tenha enviado `Entregue`.
+- O status original da Glovo fica guardado para auditoria, mas o pedido não é tratado como entregue até o ajuste ser feito.
 - Corrigi a importação Glovo para registrar comissão, imposto sobre comissão e demais taxas em campos separados, em vez de jogar tudo como taxa fixa.
 - As taxas do marketplace deixam de entrar como `discountTotal` comum do pedido; ficam registradas nos campos de taxas do canal e no resumo financeiro.
 - Quando o subtotal informado pela Glovo não bate com a soma dos produtos vinculados no sistema, o pedido é importado com pendência de ajuste e não cria entrada no Financeiro.
