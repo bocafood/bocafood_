@@ -1,5 +1,17 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos: confirmação ao importar Glovo
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ao concluir a importação Glovo sem erros, o Admin agora mostra mensagem de sucesso e fecha o modal de prévia automaticamente.
+- Quando algum pedido falha na importação, o modal permanece aberto para revisão da linha com erro.
+- Atualizei o cache-buster de `pedidos.js` no Admin para carregar a correção.
+
+## 2026-06-06 — Pedidos: pagamento parcial no Financeiro
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Pedidos com status de pagamento `Parcial` passam a sincronizar a entrada financeira como `parcial`, preservando `valorRecebido` e calculando `saldoRestante`.
+- A regra de conferência continua mantendo pagamentos não parciais como entrada prevista no Financeiro, sem efetivar automaticamente.
+- Atualizei o cache-buster de `pedidos.js` no Admin para carregar a correção.
+
 ## 2026-06-06 — Pedidos Glovo: baixa de estoque na importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - A prévia de importação Glovo passa a vir com `Baixar estoque dos entregues` selecionado por padrão, mantendo a opção `Só histórico` para casos em que a usuária não quer alterar estoque.

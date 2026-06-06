@@ -8714,7 +8714,14 @@ Modules.Pedidos = (function () {
         window._orderImportPreviewState = state;
         _renderOrderImportPreview();
         if (typeof _loadMeta === 'function') _loadMeta();
-        UI.toast(imported + ' pedido(s) importado(s)' + (failed ? ' · ' + failed + ' com erro' : ''), failed ? 'warning' : 'success');
+        if (failed) {
+          UI.toast(imported + ' pedido(s) importado(s) · ' + failed + ' com erro para revisar.', 'warning');
+          return;
+        }
+        UI.toast(imported + ' pedido(s) importado(s) com sucesso.', 'success');
+        if (window._orderImportPreviewModal && typeof window._orderImportPreviewModal.close === 'function') {
+          window._orderImportPreviewModal.close();
+        }
       });
     });
   }
@@ -9756,6 +9763,7 @@ Modules.Pedidos = (function () {
   }
 
   function _paymentStatusFinanceStatus(value) {
+    if (_paymentStatusIsPartial(value)) return 'parcial';
     return 'previsto';
   }
 
@@ -9925,7 +9933,7 @@ Modules.Pedidos = (function () {
     if (_paymentStatusIsPaid(paymentStatus)) paidAmount = total;
     if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
-    paidAmount = 0;
+    if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = 0;
     var orderDate = _firstText(order.orderDate, order.dataPedido, order.createdDate, order.saleDate, order.date, order.createdAt, order.created_at, _localDateKey());
     var financeDate = orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _localDateKey();
     var paymentDate = _firstText(order.paymentDate, order.dataPagamento, order.paidAt, order.paymentAt, order.paymentUpdatedAt, '');
