@@ -1,5 +1,13 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: modal por combinação de menu
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei a leitura de combinações do menu no modal `Composição do Preço`: a lista agora funciona como entrada para uma análise individual por combinação.
+- Cada combinação possível ganhou o botão `Ver composição`, que abre um modal próprio com preço, custo, taxas, lucro, margem, distribuição do preço e preços sugeridos daquela combinação.
+- A lista principal ficou mais compacta, evitando colocar todas as análises detalhadas dentro do mesmo modal do produto.
+- O cálculo continua em memória e não cria produtos reais, não altera pedidos, estoque, financeiro ou cadastro do cardápio.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Preços/Temporadas: combinações de menu fase 6
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Temporadas passa a preservar escolhas estruturadas (`choiceDetails`, `menuChoices`, `selectedOptions`, `variants`) ao normalizar itens de pedido.

@@ -1676,8 +1676,9 @@ Modules.Dinheiro = (function () {
       _menuCombinationExtremeCard('Pior margem', summary.worst, '#B42318') +
       _menuCombinationExtremeCard('Melhor margem', summary.best, '#1F6F43') +
     '</div>' : '';
+    (info.samples || []).forEach(function (sample, index) { sample.__comboIndex = index; });
     window._dinMenuCombinationData = window._dinMenuCombinationData || {};
-    window._dinMenuCombinationData[listId] = info.samples || [];
+    window._dinMenuCombinationData[listId] = { product: product, channel: channel, samples: info.samples || [] };
     var listHtml = '<div style="margin-top:12px;border-top:1px solid #E8DCD7;padding-top:10px;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
         '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Listagem das combinações</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">Filtre para encontrar combinações com margem baixa, maior custo ou melhor resultado.</div></div>' +
@@ -1695,7 +1696,7 @@ Modules.Dinheiro = (function () {
           '</select>' +
         '</div>' +
       '</div>' +
-      '<div id="' + _esc(listId) + '">' + _menuCombinationListHtml(info.samples || [], _menuCombinationView) + '</div>' +
+      '<div id="' + _esc(listId) + '">' + _menuCombinationListHtml(info.samples || [], _menuCombinationView, listId) + '</div>' +
     '</div>';
     return '<div style="margin-top:12px;border:1px solid #E8DCD7;background:#FFFCF8;border-radius:14px;padding:12px;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
@@ -1736,13 +1737,13 @@ Modules.Dinheiro = (function () {
     '</div>';
   }
 
-  function _menuCombinationListHtml(samples, view) {
+  function _menuCombinationListHtml(samples, view, listId) {
     view = view || _menuCombinationView;
     var rows = _filterMenuCombinationRows(samples || [], view.filter || 'todos');
     rows = _sortMenuCombinationRows(rows, view.sort || 'margem-asc');
     var visible = rows.slice(0, 24);
     if (!visible.length) return '<div style="background:#fff;border:1px dashed #E8DCD7;border-radius:12px;padding:12px;color:#6F6860;font-size:12px;line-height:1.4;">Nenhuma combinação encontrada com este filtro.</div>';
-    return '<div style="display:flex;flex-direction:column;gap:6px;">' + visible.map(_menuCombinationRowHtml).join('') + '</div>' +
+    return '<div style="display:flex;flex-direction:column;gap:6px;">' + visible.map(function (sample) { return _menuCombinationRowHtml(sample, listId); }).join('') + '</div>' +
       (rows.length > visible.length ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:8px;">Mostrando 24 de ' + rows.length + ' combinações deste filtro.</div>' : '');
   }
 
@@ -1772,19 +1773,18 @@ Modules.Dinheiro = (function () {
     });
   }
 
-  function _menuCombinationRowHtml(sample) {
+  function _menuCombinationRowHtml(sample, listId) {
     var a = sample && sample.analysis || {};
     var tone = a.status === 'prejuízo' || a.status === 'margem baixa' ? '#B42318' : (a.status === 'atenção' || a.status === 'sem custo' ? '#D97706' : '#1F6F43');
     var extra = _num(sample && sample.extraPrice);
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,max-content);gap:10px;align-items:start;background:#fff;border:1px solid #EFE5E1;border-radius:11px;padding:9px 10px;">' +
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,max-content);gap:10px;align-items:center;background:#fff;border:1px solid #EFE5E1;border-radius:11px;padding:9px 10px;">' +
       '<div style="min-width:0;">' +
         '<div style="font-size:12px;color:#1F1F1F;font-weight:650;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sample && sample.label || 'Combinação') + '</div>' +
-        '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">Custo ' + UI.fmt(_num(a.totalCost)) + ' · Taxas ' + UI.fmt(_num(a.fees)) + ' · Lucro ' + UI.fmt(_num(a.profit)) + '</div>' +
+        '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">Preço ' + UI.fmt(_num(a.price)) + (extra ? ' · adicional +' + UI.fmt(extra) : '') + ' · margem ' + _num(a.margin).toFixed(1).replace('.', ',') + '%</div>' +
       '</div>' +
       '<div style="display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;text-align:right;">' +
-        '<strong style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(_num(a.price)) + (extra ? ' · +' + UI.fmt(extra) : '') + '</strong>' +
-        '<span style="font-size:11px;color:' + tone + ';font-weight:800;white-space:nowrap;">' + _num(a.margin).toFixed(1).replace('.', ',') + '%</span>' +
         '<span style="font-size:10.5px;color:' + tone + ';font-weight:750;background:#FAF8F4;border-radius:999px;padding:4px 7px;white-space:nowrap;">' + _esc(a.status || 'sem dados') + '</span>' +
+        '<button type="button" onclick="Modules.Dinheiro._openMenuCombinationPriceModal(\'' + _esc(listId || '') + '\',' + _num(sample && sample.__comboIndex) + ')" style="height:32px;padding:0 11px;border-radius:10px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;font-size:11.5px;font-weight:750;cursor:pointer;font-family:inherit;white-space:nowrap;">Ver composição</button>' +
       '</div>' +
     '</div>';
   }
@@ -1793,8 +1793,64 @@ Modules.Dinheiro = (function () {
     if (key === 'filter') _menuCombinationView.filter = value || 'todos';
     if (key === 'sort') _menuCombinationView.sort = value || 'margem-asc';
     var host = document.getElementById(listId);
-    var data = window._dinMenuCombinationData && window._dinMenuCombinationData[listId] || [];
-    if (host) host.innerHTML = _menuCombinationListHtml(data, _menuCombinationView);
+    var data = window._dinMenuCombinationData && window._dinMenuCombinationData[listId] || {};
+    var samples = Array.isArray(data) ? data : (data.samples || []);
+    if (host) host.innerHTML = _menuCombinationListHtml(samples, _menuCombinationView, listId);
+  }
+
+  function _openMenuCombinationPriceModal(listId, index) {
+    var data = window._dinMenuCombinationData && window._dinMenuCombinationData[listId] || {};
+    var samples = Array.isArray(data) ? data : (data.samples || []);
+    var sample = samples[parseInt(index, 10) || 0];
+    if (!sample || !sample.analysis) return;
+    var product = data.product || {};
+    var channel = data.channel || _cardapioChannel();
+    var analysis = Object.assign({}, sample.analysis, { product: product, channel: channel });
+    var minMarginRule = _num(_data.dinheiro.minMarginPct || 40);
+    var desiredMarginRule = _num(_data.dinheiro.desiredMarginPct || 60);
+    var minimumRulePrice = _priceForMargin(analysis.totalCost, minMarginRule, channel, { round: false }, product);
+    var suggestedPrice = _suggestedPrice(analysis.totalCost, desiredMarginRule, channel, product);
+    var minFee = _feesForPrice(minimumRulePrice, channel, product);
+    var suggestedFee = _feesForPrice(suggestedPrice, channel, product);
+    var minMargin = minimumRulePrice > 0 ? ((minimumRulePrice - analysis.totalCost - minFee.total) / minimumRulePrice) * 100 : 0;
+    var suggestedMargin = suggestedPrice > 0 ? ((suggestedPrice - analysis.totalCost - suggestedFee.total) / suggestedPrice) * 100 : 0;
+    var statusTone = analysis.status === 'prejuízo' || analysis.status === 'margem baixa' ? '#B42318' : (analysis.status === 'atenção' || analysis.status === 'sem custo' ? '#D97706' : '#1F6F43');
+    var body = '<div style="display:flex;flex-direction:column;gap:12px;font-family:Manrope,Inter,sans-serif;">' +
+      '<section style="' + _priceModalCardStyle() + '">' +
+        _priceModalSectionTitle('Combinação analisada', 'Esta leitura usa só as escolhas desta combinação.', 'tune') +
+        '<div style="font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.45;">' + _esc(sample.label || 'Combinação') + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
+          '<span style="font-size:11px;color:#6F6860;">' + _esc(product.name || 'Menu') + '</span>' +
+          '<span style="font-size:11px;color:#6F6860;">·</span>' +
+          '<span style="font-size:11px;color:#6F6860;">' + _esc(channel.name || 'Canal') + '</span>' +
+          '<span style="font-size:10.5px;color:' + statusTone + ';font-weight:800;background:#FAF8F4;border-radius:999px;padding:4px 7px;">' + _esc(analysis.status || 'sem dados') + '</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-top:11px;">' +
+          _priceMetric('Preço', UI.fmt(analysis.price), analysis.extraPrice ? 'inclui +' + UI.fmt(analysis.extraPrice) + ' de adicional' : 'sem adicional') +
+          _priceMetric('Custo', UI.fmt(analysis.totalCost), 'custo desta combinação') +
+          _priceMetric('Taxas', UI.fmt(analysis.fees), channel.name || 'canal') +
+          _priceMetric('Lucro', UI.fmt(analysis.profit), 'antes de IRPF estimado') +
+          _priceMetric('Margem', _num(analysis.margin).toFixed(1).replace('.', ',') + '%', 'desta combinação') +
+        '</div>' +
+      '</section>' +
+      '<section style="' + _priceModalCardStyle() + '">' +
+        _priceModalSectionTitle('Distribuição do preço', 'Veja quanto do preço desta combinação vai para custo, taxas e resultado.', 'donut_large') +
+        _priceDistribution(analysis) +
+      '</section>' +
+      '<section style="' + _priceModalCardStyle() + '">' +
+        _priceModalSectionTitle('Preços sugeridos', 'Referências calculadas só para esta combinação.', 'trending_up') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+          _priceMetric('Preço com margem mínima', UI.fmt(minimumRulePrice), 'margem aprox. ' + minMargin.toFixed(1).replace('.', ',') + '%') +
+          _priceMetric('Preço com margem desejada', UI.fmt(suggestedPrice), 'margem aprox. ' + suggestedMargin.toFixed(1).replace('.', ',') + '%') +
+        '</div>' +
+      '</section>' +
+    '</div>';
+    window._dinMenuCombinationModal = UI.modal({
+      title: 'Composição da combinação',
+      body: body,
+      footer: '<button type="button" onclick="if(window._dinMenuCombinationModal){window._dinMenuCombinationModal.close();}" style="height:40px;background:#fff;color:#1F1F1F;border:1px solid #E8DCD7;padding:0 16px;border-radius:12px;font-weight:650;cursor:pointer;font-family:inherit;">Fechar</button>',
+      maxWidth: '980px'
+    });
   }
 
   function _soldMenuCombinationsBlock(product) {
@@ -2692,6 +2748,7 @@ Modules.Dinheiro = (function () {
     _openProductModal: _openProductModal,
     _updateProductPriceModal: _updateProductPriceModal,
     _setMenuCombinationView: _setMenuCombinationView,
+    _openMenuCombinationPriceModal: _openMenuCombinationPriceModal,
     _saveProductPrice: _saveProductPrice,
     _closeProductModal: _closeProductModal,
     _saveRegras: _saveRegras,
