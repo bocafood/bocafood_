@@ -7,6 +7,10 @@
 - No `Radar`, ajustei o card `Margem baixa` para não mostrar `0` junto de uma frase que parecia contraditória; produtos em atenção agora aparecem como `perto do limite`.
 - No card `Risco crítico`, quando não há produto crítico, a leitura passa a mostrar `nenhum produto crítico agora`.
 - No card `Prioridades financeiras`, as leituras passam a ser agrupadas por canal de venda, e os produtos para revisar primeiro também mostram o canal usado no cálculo.
+- Compactei o card `Canais de venda` para mostrar cada canal em linhas menores, com impacto, margem, comissão, imposto e taxa fixa em leitura mais curta.
+- Reorganizei a aba `Radar` em leitura rápida, prioridades por canal, canais de venda e produtos para revisar primeiro, com copies mais diretas e cards internos mais compactos.
+- Ajustei os KPIs do `Radar` para considerar a matriz produto x canal, contando produtos afetados e mostrando em quantos canais o alerta aparece.
+- Corrigi os botões de `Produtos para revisar primeiro` para abrir diretamente o modal de composição do produto no canal usado no cálculo.
 - Atualizei o cache-buster de `dinheiro.js` no Admin.
 
 ## 2026-06-06 — Receitas: peso dos ingredientes avulsos por rendimento
