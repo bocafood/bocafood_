@@ -11,6 +11,7 @@
 - Reorganizei a aba `Radar` em leitura rápida, prioridades por canal, canais de venda e produtos para revisar primeiro, com copies mais diretas e cards internos mais compactos.
 - Ajustei os KPIs do `Radar` para considerar a matriz produto x canal, contando produtos afetados e mostrando em quantos canais o alerta aparece.
 - Corrigi os botões de `Produtos para revisar primeiro` para abrir diretamente o modal de composição do produto no canal usado no cálculo.
+- Corrigi a `Distribuição do preço` quando há prejuízo: a diferença agora aparece como `Falta para cobrir`, sem inflar o `Total distribuído` acima de 100% como se fosse parte do preço.
 - Atualizei o cache-buster de `dinheiro.js` no Admin.
 
 ## 2026-06-06 — Receitas: peso dos ingredientes avulsos por rendimento

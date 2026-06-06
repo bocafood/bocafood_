@@ -1331,14 +1331,16 @@ Modules.Dinheiro = (function () {
     var irpf = _irpfEstimatedOnProfit(analysis);
     if (_fiscalEnabled() && irpf > 0) parts.push({ label: 'IRPF estimado', value: irpf, color: '#BE123C', percentBase: price, group: 'tax' });
     if (analysis.profit > 0) parts.push({ label: _fiscalEnabled() ? 'Lucro depois da estimativa fiscal' : 'Lucro', value: Math.max(0, analysis.profit - irpf), color: '#1A9E5A', percentBase: price, group: 'result' });
-    if (analysis.profit < 0) parts.push({ label: 'Prejuízo', value: Math.abs(analysis.profit), color: '#991B1B', percentBase: price, group: 'result' });
     var total = 1;
     var markupBase = Math.max(_num(analysis.totalCost), 0);
     var costsTotal = parts.filter(function (p) { return p.group === 'cost'; }).reduce(function (s, p) { return s + Math.max(0, p.value); }, 0);
     var feesTotal = parts.filter(function (p) { return p.group === 'fee' || p.group === 'tax'; }).reduce(function (s, p) { return s + Math.max(0, p.value); }, 0);
     var resultTotal = parts.filter(function (p) { return p.group === 'result'; }).reduce(function (s, p) { return s + Math.max(0, p.value); }, 0);
-    var distributedTotal = parts.reduce(function (s, p) { return s + Math.max(0, p.value); }, 0);
-    total = Math.max(distributedTotal, 1);
+    var costLikeTotal = costsTotal + feesTotal;
+    var lossAmount = Math.max(0, -_num(analysis.profit));
+    var hasLoss = lossAmount > 0;
+    var distributedTotal = hasLoss ? Math.min(price, costLikeTotal) : parts.reduce(function (s, p) { return s + Math.max(0, p.value); }, 0);
+    total = Math.max(hasLoss ? costLikeTotal : distributedTotal, 1);
     function pctText(value, base) {
       var pct = (base || price) > 0 ? (value / (base || price)) * 100 : 0;
       return pct.toFixed(1).replace('.', ',') + '%';
@@ -1353,11 +1355,11 @@ Modules.Dinheiro = (function () {
         '<span style="color:#1A1A1A;font-weight:' + (mutedPct ? '500' : '650') + ';"> · ' + pct.toFixed(1).replace('.', ',') + '%</span>' +
         '<span style="color:#8A7E7C;font-weight:500;"> · ' + markupText(value) + '</span>';
     }
-    function summaryCard(label, value, color) {
+    function summaryCard(label, value, color, note) {
       return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03);">' +
         '<div style="font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#6F6860;margin-bottom:6px;">' + _esc(label) + '</div>' +
         '<div style="display:flex;align-items:center;gap:7px;"><i style="width:9px;height:9px;border-radius:50%;background:' + color + ';display:inline-block;"></i><strong style="font-size:17px;font-weight:700;color:#1F1F1F;">' + UI.fmt(value) + '</strong></div>' +
-        '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + pctText(value) + ' do preço · <span style="font-weight:500;">' + markupText(value) + '</span> do markup</div>' +
+        '<div style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + (note ? _esc(note) : pctText(value) + ' do preço · ' + markupText(value) + ' do markup') + '</div>' +
         '</div>';
     }
     var bar = parts.map(function (p) {
@@ -1373,25 +1375,29 @@ Modules.Dinheiro = (function () {
     }
     var costLikeParts = parts.filter(function (p) { return p.group !== 'result'; });
     var resultParts = parts.filter(function (p) { return p.group === 'result'; });
-    var costLikeTotal = costsTotal + feesTotal;
     var rows = costLikeParts.map(function (p) {
       return rowHTML(p, { mutedPct: true });
     }).join('');
     if (costLikeParts.length) {
-      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0;padding:10px 0 8px;border-top:1px solid #E8DCD7;border-bottom:1px solid #F2EDED;"><span style="font-weight:700;color:#1F1F1F;">Soma dos custos</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(costLikeTotal, price, true) + '</span></div>';
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0;padding:10px 0 8px;border-top:1px solid #E8DCD7;border-bottom:1px solid #F2EDED;"><span style="font-weight:700;color:#1F1F1F;">Custo + taxas</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(costLikeTotal, price, true) + '</span></div>';
     }
     rows += resultParts.map(function (p) {
       return rowHTML(p, { mutedPct: false });
     }).join('');
+    if (hasLoss) {
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0;padding:10px 0 8px;border-top:1px solid #E8DCD7;border-bottom:1px solid #F2EDED;"><span style="display:flex;align-items:center;gap:8px;font-weight:700;color:#991B1B;"><i style="width:9px;height:9px;border-radius:50%;background:#991B1B;display:inline-block;flex:0 0 auto;"></i>Falta para cobrir</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(lossAmount, price, false) + '</span></div>';
+    }
     var empty = !parts.length ? '<div style="padding:10px;color:#8A7E7C;background:#F8F6F5;border-radius:10px;">Sem custos ou taxas cadastradas para distribuir.</div>' : '';
+    var priceCoverageNote = hasLoss && costLikeTotal > 0 ? 'cobre ' + ((price / costLikeTotal) * 100).toFixed(1).replace('.', ',') + '% do custo + taxas' : '100,0% do preço';
     var summaries = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">' +
       summaryCard('Custos', costsTotal, '#C4362A') +
       summaryCard('Taxas e impostos', feesTotal, '#6B7280') +
-      summaryCard(analysis.profit < 0 ? 'Prejuízo' : 'Resultado', resultTotal, analysis.profit < 0 ? '#991B1B' : '#1A9E5A') +
-      summaryCard('Total distribuído', distributedTotal, '#1A1A1A') +
+      (hasLoss ? summaryCard('Falta para cobrir', lossAmount, '#991B1B', pctText(lossAmount) + ' além do preço atual') : summaryCard('Resultado', resultTotal, '#1A9E5A')) +
+      summaryCard(hasLoss ? 'Preço atual' : 'Total distribuído', hasLoss ? price : distributedTotal, '#1A1A1A', priceCoverageNote) +
       '</div>';
-    var totalRow = parts.length ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0 0;border-top:1px solid #E8DCD7;"><span style="font-weight:700;color:#1F1F1F;">Soma total</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(distributedTotal, price, false) + '</span></div>' : '';
-    return summaries + '<div style="display:flex;overflow:hidden;border-radius:999px;background:#F8F1ED;margin-bottom:10px;">' + bar + '</div>' + rows + totalRow + empty;
+    var totalRow = parts.length ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0 0;border-top:1px solid #E8DCD7;"><span style="font-weight:700;color:#1F1F1F;">' + (hasLoss ? 'Preço atual' : 'Soma total') + '</span><span style="white-space:nowrap;font-size:13px;color:#1F1F1F;">' + metricsHTML(hasLoss ? price : distributedTotal, price, false) + '</span></div>' : '';
+    var lossNotice = hasLoss ? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#FFF0EE;border:1px solid #F2C8C2;color:#7A271A;font-size:12.5px;line-height:1.45;">O preço atual não cobre custo e taxas. A diferença aparece como falta para cobrir, não como parte distribuída do preço.</div>' : '';
+    return summaries + lossNotice + '<div style="display:flex;overflow:hidden;border-radius:999px;background:#F8F1ED;margin-bottom:10px;">' + bar + '</div>' + rows + totalRow + empty;
   }
 
   function _irpfEstimatedOnProfit(analysis) {
