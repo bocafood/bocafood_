@@ -5,7 +5,7 @@ window.SeasonsAI = (function () {
   var AI_PROMPT = [
     'Você é um copiloto operacional para um pequeno negócio de comida.',
     'Use apenas os dados fornecidos no contexto.',
-    'Leia primeiro season, status, operationalData, executionPlan, scoreBreakdown, validatedImpactSignals, riskContext, snapshots e confidence.',
+    'Leia primeiro season, status, operationalData, executionPlan, scoreBreakdown, validatedImpactSignals, riskContext, snapshots, confidence, salesIntelligence.businessPossibilities e salesIntelligence.playHistory.',
     'Considere que o Plano de Voo define a direção maior e que a Temporada transforma essa direção em jogadas de curto prazo.',
     'A dificuldade define a intensidade operacional: Seguro tem 1 jogada, Equilibrado até 2 jogadas e Agressivo até 3 jogadas.',
     'O objetivo define o resultado principal da temporada. A prioridade escolhida pela usuária orienta por onde começar, mas não limita a jogada quando os dados mostram oportunidade mais forte.',
@@ -17,14 +17,18 @@ window.SeasonsAI = (function () {
     'Não transforme em jogada principal uma ação que o sistema não consiga ler nos pedidos ou cadastros.',
     'Venda ligada à jogada é sinal de leitura, não motivo para trocar automaticamente a jogada antes da janela de resultado.',
     'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, horário, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
-    'Use salesIntelligence para escolher a jogada mais específica possível: melhor produto, melhor canal, público provável, ação de venda disponível e sinais dos últimos 30 dias.',
+    'Use salesIntelligence para escolher a jogada mais específica possível: melhor produto, melhor combinação de menu, melhor canal, público provável, ação de venda disponível e sinais dos últimos 30 dias.',
+    'Use businessPossibilities para saber quais caminhos a usuária pode usar dentro do BocaFood: canais cadastrados, canais ainda pouco explorados, produtos do cardápio, menus/combos, escolhas internas, cupons, promoções, upsells e programa de pontos.',
+    'Use playHistory para não repetir uma jogada sem resposta. Repita apenas quando a jogada anterior teve resultado ou quando não existir alternativa melhor no contexto.',
+    'Se houver mais de uma jogada, cada uma precisa ter foco diferente: outro produto, outra combinação, outro canal, outro público ou outro mecanismo de venda.',
     'Quando salesIntelligence.realMenuCombinations existir, use essas combinações reais vendidas para escolher sabor/menu/oferta com mais precisão do que uma análise genérica do produto.',
     'Se uma combinação real vende bem mas tem margem baixa, prefira ajuste de preço, troca de oferta, upsell sem desconto ou destaque de combinação mais saudável.',
     'A jogada deve vir pronta para execução, dizendo exatamente o que fazer, com qual produto/oferta, para qual público/canal, em qual janela e qual dado vai provar se funcionou.',
     'Se não houver produto/canal/público suficiente, diga que a jogada é criar base e peça registro de pedidos com produto, canal e horário, sem fingir que já existe produto vencedor.',
     'Se existir executionPlan.actions, use essas ações como fonte principal da Próxima Jogada e melhore apenas clareza, prioridade e linguagem.',
     'Quando executionPlan.actions trouxer measurement, respeite esses campos como a regra de leitura do resultado da jogada.',
-    'Se uma ação citar produto, canal, horário, cupom, promoção, upsell ou pontos, preserve esses objetos concretos e não troque por termos genéricos.',
+    'Se uma ação citar produto, combinação, canal, horário, cupom, promoção, upsell ou pontos, preserve esses objetos concretos e não troque por termos genéricos.',
+    'Quando o produto for menu/combo e existir optionGroups ou realMenuCombinations, cite a escolha interna útil. Evite dizer só o nome genérico do menu quando a melhor ação depende de sabor, bebida, adicional ou combinação.',
     'Não recomende desconto sem preço, custo, margem e desconto saudável já calculados no contexto.',
     'Upsell só pode ser tratado como jogada do canal Cardápio.',
     'Cupom, promoção, upsell e pontos só contam como sinal quando aparecem em pedido real ou quando existe evidência de ação criada pelo BocaFood.',
@@ -516,6 +520,7 @@ window.SeasonsAI = (function () {
     var available = info.availableActions || {};
     var points = info.pointsProgram || {};
     var customers = info.customerSignals || {};
+    var possibilities = info.businessPossibilities || {};
     return {
       period: info.period || 'ultimos_30_dias',
       revenue: _round(_num(info.revenue)),
@@ -542,6 +547,14 @@ window.SeasonsAI = (function () {
         coupons: _safeActionList(available.coupons || [], 4),
         upsells: _safeActionList(available.upsells || [], 4)
       },
+      businessPossibilities: {
+        salesChannels: _safePossibilityChannels(possibilities.salesChannels || []),
+        unexploredChannels: _safePossibilityChannels(possibilities.unexploredChannels || []),
+        catalogProducts: _safeCatalogPossibilities(possibilities.catalogProducts || [], 12),
+        menuProducts: _safeCatalogPossibilities(possibilities.menuProducts || [], 8),
+        availableSalesLevers: _safeSalesLevers(possibilities.availableSalesLevers || [])
+      },
+      playHistory: _safePlayHistory(info.playHistory || {}),
       pointsProgram: {
         active: points.active !== false,
         earnPerEuro: _round(_num(points.earnPerEuro)),
@@ -560,6 +573,85 @@ window.SeasonsAI = (function () {
         suggestedGroups: _cleanList(customers.suggestedGroups || []).slice(0, 4)
       }
     };
+  }
+
+  function _safePossibilityChannels(items) {
+    return (items || []).slice(0, 10).map(function (item) {
+      item = item || {};
+      return {
+        key: item.key || '',
+        name: item.name || item.label || '',
+        commissionPct: _round(_num(item.commissionPct)),
+        fixedFee: _round(_num(item.fixedFee)),
+        taxPct: _round(_num(item.taxPct))
+      };
+    }).filter(function (item) { return item.name || item.key; });
+  }
+
+  function _safeCatalogPossibilities(items, limit) {
+    return (items || []).slice(0, limit || 10).map(function (item) {
+      item = item || {};
+      return {
+        id: item.id || '',
+        name: item.name || item.label || '',
+        category: item.category || '',
+        price: _round(_num(item.price)),
+        kind: item.kind || '',
+        hasOptions: item.hasOptions === true,
+        optionGroups: _safeOptionGroups(item.optionGroups || [])
+      };
+    }).filter(function (item) { return item.name; });
+  }
+
+  function _safeOptionGroups(items) {
+    return (items || []).slice(0, 4).map(function (group) {
+      group = group || {};
+      return {
+        name: group.name || group.title || '',
+        required: group.required === true,
+        min: _round(_num(group.min)),
+        max: _round(_num(group.max)),
+        options: _cleanList(group.options || []).slice(0, 8)
+      };
+    }).filter(function (group) { return group.name || group.options.length; });
+  }
+
+  function _safeSalesLevers(items) {
+    return (items || []).slice(0, 6).map(function (item) {
+      item = item || {};
+      return {
+        type: item.type || '',
+        count: _round(_num(item.count)),
+        names: _cleanList(item.names || []).slice(0, 4)
+      };
+    }).filter(function (item) { return item.type || item.names.length; });
+  }
+
+  function _safePlayHistory(history) {
+    history = history || {};
+    return {
+      recent: _safePlayHistoryItems(history.recent || [], 8),
+      winners: _safePlayHistoryItems(history.winners || [], 5),
+      weakOrExpired: _safePlayHistoryItems(history.weakOrExpired || [], 5),
+      activeOrReading: _safePlayHistoryItems(history.activeOrReading || [], 5)
+    };
+  }
+
+  function _safePlayHistoryItems(items, limit) {
+    return (items || []).slice(0, limit || 6).map(function (item) {
+      item = item || {};
+      return {
+        actionId: item.actionId || '',
+        title: item.title || '',
+        source: item.source || '',
+        focusKey: item.focusKey || '',
+        productKey: item.productKey || '',
+        status: item.status || '',
+        resultDueAt: item.resultDueAt || '',
+        evidence: item.evidence || '',
+        orderTotal: _round(_num(item.orderTotal))
+      };
+    }).filter(function (item) { return item.title || item.actionId; });
   }
 
   function _safeRealMenuCombinations(items) {

@@ -9879,6 +9879,36 @@ Modules.Pedidos = (function () {
     return 'pedido_' + String(orderId || '').replace(/[\/#?\[\]]/g, '_');
   }
 
+  function _orderFinanceEntryNumber(order) {
+    return _firstText(order && order.financeEntryNumber, order && order.financeMovementNumber, order && order.numeroEntradaFinanceira, order && order.financeNumeroSequencial, '');
+  }
+
+  function _nextOrderFinanceEntryNumber() {
+    if (!DB || typeof DB.getDocRoot !== 'function' || typeof DB.setDocRoot !== 'function') return Promise.resolve('');
+    return DB.getDocRoot('config', 'financeiro').then(function (cfg) {
+      cfg = cfg || {};
+      var seq = (parseInt(cfg.entradaSeq || 0, 10) || 0) + 1;
+      var num = 'EN-' + String(seq).padStart(6, '0');
+      return DB.setDocRoot('config', 'financeiro', { entradaSeq: seq }).then(function () {
+        return num;
+      });
+    }).catch(function () { return ''; });
+  }
+
+  function _applyOrderFinanceEntryNumber(order, payload, number) {
+    number = String(number || '').trim();
+    if (!number) return;
+    payload.numeroSequencial = number;
+    payload.numeroInterno = number;
+    payload.numeroEntradaFinanceira = number;
+    payload.financeEntryNumber = number;
+    if (order) {
+      order.financeEntryNumber = number;
+      order.financeMovementNumber = number;
+      order.numeroEntradaFinanceira = number;
+    }
+  }
+
   function _orderPaymentFinanceLocked(order) {
     order = order || {};
     if (order.importFinanceBlocked || order.importSubtotalMismatch) return false;
@@ -10053,6 +10083,7 @@ Modules.Pedidos = (function () {
       payload.categoriaFinanceiraNatureza = 'receita';
       payload.financialNature = 'receita';
     }
+    _applyOrderFinanceEntryNumber(order, payload, _orderFinanceEntryNumber(order));
     function movementIsInactive(movement) {
       var st = _fold(movement && movement.status || '');
       return st === 'estornada' || st === 'estornado' || st === 'cancelada' || st === 'cancelado';
@@ -10077,17 +10108,27 @@ Modules.Pedidos = (function () {
       });
       if (found && found.id) {
         order.financeMovementId = found.id;
-        return DB.update('movimentacoes', found.id, payload).then(function () {
-          return persistOrderFinancialPatch(Object.assign({ financeMovementId: found.id }, syncedPatch));
+        var foundNumber = _firstText(found.numeroSequencial, found.numeroInterno, found.numeroEntradaFinanceira, _orderFinanceEntryNumber(order), '');
+        var foundNumberPromise = foundNumber ? Promise.resolve(foundNumber) : _nextOrderFinanceEntryNumber();
+        return foundNumberPromise.then(function (num) {
+          _applyOrderFinanceEntryNumber(order, payload, num);
+          return DB.update('movimentacoes', found.id, payload).then(function () {
+            return persistOrderFinancialPatch(Object.assign({ financeMovementId: found.id, financeEntryNumber: num, financeMovementNumber: num, numeroEntradaFinanceira: num }, syncedPatch));
+          });
         });
       }
       var deterministicId = _orderFinanceMovementDocId(orderId);
       order.financeMovementId = deterministicId;
-      return DB.doc('movimentacoes', deterministicId).set(Object.assign({}, payload, {
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }), { merge: true }).then(function () {
-        return persistOrderFinancialPatch(Object.assign({ financeMovementId: deterministicId }, syncedPatch));
+      var currentNumber = _orderFinanceEntryNumber(order);
+      var numberPromise = currentNumber ? Promise.resolve(currentNumber) : _nextOrderFinanceEntryNumber();
+      return numberPromise.then(function (num) {
+        _applyOrderFinanceEntryNumber(order, payload, num);
+        return DB.doc('movimentacoes', deterministicId).set(Object.assign({}, payload, {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }), { merge: true }).then(function () {
+          return persistOrderFinancialPatch(Object.assign({ financeMovementId: deterministicId, financeEntryNumber: num, financeMovementNumber: num, numeroEntradaFinanceira: num }, syncedPatch));
+        });
       });
     }).catch(function () { return false; });
   }

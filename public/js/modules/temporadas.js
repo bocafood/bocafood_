@@ -154,7 +154,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], pointsConfig: null, pointsMovements: [], customers: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], pointsConfig: null, pointsMovements: [], customers: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -202,7 +202,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], pointsConfig: null, pointsMovements: [], customers: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], pointsConfig: null, pointsMovements: [], customers: [] };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -211,7 +211,7 @@ Modules.Temporadas = (function () {
 
   function _loadSeasonActionContext() {
     if (!window.DB || typeof DB.getAll !== 'function') {
-      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], pointsConfig: null, pointsMovements: [], customers: [] });
+      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], pointsConfig: null, pointsMovements: [], customers: [] });
     }
     return Promise.all([
       DB.getAll('products').catch(function () { return []; }),
@@ -221,6 +221,7 @@ Modules.Temporadas = (function () {
       DB.getAll('upsellRules').catch(function () { return []; }),
       DB.getAll('fichasTecnicas').catch(function () { return []; }),
       DB.getAll('itens_custo').catch(function () { return []; }),
+      DB.getAll('variantGroups').catch(function () { return []; }),
       (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'canais_venda') : Promise.resolve(null)).catch(function () { return null; }),
       (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'pontos_program') : Promise.resolve(null)).catch(function () { return null; }),
       DB.getAll('points_movements').catch(function () { return []; }),
@@ -233,10 +234,11 @@ Modules.Temporadas = (function () {
         upsells: res[4] || [],
         recipes: res[5] || [],
         costItems: res[6] || [],
-        salesChannels: _normalizeSalesChannelsConfig(res[7] || {}),
-        pointsConfig: res[8] || null,
-        pointsMovements: res[9] || [],
-        customers: res[10] || []
+        variantGroups: res[7] || [],
+        salesChannels: _normalizeSalesChannelsConfig(res[8] || {}),
+        pointsConfig: res[9] || null,
+        pointsMovements: res[10] || [],
+        customers: res[11] || []
       };
     });
   }
@@ -4481,16 +4483,18 @@ Modules.Temporadas = (function () {
     function tryAdd(item, strictProduct, strictFocus) {
       if (!item || !item.action || selected.length >= maxActions) return false;
       var actionId = String(item.action.id || item.focusKey || selected.length);
+      var productKey = _rankedActionProductSignature(item);
+      var focusKey = _rankedActionFocusSignature(item);
       if (excludedIds[actionId]) return false;
       if (usedIds[actionId]) return false;
-      if (strictFocus && item.focusKey && usedFocus[item.focusKey]) return false;
-      if (strictProduct && item.productKey && usedProducts[item.productKey]) return false;
-      item.action.focusKey = item.focusKey || '';
-      item.action.productKey = item.productKey || '';
+      if (strictFocus && focusKey && usedFocus[focusKey]) return false;
+      if (strictProduct && productKey && usedProducts[productKey]) return false;
+      item.action.focusKey = item.focusKey || focusKey || '';
+      item.action.productKey = item.productKey || productKey || '';
       selected.push(item.action);
       usedIds[actionId] = true;
-      if (item.focusKey) usedFocus[item.focusKey] = true;
-      if (item.productKey) usedProducts[item.productKey] = true;
+      if (focusKey) usedFocus[focusKey] = true;
+      if (productKey) usedProducts[productKey] = true;
       return true;
     }
 
@@ -4498,6 +4502,21 @@ Modules.Temporadas = (function () {
     sorted.forEach(function (item) { tryAdd(item, false, true); });
     sorted.forEach(function (item) { tryAdd(item, false, false); });
     return selected.slice(0, maxActions);
+  }
+
+  function _rankedActionProductSignature(item) {
+    var explicit = String(item && item.productKey || item && item.action && item.action.productKey || '').trim();
+    if (explicit) return explicit;
+    var label = _seasonActionProductLabel(item && item.action || {});
+    return label ? _slugKey(label) : '';
+  }
+
+  function _rankedActionFocusSignature(item) {
+    var source = String(item && item.action && item.action.source || '').trim();
+    var focus = String(item && item.focusKey || item && item.action && item.action.focusKey || source || '').trim();
+    var product = _rankedActionProductSignature(item);
+    if (!focus && !product) return '';
+    return [focus || 'acao', product || 'sem-produto'].join(':');
   }
 
   function _seasonExcludedActionIds(season) {
@@ -9619,10 +9638,11 @@ Modules.Temporadas = (function () {
     try { return JSON.stringify(context || {}).length; } catch (err) { return 0; }
   }
 
-  function _salesIntelligenceForAI(metrics, actionContext, businessHistory) {
+  function _salesIntelligenceForAI(metrics, actionContext, businessHistory, season) {
     metrics = metrics || {};
     actionContext = actionContext || {};
     businessHistory = businessHistory || {};
+    season = season || {};
     var rolling30 = businessHistory.periods && businessHistory.periods.rolling_30 || {};
     var previous30 = businessHistory.periods && businessHistory.periods.previous_30 || {};
     var points = _pointsIntelligenceForAI(actionContext, rolling30);
@@ -9630,6 +9650,8 @@ Modules.Temporadas = (function () {
     var activeCoupons = _activeActionRecordsForAI(actionContext.coupons || [], 'coupon');
     var activeUpsells = _activeActionRecordsForAI(actionContext.upsells || [], 'upsell');
     var seasonLinked = _seasonLinkedActionRecordsForAI(actionContext);
+    var channels = _availableChannelsForAI(actionContext.salesChannels || []);
+    var catalog = _catalogPossibilitiesForAI(actionContext.products || [], actionContext.variantGroups || []);
     return {
       period: 'ultimos_30_dias',
       revenue: _roundMoney(rolling30.revenue),
@@ -9656,6 +9678,14 @@ Modules.Temporadas = (function () {
         coupons: activeCoupons.slice(0, 4),
         upsells: activeUpsells.slice(0, 4)
       },
+      businessPossibilities: {
+        salesChannels: channels.slice(0, 10),
+        unexploredChannels: _unexploredChannelsForAI(channels, rolling30.topChannels || metrics.channelBreakdown || []).slice(0, 6),
+        catalogProducts: catalog.products.slice(0, 12),
+        menuProducts: catalog.menus.slice(0, 8),
+        availableSalesLevers: _availableSalesLeversForAI(activePromotions, activeCoupons, activeUpsells, points)
+      },
+      playHistory: _seasonPlayHistoryForAI(season),
       pointsProgram: points,
       customerSignals: {
         recurringCustomers: Math.round(_number(rolling30.recurringCustomers, metrics.recurringCustomers || 0)),
@@ -9664,6 +9694,148 @@ Modules.Temporadas = (function () {
         customersReadyToRedeem: points.customersReadyToRedeem,
         suggestedGroups: _customerGroupsForAI(metrics, rolling30, points)
       }
+    };
+  }
+
+  function _availableChannelsForAI(channels) {
+    return (channels || []).map(function (channel) {
+      channel = channel || {};
+      return {
+        key: channel.key || _normalizeChannel(channel.name || ''),
+        name: channel.name || _channelLabel(channel.key || ''),
+        commissionPct: _roundMoney(channel.commissionPct),
+        fixedFee: _roundMoney(channel.fixedFee),
+        taxPct: _roundMoney(channel.taxPct),
+        locked: channel.locked === true
+      };
+    }).filter(function (item) {
+      return item.name || item.key;
+    });
+  }
+
+  function _unexploredChannelsForAI(channels, usedChannels) {
+    var used = {};
+    (usedChannels || []).forEach(function (item) {
+      var key = _normalizeChannel(item && (item.key || item.channel || item.name || item.label || ''));
+      if (key) used[key] = true;
+    });
+    return (channels || []).filter(function (channel) {
+      var key = _normalizeChannel(channel && (channel.key || channel.name || ''));
+      return key && !used[key];
+    }).map(function (channel) {
+      return { key: channel.key || _normalizeChannel(channel.name || ''), name: channel.name || _channelLabel(channel.key || '') };
+    });
+  }
+
+  function _catalogPossibilitiesForAI(products, variantGroups) {
+    var variantMap = {};
+    (variantGroups || []).forEach(function (group) {
+      if (group && group.id) variantMap[String(group.id)] = group;
+    });
+    var out = { products: [], menus: [] };
+    (products || []).forEach(function (product) {
+      if (!_productVisibleForAI(product)) return;
+      var name = _productActionName(product);
+      if (!name) return;
+      var options = _productOptionGroupsForAI(product, variantMap);
+      var isMenu = options.length > 0 || product.combo === true || product.isCombo === true || product.type === 'combo' || product.tipo === 'combo';
+      var item = {
+        id: product.id || product.productId || '',
+        name: name,
+        category: product.categoryName || product.category || product.categoria || '',
+        price: _roundMoney(_firstValue(product.price, product.salePrice, product.valor, product.preco, product.precoVenda)),
+        kind: isMenu ? 'menu_combo' : 'produto',
+        hasOptions: options.length > 0,
+        optionGroups: options.slice(0, 4)
+      };
+      out.products.push(item);
+      if (isMenu) out.menus.push(item);
+    });
+    out.products = out.products.slice(0, 18);
+    out.menus = out.menus.slice(0, 10);
+    return out;
+  }
+
+  function _productVisibleForAI(product) {
+    if (!product) return false;
+    if (product.hidden === true || product.visible === false || product.showInMenu === false || product.cardapioVisible === false) return false;
+    var status = _foldText(product.status || product.situacao || product.state || '');
+    return ['inativo', 'inativa', 'oculto', 'oculta', 'pausado', 'pausada', 'arquivado', 'arquivada'].indexOf(status) < 0;
+  }
+
+  function _productOptionGroupsForAI(product, variantMap) {
+    var groups = [];
+    if (Array.isArray(product && product.variants)) groups = groups.concat(product.variants);
+    if (Array.isArray(product && product.menuChoiceGroups)) groups = groups.concat(product.menuChoiceGroups);
+    if (Array.isArray(product && product.variantGroupIds)) {
+      product.variantGroupIds.forEach(function (id) {
+        var group = variantMap[String(id || '')];
+        if (group) groups.push(group);
+      });
+    }
+    var seen = {};
+    return (groups || []).map(function (group) {
+      if (!group) return null;
+      var id = String(group.id || group.key || group.title || group.name || '').trim();
+      var title = String(group.title || group.name || group.label || 'Escolha').trim();
+      var key = id || _foldText(title);
+      if (!key || seen[key]) return null;
+      seen[key] = true;
+      var options = (group.options || group.items || group.choices || []).map(function (option) {
+        option = option || {};
+        return String(option.name || option.label || option.title || option.productName || option.stockItemName || option.ref || '').trim();
+      }).filter(Boolean);
+      return {
+        name: title,
+        required: group.required === true || group.min > 0 || group.minSelect > 0,
+        min: Math.round(_number(group.min || group.minSelect || group.minChoices, 0)),
+        max: Math.round(_number(group.max || group.maxSelect || group.maxChoices, 0)),
+        options: _uniqueTextItems(options).slice(0, 8)
+      };
+    }).filter(function (item) {
+      return item && (item.name || item.options.length);
+    }).slice(0, 5);
+  }
+
+  function _availableSalesLeversForAI(promotions, coupons, upsells, points) {
+    var levers = [];
+    if ((promotions || []).length) levers.push({ type: 'promotions', count: promotions.length, names: promotions.slice(0, 4).map(function (item) { return item.name || item.code || ''; }).filter(Boolean) });
+    if ((coupons || []).length) levers.push({ type: 'coupons', count: coupons.length, names: coupons.slice(0, 4).map(function (item) { return item.code || item.name || ''; }).filter(Boolean) });
+    if ((upsells || []).length) levers.push({ type: 'upsells', count: upsells.length, names: upsells.slice(0, 4).map(function (item) { return item.name || ''; }).filter(Boolean) });
+    if (points && points.active !== false) {
+      levers.push({
+        type: 'points_program',
+        count: Math.round(_number(points.customersWithPoints, 0)),
+        names: points.customersReadyToRedeem > 0 ? ['clientes com pontos para usar'] : ['programa de pontos ativo']
+      });
+    }
+    if (!levers.length) levers.push({ type: 'none_ready', count: 0, names: ['sem cupom, promoção, upsell ou pontos pronto para usar'] });
+    return levers;
+  }
+
+  function _seasonPlayHistoryForAI(season) {
+    var tasks = (season && season.actionTaskHistory || []).concat(season && season.actionTasks || []);
+    var mapped = (tasks || []).map(function (task) {
+      task = task || {};
+      return {
+        actionId: task.actionId || '',
+        title: task.title || '',
+        source: task.source || '',
+        focusKey: task.focusKey || '',
+        productKey: task.productKey || '',
+        status: task.status || '',
+        resultDueAt: task.resultDueAt || '',
+        evidence: task.evidence && task.evidence.message || '',
+        orderTotal: _roundMoney(task.evidence && task.evidence.orderTotal)
+      };
+    }).filter(function (task) {
+      return task.title || task.actionId;
+    });
+    return {
+      recent: mapped.slice(-8),
+      winners: mapped.filter(function (task) { return task.status === 'executed_with_result'; }).slice(-5),
+      weakOrExpired: mapped.filter(function (task) { return task.status === 'executed_without_result' || task.status === 'not_executed'; }).slice(-5),
+      activeOrReading: mapped.filter(function (task) { return task.status === 'pending' || task.status === 'result_in_progress' || task.status === 'manually_done'; }).slice(-5)
     };
   }
 
@@ -9869,7 +10041,7 @@ Modules.Temporadas = (function () {
       executionPlan: metrics.executionPlan || season.executionPlan || null,
       actionTasks: metrics.actionTasks || season.actionTasks || [],
       actionTaskHistory: metrics.actionTaskHistory || season.actionTaskHistory || [],
-      salesIntelligence: _salesIntelligenceForAI(metrics, _state.actionContext || {}, _state.businessHistory || {})
+      salesIntelligence: _salesIntelligenceForAI(metrics, _state.actionContext || {}, _state.businessHistory || {}, season)
     };
     if (window.SeasonsAI && typeof SeasonsAI.buildSeasonAIContext === 'function') {
       return SeasonsAI.buildSeasonAIContext(season, metrics, snapshotState || {}, relatedData);

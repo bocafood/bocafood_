@@ -1,5 +1,22 @@
 # AI Changelog
 
+## 2026-06-06 — Temporadas: IA com contexto de possibilidades e memória de jogadas
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- O contexto enviado para a IA de Temporadas agora inclui um mapa compacto das possibilidades do negócio: canais de venda cadastrados, canais ainda pouco explorados, produtos do cardápio, menus/combos, escolhas internas, ações disponíveis, upsells, cupons, promoções e programa de pontos.
+- O contexto também passa a incluir memória das jogadas recentes, separando jogadas com resultado, sem resposta e ainda em leitura.
+- Ajustei a seleção determinística das jogadas para evitar repetir o mesmo produto/foco quando houver alternativas úteis.
+- O prompt da IA passa a orientar que a jogada seja específica, citando produto, combinação de menu, canal, público e mecanismo de venda quando esses dados existirem.
+- Para menus e combos, a IA passa a receber os grupos de escolhas e pode usar as opções internas em vez de recomendar apenas o nome genérico do produto.
+- Mantive limites nas listas enviadas para controlar custo de token por usuária.
+- Atualizei o cache-buster de `temporadas.js` e `seasons.ai.js` no Admin.
+
+## 2026-06-06 — Financeiro: número interno automático em entradas de pedido
+- Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Entradas financeiras criadas automaticamente por pedido agora recebem `Número interno` sequencial `EN-000001`, usando a mesma sequência das entradas manuais.
+- Quando o pedido é salvo novamente, o sistema reaproveita o lançamento financeiro existente e mantém o mesmo número interno, sem gerar nova numeração.
+- O número também fica salvo no pedido como referência financeira (`financeEntryNumber`, `financeMovementNumber`, `numeroEntradaFinanceira`).
+- Atualizei o cache-buster de `pedidos.js` no Admin para carregar a correção.
+
 ## 2026-06-06 — Pedidos: confirmação ao importar Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ao concluir a importação Glovo sem erros, o Admin agora mostra mensagem de sucesso e fecha o modal de prévia automaticamente.
