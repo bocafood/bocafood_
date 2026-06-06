@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: combinações na lista principal
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- A lista principal de `Composição do Preço` agora mostra menus por combinação possível, com uma linha para cada combinação calculada.
+- Produtos que não são menu continuam aparecendo normalmente como uma linha única.
+- Cada combinação de menu abre um modal próprio de composição, com custo, preço, taxas, lucro, margem, distribuição do preço e preços sugeridos daquela combinação.
+- Removi a listagem interna `Análise por combinação do menu` do modal do produto, evitando duplicidade e deixando a análise acontecer pela própria lista principal.
+- A busca da tela passou a considerar produto e combinação, preservando a paginação da lista.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Preços: copy da análise por combinação
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Troquei a copy `Listagem das combinações` por `Escolha uma combinação para analisar`.

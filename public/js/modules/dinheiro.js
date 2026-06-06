@@ -9,6 +9,7 @@ Modules.Dinheiro = (function () {
   var _priceCompositionChannel = '0';
   var _priceListFilters = { q: '', price: 'todos', status: 'todos' };
   var _menuCombinationView = { filter: 'todos', sort: 'margem-asc' };
+  var _priceSearchTimer = null;
 
   var TABS = [
     { key: 'resumo', label: 'Radar' },
@@ -153,6 +154,38 @@ Modules.Dinheiro = (function () {
     return (_data.products || []).map(function (p) {
       return _analyzeProduct(Object.assign({}, p, { price: _priceForChannel(p, channel) }), channel);
     });
+  }
+
+  function _priceCompositionRowsForChannel(channel) {
+    var rows = [];
+    (_data.products || []).forEach(function (product) {
+      var groups = _menuGroupsForCombinations(product);
+      if (groups.length) {
+        var info = _menuCombinationDiscovery(product, 1000, channel);
+        (info.samples || []).forEach(function (sample, index) {
+          var analysis = Object.assign({}, sample.analysis || {});
+          analysis.product = product;
+          analysis.channel = channel;
+          analysis.minimumPrice = _priceForMargin(analysis.totalCost, _num(_data.dinheiro.minMarginPct || 40), channel, { round: false }, product);
+          analysis.suggestedPrice = _suggestedPrice(analysis.totalCost, _num(_data.dinheiro.desiredMarginPct || 60), channel, product);
+          analysis.costSource = 'combinação de menu';
+          analysis.isMenuCombination = true;
+          analysis.combinationLabel = sample.label || 'Combinação';
+          analysis.combinationIndex = index;
+          analysis.combinationTotalCount = info.totalCount || 0;
+          analysis.combinationTruncated = !!info.truncated;
+          analysis.combinationSample = Object.assign({}, sample, { __comboIndex: index, analysis: analysis });
+          analysis.displayName = (product.name || 'Menu') + ' · ' + analysis.combinationLabel;
+          rows.push(analysis);
+        });
+        return;
+      }
+      rows.push(Object.assign({}, _analyzeProduct(Object.assign({}, product, { price: _priceForChannel(product, channel) }), channel), {
+        displayName: product.name || 'Produto',
+        isMenuCombination: false
+      }));
+    });
+    return rows;
   }
 
   function _defaultChannel() {
@@ -1228,15 +1261,28 @@ Modules.Dinheiro = (function () {
     var channelOptions = channels.map(function (ch, idx) {
       return '<option value="' + idx + '"' + (idx === channelIndex ? ' selected' : '') + '>' + _esc(ch.name || ('Canal ' + (idx + 1))) + '</option>';
     }).join('');
-    var rows = _productsAnalysisForChannel(selectedChannelObj);
+    var rows = _priceCompositionRowsForChannel(selectedChannelObj);
     var filter = _pendingPriceFilter();
     var filteredRows = _applyPriceFilter(rows, filter);
+    var q = ((document.getElementById('din-prod-search') || {}).value || _priceView.q || '').toLowerCase();
+    _priceView.q = q;
+    if (q) {
+      filteredRows = filteredRows.filter(function (r) {
+        return String(r.displayName || r.product && r.product.name || '').toLowerCase().indexOf(q) >= 0 ||
+          String(r.combinationLabel || '').toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    window._dinPriceCompositionRows = {};
+    filteredRows.forEach(function (row, idx) {
+      row.__priceRowKey = 'price-row-' + idx;
+      window._dinPriceCompositionRows[row.__priceRowKey] = row;
+    });
     var paging = _pricePaging(filteredRows);
     var fieldStyle = _listingFieldStyle();
     var filterSelectStyle = _listingSelectStyle('height:42px;');
     var selectStyle = _listingSelectStyle('min-width:110px;max-width:110px;height:34px;font-size:12px;color:#6F6860;');
     var appliedFilter = filter && filter !== 'todos';
-    var hasFilters = appliedFilter || channelIndex !== 0;
+    var hasFilters = appliedFilter || channelIndex !== 0 || !!(_priceView.q || '');
     var pageSizeOptions = [10, 12, 24, 48].map(function (n) { return '<option value="' + n + '"' + (Number(_priceView.pageSize) === n ? ' selected' : '') + '>' + n + ' / pág.</option>'; }).join('');
     var paginationHtml = paging.total ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;">' +
       '<span style="font-size:12px;color:#6F6860;line-height:1.4;">Mostrando <strong style="color:#1F1F1F;font-weight:600;">' + paging.start + '</strong> a <strong style="color:#1F1F1F;font-weight:600;">' + paging.end + '</strong> de <strong style="color:#1F1F1F;font-weight:600;">' + paging.total + '</strong></span>' +
@@ -1263,19 +1309,19 @@ Modules.Dinheiro = (function () {
       '</div>' +
       '<div style="' + _listingFilterCardStyle() + '">' +
         '<div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(180px,240px) auto;gap:10px 12px;align-items:end;">' +
-          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Buscar produto</span><input id="din-prod-search" type="search" oninput="Modules.Dinheiro._filterProducts()" placeholder="Digite o nome do produto" autocomplete="off" style="' + fieldStyle + 'height:42px;"></label>' +
+          '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Buscar produto ou combinação</span><input id="din-prod-search" type="search" oninput="Modules.Dinheiro._filterProducts()" value="' + _esc(_priceView.q || '') + '" placeholder="Digite o nome do produto ou escolha" autocomplete="off" style="' + fieldStyle + 'height:42px;"></label>' +
           '<label style="display:block;min-width:0;"><span style="' + _listingLabelStyle() + '">Canal de venda</span><select id="din-price-channel" onchange="Modules.Dinheiro._setPriceCompositionChannel(this.value)" style="' + filterSelectStyle + '">' + channelOptions + '</select></label>' +
           (hasFilters ? '<button type="button" onclick="Modules.Dinheiro._clearPriceCompositionFilters()" style="height:38px;padding:0 13px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;color:#B42318;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button>' : '') +
         '</div>' +
         filterNotice +
       '</div>' +
-      (filteredRows.length === 0 ? '<section style="' + _listingEmptyCardStyle() + '"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum produto encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver os produtos novamente.</div></section>' :
+      (filteredRows.length === 0 ? '<section style="' + _listingEmptyCardStyle() + '"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum item encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Ajuste a busca ou limpe os filtros para ver a composição novamente.</div></section>' :
         '<section style="display:flex;flex-direction:column;gap:10px;">' +
-          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Produtos analisados</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Clique em um produto para ver a composição do preço com mais detalhes.</div></div>' +
+          '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Composições analisadas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Menus aparecem por combinação possível. Produtos comuns aparecem normalmente. Clique em uma linha para abrir a composição.</div></div>' +
           '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
             '<div style="overflow:auto;"><table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1120px;">' +
               '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-                ['Produto','Custo base','Embalagem','Indireto','Custo total','Preço atual','Lucro/unid.','Margem','Markup','Preço margem mín.','Preço margem desejada','Status'].map(_priceTh).join('') +
+                ['Produto / combinação','Custo base','Embalagem','Indireto','Custo total','Preço atual','Lucro/unid.','Margem','Markup','Preço margem mín.','Preço margem desejada','Status'].map(_priceTh).join('') +
               '</tr></thead>' +
               '<tbody id="din-products-tbody">' + _productRows(paging.items) + '</tbody>' +
             '</table></div>' +
@@ -1338,6 +1384,7 @@ Modules.Dinheiro = (function () {
 
   function _clearPriceCompositionFilters() {
     _priceCompositionChannel = '0';
+    _priceView.q = '';
     try { sessionStorage.removeItem('dinheiro_price_filter'); } catch (e) {}
     _priceView.page = 1;
     _renderPrecos();
@@ -1376,8 +1423,12 @@ Modules.Dinheiro = (function () {
       var img = _productImage(r.product);
       var hasCostAndPrice = r.totalCost > 0 && r.price > 0;
       var marginColor = !hasCostAndPrice ? '#6F6860' : (r.profit < 0 || r.status === 'margem baixa' ? '#B42318' : (r.status === 'atenção' ? '#D97706' : '#1F6F43'));
-      return '<tr data-din-product="' + _esc((r.product.name || '').toLowerCase()) + '" data-product-id="' + _esc(r.product.id || '') + '" onclick="Modules.Dinheiro._openProductModal(this.dataset.productId)" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="background:#fff;border-bottom:1px solid #EAE4DA;cursor:pointer;transition:background .15s ease;">' +
-        _priceTd('<div style="display:flex;align-items:center;gap:12px;min-width:0;"><div style="width:46px;height:46px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:18px;color:#C9BCB8;">restaurant_menu</span>') + '</div><div style="min-width:0;"><strong style="display:block;font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;">' + _esc(r.product.name || 'Produto') + '</strong><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;">' + _esc(r.costSource) + '</div></div></div>') +
+      var searchText = [r.product && r.product.name, r.displayName, r.combinationLabel, r.costSource].join(' ').toLowerCase();
+      var title = r.isMenuCombination ? (r.product.name || 'Menu') : (r.product.name || 'Produto');
+      var subtitle = r.isMenuCombination ? (r.combinationLabel || 'Combinação') : r.costSource;
+      var badge = r.isMenuCombination ? '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#FFF3F1;color:#B42318;font-size:10.5px;font-weight:800;margin-top:5px;">Combinação</span>' : '';
+      return '<tr data-din-product="' + _esc(searchText) + '" data-product-id="' + _esc(r.product && r.product.id || '') + '" data-row-key="' + _esc(r.__priceRowKey || '') + '" onclick="Modules.Dinheiro._openPriceCompositionRow(this.dataset.rowKey,this.dataset.productId)" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="background:#fff;border-bottom:1px solid #EAE4DA;cursor:pointer;transition:background .15s ease;">' +
+        _priceTd('<div style="display:flex;align-items:center;gap:12px;min-width:0;"><div style="width:46px;height:46px;border-radius:12px;background:#FAF8F4;border:1px solid #EAE4DA;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (img ? '<img src="' + _esc(img) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span class="mi" style="font-size:18px;color:#C9BCB8;">restaurant_menu</span>') + '</div><div style="min-width:0;"><strong style="display:block;font-size:14px;font-weight:600;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(title) + '</strong><div style="font-size:12px;color:#6F6860;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(subtitle || 'sem dados') + '</div>' + badge + '</div></div>') +
         _priceTd(UI.fmt(r.ingredientCost)) +
         _priceTd(UI.fmt(r.packagingCost)) +
         _priceTd(UI.fmt(r.indirectCost)) +
@@ -1395,9 +1446,10 @@ Modules.Dinheiro = (function () {
 
   function _filterProducts() {
     var q = ((document.getElementById('din-prod-search') || {}).value || '').toLowerCase();
-    document.querySelectorAll('[data-din-product]').forEach(function (row) {
-      row.style.display = !q || (row.dataset.dinProduct || '').indexOf(q) >= 0 ? '' : 'none';
-    });
+    _priceView.q = q;
+    _priceView.page = 1;
+    clearTimeout(_priceSearchTimer);
+    _priceSearchTimer = setTimeout(_renderPrecos, 180);
   }
 
   function _renderListaPrecos() {
@@ -1604,7 +1656,6 @@ Modules.Dinheiro = (function () {
       _priceMetric('Markup', analysis.markup ? analysis.markup.toFixed(2).replace('.', ',') + 'x' : '—', 'real') +
       '</div>' +
       _comboCostRangeBlock(analysis) +
-      _menuCombinationDiscoveryBlock(row.product, ch) +
       _soldMenuCombinationsBlock(row.product) +
       '</section>' +
       '<section style="' + _priceModalCardStyle() + '">' +
@@ -1798,6 +1849,15 @@ Modules.Dinheiro = (function () {
     if (host) host.innerHTML = _menuCombinationListHtml(samples, _menuCombinationView, listId);
   }
 
+  function _openPriceCompositionRow(rowKey, productId) {
+    var row = window._dinPriceCompositionRows && window._dinPriceCompositionRows[rowKey];
+    if (row && row.isMenuCombination && row.combinationSample) {
+      _openMenuCombinationAnalysisModal(row.product || {}, row.channel || _cardapioChannel(), row.combinationSample);
+      return;
+    }
+    _openProductModal(productId);
+  }
+
   function _openMenuCombinationPriceModal(listId, index) {
     var data = window._dinMenuCombinationData && window._dinMenuCombinationData[listId] || {};
     var samples = Array.isArray(data) ? data : (data.samples || []);
@@ -1805,6 +1865,11 @@ Modules.Dinheiro = (function () {
     if (!sample || !sample.analysis) return;
     var product = data.product || {};
     var channel = data.channel || _cardapioChannel();
+    _openMenuCombinationAnalysisModal(product, channel, sample);
+  }
+
+  function _openMenuCombinationAnalysisModal(product, channel, sample) {
+    if (!sample || !sample.analysis) return;
     var analysis = Object.assign({}, sample.analysis, { product: product, channel: channel });
     var minMarginRule = _num(_data.dinheiro.minMarginPct || 40);
     var desiredMarginRule = _num(_data.dinheiro.desiredMarginPct || 60);
@@ -2745,6 +2810,7 @@ Modules.Dinheiro = (function () {
     _setPricePageSize: _setPricePageSize,
     _setPriceCompositionChannel: _setPriceCompositionChannel,
     _clearPriceCompositionFilters: _clearPriceCompositionFilters,
+    _openPriceCompositionRow: _openPriceCompositionRow,
     _openProductModal: _openProductModal,
     _updateProductPriceModal: _updateProductPriceModal,
     _setMenuCombinationView: _setMenuCombinationView,
