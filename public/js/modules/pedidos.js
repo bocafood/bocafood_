@@ -4499,7 +4499,7 @@ Modules.Pedidos = (function () {
 
   function _statusTriggersStockMovement(status) {
     var key = _fold(status || '');
-    return ['em camino', 'listo para recoger'].indexOf(key) >= 0;
+    return ['em camino', 'listo para recoger', 'entregado', 'entregue', 'delivered', 'concluido', 'finalizado'].indexOf(key) >= 0;
   }
 
   function _statusCancelsStockMovement(status) {

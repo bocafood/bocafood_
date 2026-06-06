@@ -10,6 +10,7 @@
 - A decisão de baixar estoque após importar passa a respeitar também o campo salvo no próprio pedido (`stockImportDeductEnabled`), sem depender apenas do estado atual do seletor.
 - Quando a baixa de estoque falhar, o pedido passa a registrar `stockMovementError`, `stockMovementErrorAt` e `stockMovementErrorStatus`, para não deixar falhas silenciosas sem diagnóstico.
 - Atualizei novamente o cache-buster de `pedidos.js` no Admin para forçar o carregamento desta correção.
+- A baixa de estoque agora também dispara para pedidos que chegam ou são criados diretamente como `Entregado`/entregues. Antes, apenas `Em camino` e `Listo para recoger` acionavam a baixa; por isso pedidos manuais criados direto como entregues não geravam movimentação nem regularização.
 
 ## 2026-06-06 — Pedidos: desbloqueio financeiro após ajuste de importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
