@@ -1681,7 +1681,7 @@ Modules.Dinheiro = (function () {
     window._dinMenuCombinationData[listId] = { product: product, channel: channel, samples: info.samples || [] };
     var listHtml = '<div style="margin-top:12px;border-top:1px solid #E8DCD7;padding-top:10px;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
-        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Listagem das combinações</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">Filtre para encontrar combinações com margem baixa, maior custo ou melhor resultado.</div></div>' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Escolha uma combinação para analisar</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">Use os filtros para encontrar a combinação e abra a composição completa no botão Ver composição.</div></div>' +
         '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">' +
           '<select onchange="Modules.Dinheiro._setMenuCombinationView(\'' + _esc(listId) + '\',\'filter\',this.value)" style="' + filterStyle + '">' +
             '<option value="todos"' + (_menuCombinationView.filter === 'todos' ? ' selected' : '') + '>Todas</option>' +
@@ -1700,8 +1700,8 @@ Modules.Dinheiro = (function () {
     '</div>';
     return '<div style="margin-top:12px;border:1px solid #E8DCD7;background:#FFFCF8;border-radius:14px;padding:12px;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
-        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Combinações do menu</div>' +
-        '<p style="font-size:12px;color:#6F6860;line-height:1.4;margin:3px 0 0;">Leitura de preço, custo e margem por combinação possível deste menu.</p></div>' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Análise por combinação do menu</div>' +
+        '<p style="font-size:12px;color:#6F6860;line-height:1.4;margin:3px 0 0;">Escolha uma combinação abaixo para abrir a composição de preço detalhada dela.</p></div>' +
         '<span style="height:30px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EADFD8;color:#1F1F1F;font-size:12px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;">' + _esc(_menuCombinationCountLabel(info.totalCount)) + '</span>' +
       '</div>' +
       (insight ? '<div style="margin-top:10px;padding:10px 11px;border-radius:12px;background:#fff;border:1px solid #EFE5E1;color:#5F514D;font-size:12px;line-height:1.45;">' + _esc(insight) + '</div>' : '') +

@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-06-06 — Preços: copy da análise por combinação
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Troquei a copy `Listagem das combinações` por `Escolha uma combinação para analisar`.
+- O bloco principal agora fala `Análise por combinação do menu` e orienta a abrir a composição detalhada pelo botão `Ver composição`.
+- Atualizei o cache-buster de `dinheiro.js` para forçar o Admin a carregar a versão corrigida.
+
 ## 2026-06-06 — Preços: modal por combinação de menu
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Ajustei a leitura de combinações do menu no modal `Composição do Preço`: a lista agora funciona como entrada para uma análise individual por combinação.
