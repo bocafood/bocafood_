@@ -1,5 +1,12 @@
 # AI Changelog
 
+## 2026-06-06 — Receitas: peso dos ingredientes avulsos por rendimento
+- Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a sugestão de `Peso por unidade (g)` para tratar ingredientes avulsos como quantidade do rendimento total da receita.
+- Bases de produção continuam entrando como quantidade por unidade; ingredientes avulsos agora entram divididos pela `Quantidade base`.
+- No exemplo de `0,6 kg + 0,6 kg` em uma receita de `20 unidades`, a sugestão passa a ser `60 g` por unidade, não `1200 g`.
+- Atualizei o cache-buster de `catalogo.js` no Admin.
+
 ## 2026-06-06 — Receitas: escolha entre base e ingrediente avulso
 - Arquivos alterados: `public/js/modules/catalogo.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal `Editar Receita`, o card `Bases e ingredientes` não abre mais com uma base vazia automaticamente.

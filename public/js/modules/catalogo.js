@@ -11354,6 +11354,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
 
   function _recipeUnitWeightSuggestionFromRecipe(recipe) {
     recipe = recipe || {};
+    var yieldQty = _parseFichaNum(recipe.yieldQuantity || recipe.yield || 0) || 1;
     var yieldUnit = recipe.yieldUnit || 'unidades';
     if (yieldUnit !== 'unidades' && yieldUnit !== 'porções') return { status: 'hidden', grams: 0, mixed: false };
     var grams = 0;
@@ -11381,7 +11382,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         mixed = true;
         return;
       }
-      grams += converted;
+      grams += converted / Math.max(1, yieldQty);
       hasWeight = true;
     });
     if (mixed) return { status: 'mixed', grams: grams, mixed: true };
@@ -11392,6 +11393,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
   function _recipeUnitWeightSuggestionFromModal() {
     var yieldUnit = ((document.getElementById('fc-yield-unit') || {}).value) || 'unidades';
     if (yieldUnit !== 'unidades' && yieldUnit !== 'porções') return { status: 'hidden', grams: 0, mixed: false };
+    var yieldQty = _parseFichaNum((document.getElementById('fc-yield-qty') || {}).value) || 1;
     var container = document.getElementById('fc-components');
     if (!container) return { status: 'empty', grams: 0, mixed: false };
     var grams = 0;
@@ -11423,7 +11425,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         mixed = true;
         return;
       }
-      grams += converted;
+      grams += converted / Math.max(1, yieldQty);
       hasWeight = true;
     });
     if (mixed) return { status: 'mixed', grams: grams, mixed: true };
