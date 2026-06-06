@@ -9859,6 +9859,10 @@ Modules.Pedidos = (function () {
     return String(order.conta_id || order.contaBancariaId || order.accountId || order.bankAccountId || _orderBankAccountId(order) || '');
   }
 
+  function _orderFinanceMovementDocId(orderId) {
+    return 'pedido_' + String(orderId || '').replace(/[\/#?\[\]]/g, '_');
+  }
+
   function _orderPaymentFinanceLocked(order) {
     order = order || {};
     if (order.importFinanceBlocked || order.importSubtotalMismatch) return false;
@@ -10061,10 +10065,13 @@ Modules.Pedidos = (function () {
           return persistOrderFinancialPatch(Object.assign({ financeMovementId: found.id }, syncedPatch));
         });
       }
-      return DB.add('movimentacoes', payload).then(function (ref) {
-        var refId = String((ref && ref.id) || '');
-        if (refId) order.financeMovementId = refId;
-        return persistOrderFinancialPatch(Object.assign(refId ? { financeMovementId: refId } : {}, syncedPatch));
+      var deterministicId = _orderFinanceMovementDocId(orderId);
+      order.financeMovementId = deterministicId;
+      return DB.doc('movimentacoes', deterministicId).set(Object.assign({}, payload, {
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }), { merge: true }).then(function () {
+        return persistOrderFinancialPatch(Object.assign({ financeMovementId: deterministicId }, syncedPatch));
       });
     }).catch(function () { return false; });
   }

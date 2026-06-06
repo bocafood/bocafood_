@@ -7,6 +7,7 @@
 - Depois que a usuária ajusta itens, escolhas ou preços e a soma passa a bater com o total importado, a trava financeira é removida automaticamente no próximo salvamento do pedido.
 - Ajustei o card `Comissões, impostos e taxas` no detalhe do pedido para mostrar apenas um campo por cobrança, evitando duplicidade entre resumo e edição.
 - Em pedidos importados, comissão, imposto e outras taxas passam a ser editados como valores reais do marketplace, não como percentuais zerados.
+- A criação da entrada financeira do pedido passa a usar um documento fixo por pedido quando ainda não existe lançamento, evitando duplicidade se o mesmo pedido for salvo ou sincronizado mais de uma vez quase ao mesmo tempo.
 
 ## 2026-06-06 — Pedidos: taxas e ajuste financeiro na importação Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
