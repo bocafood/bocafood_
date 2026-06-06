@@ -9790,11 +9790,12 @@ Modules.Pedidos = (function () {
 
   function _orderPaymentFinanceLocked(order) {
     order = order || {};
+    if (order.importFinanceBlocked || order.importSubtotalMismatch) return false;
     var finStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
     if (finStatus === 'estornada' || finStatus === 'estornado' || finStatus === 'cancelada' || finStatus === 'cancelado') return false;
     var payStatus = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
     if (payStatus === 'estornado' || payStatus === 'estornada' || payStatus === 'canceled' || payStatus === 'cancelado') return false;
-    return !!(order.financeMovementId || order.financeReviewPending || order.requiresFinanceConfirmation);
+    return !!order.financeMovementId;
   }
 
   function _isTpvOrder(order) {

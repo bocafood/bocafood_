@@ -2,6 +2,8 @@
 
 ## 2026-06-06 — Pedidos: taxas e ajuste financeiro na importação Glovo
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o cache-buster de `pedidos.js` para garantir que o Admin carregue a regra nova da importação.
+- Pedidos com importação bloqueada por divergência de subtotal deixam de mostrar a mensagem `Pagamento enviado ao Financeiro`, porque nenhuma entrada financeira foi criada.
 - Renomeei o card `Taxas do canal de venda` para `Comissões, impostos e taxas`.
 - O card agora mostra os valores em dinheiro de comissão, imposto sobre comissão e outras taxas, além dos campos percentuais/editáveis.
 - Quando o subtotal da Glovo diverge da soma dos produtos, o pedido importado agora fica como `Pendente`, mesmo que a Glovo tenha enviado `Entregue`.
