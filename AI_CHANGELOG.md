@@ -6,6 +6,10 @@
 - A baixa de estoque das escolhas de menu/combo importadas passa a reconhecer `ref` e `optionId` como vínculo de estoque quando apontam para receita/produto produzido, produto pronto, base, insumo ou embalagem.
 - Diagnóstico no tenant Bocado Brasil: o pedido entregue `Glovo 101671131287` não gerou regularização porque foi importado com `stockImportMode: historico_sem_baixa_automatica` e `stockImportDeductEnabled: false`.
 - Diagnóstico posterior: o mesmo pedido importado com baixa ativa não gerou movimentações porque o Admin ainda carregava `pedidos.js` com cache-buster antigo; atualizei o cache-buster para forçar a versão que reconhece vínculos de estoque por `ref`/`optionId`.
+- Corrigi o estado interno da prévia para iniciar em `deduct`, alinhado ao seletor visual `Baixar estoque dos entregues`, evitando importação com comportamento inconsistente.
+- A decisão de baixar estoque após importar passa a respeitar também o campo salvo no próprio pedido (`stockImportDeductEnabled`), sem depender apenas do estado atual do seletor.
+- Quando a baixa de estoque falhar, o pedido passa a registrar `stockMovementError`, `stockMovementErrorAt` e `stockMovementErrorStatus`, para não deixar falhas silenciosas sem diagnóstico.
+- Atualizei novamente o cache-buster de `pedidos.js` no Admin para forçar o carregamento desta correção.
 
 ## 2026-06-06 — Pedidos: desbloqueio financeiro após ajuste de importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.

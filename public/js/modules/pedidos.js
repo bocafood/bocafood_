@@ -4486,6 +4486,13 @@ Modules.Pedidos = (function () {
       });
     }).catch(function (err) {
       console.warn('Erro ao gerar baixa de estoque do pedido', err);
+      if (orderId) {
+        DB.update('orders', orderId, {
+          stockMovementError: err && err.message ? err.message : 'Erro ao gerar baixa de estoque.',
+          stockMovementErrorAt: _nowIso(),
+          stockMovementErrorStatus: status || ''
+        }).catch(function () {});
+      }
       return null;
     });
   }
@@ -8504,14 +8511,14 @@ Modules.Pedidos = (function () {
           '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Arquivo CSV</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><input type="file" accept=".csv,text/csv" onchange="Modules.Pedidos._handleOrderImportFile(this)" style="' + _adminInputStyle() + 'padding-top:9px;"></div></label>' +
           '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Estoque</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-stock-mode" onchange="Modules.Pedidos._setOrderImportStockMode(this.value)" style="' + _adminSelectStyle() + '"><option value="deduct" selected>Baixar estoque dos entregues</option><option value="history">Só histórico</option></select></div></label>' +
         '</div>' +
-        '<div style="padding:12px 14px;border:1px solid #EADFD8;border-radius:12px;background:#FFF9F6;color:#6F6860;font-size:13px;line-height:1.5;">A importação cria pedidos e entrada financeira. O estoque fica como histórico, a menos que você escolha baixar estoque dos pedidos entregues.</div>' +
+        '<div style="padding:12px 14px;border:1px solid #EADFD8;border-radius:12px;background:#FFF9F6;color:#6F6860;font-size:13px;line-height:1.5;">A importação cria pedidos e entrada financeira. Pedidos entregues baixam estoque por padrão; use Só histórico apenas quando quiser importar sem alterar saldos.</div>' +
         '<div id="order-import-preview-result">' + _orderImportEmptyHtml() + '</div>' +
       '</div>';
     var footer = '<div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">' +
       '<button type="button" onclick="window._orderImportPreviewModal&&window._orderImportPreviewModal.close()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Fechar</button>' +
       '<button id="order-import-submit" type="button" onclick="Modules.Pedidos._importGlovoPreviewOrders()" style="height:38px;padding:0 15px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Importar pedidos válidos</button>' +
     '</div>';
-    window._orderImportPreviewState = { fileName: '', rows: [], parsed: [], channel: preferred, error: '', mappings: {}, choiceMappings: {}, imported: {}, importing: false, stockMode: 'history' };
+    window._orderImportPreviewState = { fileName: '', rows: [], parsed: [], channel: preferred, error: '', mappings: {}, choiceMappings: {}, imported: {}, importing: false, stockMode: 'deduct' };
     window._orderImportPreviewModal = UI.modal({ title: 'Prévia de importação de pedidos', body: body, footer: footer, maxWidth: '1120px' });
   }
 
@@ -9023,7 +9030,8 @@ Modules.Pedidos = (function () {
   }
 
   function _orderImportShouldDeductStock(order) {
-    if (_orderImportStockMode() !== 'deduct') return false;
+    var enabled = order && order.stockImportDeductEnabled === true;
+    if (!enabled && _orderImportStockMode() !== 'deduct') return false;
     if (_statusCancelsStockMovement(order && order.status)) return false;
     return _fold(order && order.status || '') === 'entregado';
   }
