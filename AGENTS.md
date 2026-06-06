@@ -214,6 +214,7 @@ O Boca Food é um sistema de gestão e operação de loja com painel admin, cat�
 - O cadastro de fornecedor deve falar com a usuária em linguagem simples, sem explicar bastidores técnicos como objetos fiscais, herança de endereço ou estrutura de integração futura.
 - Campos fiscais de fornecedor não devem ser tratados como “opcionais” na copy do card principal quando a tela estiver pedindo dados de cadastro. A orientação deve explicar para que servem no uso da loja: compras, pagamentos e documentos.
 - Evitar copy apelativa, demagógica ou excessivamente didática. O texto deve ser claro, direto e profissional.
+- No modal `Editar Ingrediente/Embalagem`, os padrões fiscais do item comprado (`IVA padrão (%)`, dedução de IVA e dedução de IRPF nas compras) devem ficar em um card expansível próprio depois de `Compra e custo`. Esses campos são padrões herdados pelo registro de compra e podem ser ajustados na compra quando a nota vier diferente.
 
 ### Admin — Estoque e regularizações
 - Regularização por saldo negativo deve ser tratada como correção operacional rastreável, não como compra real. Ela não deve inventar fornecedor, documento, pagamento ou financeiro.

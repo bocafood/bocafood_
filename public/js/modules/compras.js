@@ -2571,7 +2571,7 @@ Modules.Compras = (function () {
   function _itemFiscalDefaults(item) {
     item = item || {};
     var fiscal = item.fiscal || {};
-    var iva = fiscal.ivaPct != null ? fiscal.ivaPct : (item.ivaPct != null ? item.ivaPct : (_fiscalConfig.defaultIvaRate != null ? _fiscalConfig.defaultIvaRate : _fiscalConfig.ivaPadrao));
+    var iva = fiscal.ivaPct != null ? fiscal.ivaPct : (item.ivaPct != null ? item.ivaPct : 0);
     return {
       ivaPct: _num(iva),
       dedutivelIva: fiscal.dedutivelIva != null ? fiscal.dedutivelIva !== false : (item.dedutivelIva != null ? item.dedutivelIva !== false : true),
@@ -2934,10 +2934,11 @@ Modules.Compras = (function () {
     var itemModalCss = '<style>' +
       '.item-modal-body{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;font-family:Manrope,Inter,sans-serif;}' +
       '.item-modal-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(31,31,31,.04);min-width:0;}' +
-      '.item-modal-main,.item-modal-cost{grid-column:1/-1}.item-modal-usage{grid-column:1/-1}' +
+      '.item-modal-main,.item-modal-cost,.item-modal-fiscal{grid-column:1/-1}.item-modal-usage{grid-column:1/-1}' +
       '.item-modal-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}.item-modal-head .mi{font-size:18px;color:#6F6860;line-height:1.2}' +
       '.item-modal-grid{display:grid;gap:11px 12px;align-items:end}.item-modal-id-grid{grid-template-columns:minmax(150px,.38fr) minmax(320px,1fr) minmax(220px,.68fr)}.item-modal-tax-grid{grid-template-columns:minmax(210px,.62fr) minmax(250px,.78fr);justify-content:start;margin-top:11px}.item-modal-cost-grid{grid-template-columns:minmax(160px,.42fr) minmax(280px,.9fr) minmax(160px,.42fr);justify-content:start}.item-modal-pack-grid{grid-template-columns:minmax(190px,.62fr) minmax(170px,.56fr) minmax(120px,.34fr) minmax(120px,.34fr);justify-content:start;align-items:start}.item-modal-stock-grid{grid-template-columns:minmax(140px,.38fr) minmax(140px,.38fr);justify-content:start}.item-modal-metrics{display:grid;grid-template-columns:minmax(160px,.55fr) minmax(150px,.45fr) minmax(150px,.45fr);gap:12px;align-items:stretch;justify-content:start}' +
       '.item-modal-metric{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:10px 12px;box-shadow:0 1px 2px rgba(31,31,31,.03)}' +
+      '.item-fiscal-details{margin:0;border:0;padding:0}.item-fiscal-details summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.item-fiscal-details summary::-webkit-details-marker{display:none}.item-fiscal-details .item-modal-head{margin-bottom:0}.item-fiscal-chevron{font-size:20px!important;color:#6F6860;line-height:1;transition:transform .16s ease}.item-fiscal-details[open] .item-fiscal-chevron{transform:rotate(180deg)}.item-fiscal-body{margin-top:12px}' +
       '.item-current-cost{display:flex;flex-direction:column;gap:3px;line-height:1.2}.item-current-cost-main{font-size:17px;font-weight:800;color:#1A1A1A}.item-current-cost-sub{font-size:12px;font-weight:600;color:#6F6860}' +
       '.item-usage-grid{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr);gap:12px;align-items:stretch;}' +
       '.item-usage-panel{background:#FAF8F4;border:1px solid #EAE4DA;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(31,31,31,.03);}' +
@@ -2963,14 +2964,6 @@ Modules.Compras = (function () {
       '</select></div></div>' +
       '<div>' + _supplierField('it-nome', 'Nome *', item.nome || item.name || '') + '</div>' +
       _searchableCatalogField('categorias', 'it-categoria', 'Categoria *', item.categoria || '', classeItem, strictCatalog, '<button type="button" class="item-inline-add" onclick="Modules.Compras._openItemCategoryCreateModal()">+ categoria</button>') +
-      '</div>' +
-      '<div class="item-modal-grid item-modal-tax-grid">' +
-        _supplierField('it-iva-pct', 'IVA padrão (%)', fiscalDefaults.ivaPct, 'decimal') +
-        '<div class="item-modal-metric" style="display:flex;flex-direction:column;gap:9px;justify-content:center;">' +
-          '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-iva" type="checkbox" ' + (fiscalDefaults.dedutivelIva ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IVA nas compras</label>' +
-          '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-irpf" type="checkbox" ' + (fiscalDefaults.dedutivelIrpf ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IRPF nas compras</label>' +
-          '<div style="font-size:11.5px;color:#8A7E7C;line-height:1.4;">Esses dados entram como padrão no registro de compra. Na compra, você pode ajustar se a nota vier diferente.</div>' +
-        '</div>' +
       '</div>' +
       '</div>' +
       '<div class="item-modal-card item-modal-cost">' +
@@ -3036,6 +3029,24 @@ Modules.Compras = (function () {
       '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Custo atual</div><div id="it-current-cost-preview" class="item-current-cost">' + costText + '</div></div>' +
       '<div class="item-modal-metric"><div style="' + sectionTitle + 'margin-bottom:6px;">Última compra</div><strong style="font-size:17px;color:#1A1A1A;">' + lastPurchaseText + '</strong></div>' +
       '</div>' +
+      '</div>' +
+      '<div class="item-modal-card item-modal-fiscal">' +
+        '<details class="item-fiscal-details" open>' +
+          '<summary>' +
+            '<div class="item-modal-head"><span class="mi">request_quote</span><div><div style="' + sectionTitle + '">Dados fiscais da compra</div><div style="' + sectionHint + 'margin-bottom:0;">Padrões usados quando este item entra em uma compra.</div></div></div>' +
+            '<span class="mi item-fiscal-chevron">expand_more</span>' +
+          '</summary>' +
+          '<div class="item-fiscal-body">' +
+            '<div class="item-modal-grid item-modal-tax-grid">' +
+              _supplierField('it-iva-pct', 'IVA padrão (%)', fiscalDefaults.ivaPct, 'decimal') +
+              '<div class="item-modal-metric" style="display:flex;flex-direction:column;gap:9px;justify-content:center;">' +
+                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-iva" type="checkbox" ' + (fiscalDefaults.dedutivelIva ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IVA nas compras</label>' +
+                '<label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#1F1F1F;"><input id="it-ded-irpf" type="checkbox" ' + (fiscalDefaults.dedutivelIrpf ? 'checked' : '') + ' style="accent-color:#C4362A;width:16px;height:16px;"> Dedutível para IRPF nas compras</label>' +
+                '<div style="font-size:11.5px;color:#8A7E7C;line-height:1.4;">Esses dados entram como padrão no registro de compra. Na compra, você pode ajustar se a nota vier diferente.</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</details>' +
       '</div>' +
       '<div id="it-insumo-fields" class="item-modal-card item-modal-usage" style="display:none;">' +
       '<div class="item-modal-head"><span class="mi">restaurant</span><div><div style="' + sectionTitle + '">Uso em receitas</div>' +

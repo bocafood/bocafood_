@@ -3666,9 +3666,12 @@ Modules.Receitas = (function () {
         '<div class="bf-page-header production-orders-head">' +
           '<div style="min-width:0;flex:1 1 420px;">' +
             '<h1 class="production-orders-title">Bases de produção</h1>' +
-            '<p class="production-orders-subtitle">Cadastre bases reaproveitáveis, como massa, recheio, creme, molho ou cobertura. As receitas usam essas bases para montar receitas.</p>' +
+            '<p class="production-orders-subtitle">Cadastre bases prontas, como massa, recheio, creme, molho ou cobertura, para reutilizar na criação de receitas.</p>' +
           '</div>' +
-          '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
+          '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end;">' +
+            '<button type="button" class="production-orders-secondary" onclick="Router.navigate(\'receitas/insumos\')"><span class="mi" style="font-size:16px;">inventory_2</span>Adicionar ingrediente</button>' +
+            '<button type="button" class="production-orders-primary" onclick="Modules.Receitas._openRecipeComponentModal(null)">Adicionar base</button>' +
+          '</div>' +
         '</div>' +
         '<section class="production-orders-filter">' +
           '<div class="production-orders-filter-grid" style="grid-template-columns:minmax(260px,1fr);">' +
@@ -4095,8 +4098,9 @@ Modules.Receitas = (function () {
         '<label style="display:block;margin-top:12px;"><span style="' + _labelStyle() + '">Onde esta base é usada</span><div class="base-production-field-control"><textarea id="rcomp-desc" placeholder="Ex: entra na coxinha e no pastel de frango.">' + _esc(comp.description || '') + '</textarea></div></label>' +
       '</section>' +
       '<section class="base-production-card">' +
-        '<div class="base-production-card-head"><span class="mi">inventory_2</span><div><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;"><div style="' + secTitle + '">Ingredientes da base</div><button type="button" class="base-production-soft-btn" onclick="Modules.Receitas._addProductionStageIngredient()">+ Ingrediente</button></div><div style="' + secHint + '">Informe os ingredientes usados para produzir a quantidade acima.</div></div></div>' +
+        '<div class="base-production-card-head"><span class="mi">inventory_2</span><div><div style="' + secTitle + '">Ingredientes da base</div><div style="' + secHint + '">Informe os ingredientes usados para produzir a quantidade acima.</div></div></div>' +
         '<div id="production-stage-ingredients" class="production-stage-ingredients">' + ingredientRows + '</div>' +
+        '<div style="display:flex;justify-content:flex-start;margin-top:10px;"><button type="button" class="base-production-soft-btn" onclick="Modules.Receitas._addProductionStageIngredient()">+ Ingrediente</button></div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F1E7E1;">' +
           '<div class="base-production-note">' + _esc(usageText) + '</div>' +
           '<div class="base-production-cost"><div style="' + _labelStyle() + 'margin-bottom:2px;">Custo desta produção</div><strong id="rcomp-total-cost" style="font-size:15px;color:#1F1F1F;">' + _money(_stageTotalCost(comp.ingredients || [])) + '</strong></div>' +
@@ -4124,6 +4128,18 @@ Modules.Receitas = (function () {
   function _stageItemCost(item) {
     item = item || {};
     return _num(item.custo_atual != null ? item.custo_atual : item.custoAtual != null ? item.custoAtual : item.unitCost != null ? item.unitCost : item.preco_compra != null ? item.preco_compra : item.purchasePrice);
+  }
+
+  function _stageIngredientSearchText(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function _stageIngredientDisplayName(item) {
+    if (!item) return '';
+    var name = _stageItemName(item);
+    var unit = _stageItemUnit(item);
+    var cost = _stageItemCost(item);
+    return name + (unit ? ' · ' + unit : '') + (cost > 0 ? ' · ' + _money(cost) : '');
   }
 
   function _stageUnitOptionsHtml(selected) {
@@ -4173,13 +4189,66 @@ Modules.Receitas = (function () {
     var unit = item.unit || _stageItemUnit(found);
     var total = _num(item.totalCost);
     if (!total && itemId && qty) total = _stageItemCost(found) * _num(qty);
+    var displayName = found && found.id ? _stageIngredientDisplayName(found) : '';
     return '<div class="production-stage-ing-row" id="stage-ing-' + idx + '" data-stage-ing-row="' + idx + '">' +
-      '<label style="display:block;min-width:0;"><span style="' + _labelStyle() + '">Ingrediente</span><div class="base-production-field-control"><select data-stage-ing-item="' + idx + '" onchange="Modules.Receitas._updateProductionStageCost()">' + _stageCostItemOptionsHtml(itemId) + '</select></div></label>' +
+      '<label style="display:block;min-width:0;position:relative;"><span style="' + _labelStyle() + '">Ingrediente</span><div class="base-production-field-control"><input data-stage-ing-display="' + idx + '" type="text" value="' + _esc(displayName) + '" placeholder="Buscar ingrediente..." autocomplete="off" oninput="Modules.Receitas._stageIngredientSearch(' + idx + ', this.value)" onfocus="Modules.Receitas._stageIngredientSearch(' + idx + ', this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'stage-ing-dropdown-' + idx + '\');if(d)d.style.display=\'none\';},180)"><input data-stage-ing-item="' + idx + '" type="hidden" value="' + _esc(itemId) + '"></div><div id="stage-ing-dropdown-' + idx + '" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #EAE4DA;border-radius:10px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 12px 30px rgba(31,31,31,.12);"></div></label>' +
       '<label style="display:block;"><span style="' + _labelStyle() + '">Qtd.</span><div class="base-production-field-control"><input data-stage-ing-qty="' + idx + '" type="text" inputmode="decimal" value="' + _esc(qty) + '" placeholder="Ex: 1,5" oninput="Modules.Receitas._updateProductionStageCost()"></div></label>' +
       '<div><span style="' + _labelStyle() + '">Unid.</span><div data-stage-ing-unit="' + idx + '" style="min-height:40px;display:flex;align-items:center;font-size:12px;color:#1F1F1F;font-weight:650;">' + _esc(unit || '—') + '</div></div>' +
       '<div><span style="' + _labelStyle() + '">Custo</span><div data-stage-ing-cost="' + idx + '" style="min-height:40px;display:flex;align-items:center;font-size:12px;color:#1F1F1F;font-weight:650;">' + (total > 0 ? _money(total) : '—') + '</div></div>' +
       '<button type="button" onclick="Modules.Receitas._removeProductionStageIngredient(' + idx + ')" title="Remover" style="width:32px;height:32px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;align-self:center;">×</button>' +
     '</div>';
+  }
+
+  function _stageIngredientSearch(idx, query) {
+    var dropdown = document.getElementById('stage-ing-dropdown-' + idx);
+    var row = document.getElementById('stage-ing-' + idx);
+    if (!dropdown || !row) return;
+    var hidden = row.querySelector('[data-stage-ing-item="' + idx + '"]');
+    var current = hidden ? _stageItemById(hidden.value) : null;
+    var typed = String(query || '');
+    if (hidden && current && typed !== _stageIngredientDisplayName(current)) {
+      hidden.value = '';
+      _updateProductionStageCost();
+    }
+    var norm = _stageIngredientSearchText(typed);
+    var items = (_stageCostItems || []).filter(function (item) {
+      if (!norm) return true;
+      var hay = _stageIngredientSearchText([
+        _stageItemName(item),
+        item.categoria || item.category || '',
+        item.classe || item.itemClass || item.tipo || item.type || '',
+        _stageItemUnit(item)
+      ].join(' '));
+      return hay.indexOf(norm) >= 0;
+    });
+    if (!items.length) {
+      dropdown.innerHTML = '<div style="padding:10px 14px;color:#8A7E7C;font-size:13px;font-family:inherit;">Nenhum ingrediente encontrado.</div>';
+      dropdown.style.display = 'block';
+      return;
+    }
+    dropdown.innerHTML = items.slice(0, 60).map(function (item) {
+      var id = String(item.id || '');
+      var name = _stageItemName(item);
+      var sub = [_stageItemUnit(item), _stageItemCost(item) > 0 ? _money(_stageItemCost(item)) : ''].filter(Boolean).join(' · ');
+      return '<div onmousedown="Modules.Receitas._stageIngredientSelect(' + idx + ', \'' + _escJs(id) + '\')" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #F2EDED;font-size:13px;font-family:inherit;" onmouseover="this.style.background=\'#FFF5F5\'" onmouseout="this.style.background=\'\'">' +
+        '<div style="font-weight:500;color:#1A1A1A;">' + _esc(name || 'Ingrediente') + '</div>' +
+        (sub ? '<div style="font-size:11px;color:#8A7E7C;margin-top:2px;">' + _esc(sub) + '</div>' : '') +
+      '</div>';
+    }).join('');
+    dropdown.style.display = 'block';
+  }
+
+  function _stageIngredientSelect(idx, id) {
+    var row = document.getElementById('stage-ing-' + idx);
+    if (!row) return;
+    var item = _stageItemById(id);
+    var hidden = row.querySelector('[data-stage-ing-item="' + idx + '"]');
+    var display = row.querySelector('[data-stage-ing-display="' + idx + '"]');
+    var dropdown = document.getElementById('stage-ing-dropdown-' + idx);
+    if (hidden) hidden.value = id || '';
+    if (display) display.value = item ? _stageIngredientDisplayName(item) : '';
+    if (dropdown) dropdown.style.display = 'none';
+    _updateProductionStageCost();
   }
 
   function _addProductionStageIngredient() {
@@ -4701,6 +4770,8 @@ Modules.Receitas = (function () {
     _setRecipeComponentPageSize: _setRecipeComponentPageSize,
     _addProductionStageIngredient: _addProductionStageIngredient,
     _removeProductionStageIngredient: _removeProductionStageIngredient,
+    _stageIngredientSearch: _stageIngredientSearch,
+    _stageIngredientSelect: _stageIngredientSelect,
     _updateProductionStageCost: _updateProductionStageCost,
     _openRecipeCategoryModal: _openRecipeCategoryModal,
     _saveRecipeCategory: _saveRecipeCategory,

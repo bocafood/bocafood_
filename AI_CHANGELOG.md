@@ -1,5 +1,21 @@
 # AI Changelog
 
+## 2026-06-06 — Compras: dados fiscais em card próprio do item
+- Arquivos alterados: `public/js/modules/compras.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- No modal `Editar Ingrediente/Embalagem`, movi `IVA padrão (%)`, `Dedutível para IVA nas compras` e `Dedutível para IRPF nas compras` para o card expansível `Dados fiscais da compra`, logo depois de `Compra e custo`.
+- O IVA padrão de um item novo agora começa em `0` quando ainda não existe valor fiscal salvo para ele.
+- Mantive os mesmos campos internos usados no salvamento, para preservar a herança desses padrões no registro de compra e permitir ajuste na compra quando a nota vier diferente.
+- Atualizei o cache-buster de `compras.js` no Admin.
+
+## 2026-06-06 — Bases de produção: botão de ingrediente abaixo da lista
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal `Nova/Editar base de produção`, movi o botão `+ Ingrediente` para baixo do último ingrediente adicionado.
+- O cabeçalho do card `Ingredientes da base` fica apenas com título e orientação.
+- Ajustei a copy do cabeçalho de `Bases de produção` para `Cadastre bases prontas, como massa, recheio, creme, molho ou cobertura, para reutilizar na criação de receitas.`
+- O campo `Ingrediente` agora junta busca e seleção no mesmo campo: a usuária digita, vê a lista filtrada e escolhe o ingrediente sem usar um select separado.
+- No cabeçalho de `Bases de produção`, adicionei o botão `Adicionar ingrediente` ao lado de `Adicionar base`, seguindo o padrão da tela `Receitas de produção`.
+- Atualizei o cache-buster de `receitas.js` no Admin.
+
 ## 2026-06-06 — Bases de produção: paginação e ações
 - Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
 - Adicionei paginação padrão na lista de `Bases de produção`, com seletor `10/25/50`, contador `Mostrando X a Y de Z` e botões `Anterior/Próxima`.
