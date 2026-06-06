@@ -1,5 +1,14 @@
 # AI Changelog
 
+## 2026-06-06 — Bases de produção: paginação e ações
+- Arquivos alterados: `public/js/modules/receitas.js`, `public/admin.html`, `AGENTS.md`, `AI_CHANGELOG.md`.
+- Adicionei paginação padrão na lista de `Bases de produção`, com seletor `10/25/50`, contador `Mostrando X a Y de Z` e botões `Anterior/Próxima`.
+- Troquei os botões textuais `Editar`, `Duplicar` e `Excluir` por botões de ícone no mesmo padrão da lista `Receitas de produção`.
+- Removi o ícone/imagem decorativa da coluna `Base`, deixando a leitura da lista mais direta.
+- Atualizei o modal `Nova/Editar base de produção` para seguir o padrão visual do modal `Compra — Editar registro de compra`: cards com cabeçalho, controles off-white, foco vermelho discreto, grid mais largo e rodapé com `Cancelar` + ação principal.
+- A lista mantém abertura pelo clique na linha, e os botões continuam parando a propagação para executar cada ação diretamente.
+- Atualizei o cache-buster de `receitas.js` no Admin.
+
 ## 2026-06-05 — Temporadas: card de próxima jogada
 - Arquivos alterados: `public/js/modules/temporadas.js`, `AI_CHANGELOG.md`.
 - Adicionei na aba `Próxima Jogada` um card `Quando vem a próxima jogada`.
