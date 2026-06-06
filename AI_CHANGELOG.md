@@ -2,6 +2,8 @@
 
 ## 2026-06-06 — Pedidos: escolhas de menu na importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a seleção das escolhas no modal de importação para não redesenhar a tabela inteira no mesmo clique.
+- Ao marcar uma opção de menu/combo, a seleção fica visível e o botão de importar é atualizado com base no estado novo.
 - Na `Prévia de importação de pedidos`, quando o produto vinculado é menu/combo ou possui variantes, a linha passa a mostrar as escolhas cadastradas para esse produto.
 - A usuária pode selecionar as opções do menu/combo antes de importar o pedido.
 - O sistema tenta pré-marcar escolhas quando o texto vindo da Glovo combina com uma opção cadastrada.

@@ -8530,6 +8530,7 @@ Modules.Pedidos = (function () {
     var group = groups[parseInt(groupIdx, 10)] || null;
     var option = group && group.options ? group.options[parseInt(optionIdx, 10)] : null;
     if (!item || !group || !option) return;
+    if (group.max <= 1 && !checked) return;
     state.choiceMappings = state.choiceMappings || {};
     var current = _orderImportChoicesForItem(item).filter(function (choice) {
       return String(choice.groupId || '') !== String(group.id || '');
@@ -8553,7 +8554,7 @@ Modules.Pedidos = (function () {
       state.parsed = state.rows.map(function (row, idx) { return _glovoPreviewRow(row, idx, state.channel); });
     }
     window._orderImportPreviewState = state;
-    _renderOrderImportPreview();
+    _syncOrderImportSubmitButton(state);
   }
 
   function _importGlovoPreviewOrders() {
