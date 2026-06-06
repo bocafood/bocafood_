@@ -1,5 +1,59 @@
 # AI Changelog
 
+## 2026-06-06 — Preços/Temporadas: combinações de menu fase 6
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Temporadas passa a preservar escolhas estruturadas (`choiceDetails`, `menuChoices`, `selectedOptions`, `variants`) ao normalizar itens de pedido.
+- A leitura da temporada agora calcula combinações reais de menus/combos vendidas no período, incluindo produto, combinação, canal, quantidade, receita, preço médio, custo médio, taxas médias, lucro, margem e status.
+- O cálculo usa produtos, receitas e itens de custo já carregados no contexto de Temporadas; pedidos sem escolhas claras continuam fora dessa leitura para não inventar combinação.
+- A taxa fixa do canal só entra na margem da combinação quando o pedido tem um único item, evitando dividir uma taxa sem base confiável.
+- `salesIntelligence` agora envia `realMenuCombinations` para a IA com limite compacto, priorizando combinações mais vendidas e combinações com margem baixa/prejuízo.
+- O prompt da IA foi ajustado para usar combinações reais vendidas quando existirem, escolhendo jogadas mais específicas por sabor/menu/oferta em vez de recomendações genéricas por produto.
+- A fase não altera pedidos, estoque, financeiro ou criação de jogadas; apenas melhora o contexto enviado para Temporadas/IA.
+- Atualizei os cache-busters de `temporadas.js` e `seasons.ai.js` no Admin.
+
+## 2026-06-06 — Preços: combinações de menu fase 5
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/js/modules/pedidos.js`, `public/storefront.html`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal de `Composição do Preço`, menus/combos agora mostram a seção `Combinações vendidas`, calculando margem pela combinação realmente escolhida no pedido.
+- A leitura usa o preço efetivamente cobrado no item, a quantidade vendida, o canal do pedido e as taxas/comissões desse canal.
+- Pedidos novos da loja pública passam a salvar também `choiceDetails` e `menuChoices`, mantendo as escolhas estruturadas além do texto exibido para a cliente.
+- Pedidos manuais e edição de escolhas no detalhe do pedido também preservam `choiceDetails` e `menuChoices`.
+- Pedidos antigos continuam sendo lidos quando o texto das escolhas permite casar grupo e opção do cardápio.
+- Ajustei o cálculo de custo das combinações para reconhecer referências `produto_pronto:`, `base_producao:`, `receita:` e variações usadas pelos cadastros atuais.
+- A fase não altera estoque, financeiro ou status de pedido; ela adiciona leitura de margem real para análise.
+- Atualizei os cache-busters de `dinheiro.js` e `pedidos.js` no Admin.
+
+## 2026-06-06 — Preços: combinações de menu fase 4
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- No modal de `Composição do Preço`, o bloco `Combinações do menu` ganhou listagem com filtros por `Todas`, `Em atenção` e `Saudáveis`.
+- A listagem permite ordenar por menor margem, maior margem, maior custo e maior preço.
+- Cada combinação mostra preço final, adicional, custo, taxas, lucro, margem e status.
+- Mantive limite de segurança: menus muito grandes usam amostra para não travar a tela, e a listagem mostra até 24 combinações por filtro.
+- A fase continua em memória e não cria produtos reais, não altera pedidos, loja, estoque ou dados salvos.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
+## 2026-06-06 — Preços: combinações de menu fase 3
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- O bloco `Combinações do menu` no modal de `Composição do Preço` agora mostra um resumo inteligente com preço, custo médio, margem média e quantidade de combinações em atenção.
+- Incluí uma leitura curta indicando se existem combinações que pedem revisão ou se o menu está estável entre as escolhas.
+- O modal passa a destacar a combinação de pior margem e a combinação de melhor margem, com preço, custo e margem.
+- A fase continua em memória e não cria produtos reais, não altera pedidos, loja, estoque ou dados salvos.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
+## 2026-06-06 — Preços: combinações de menu fase 2
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- As combinações possíveis de menus/combos agora calculam preço final com adicionais, custo direto, custo base, embalagem, custo indireto, taxas/comissões, lucro, margem, markup e status.
+- No modal de `Composição do Preço`, o bloco `Combinações do menu` passa a mostrar faixa de preço, custo e margem das combinações analisadas.
+- Para evitar travar menus muito grandes, o sistema calcula todas as combinações quando couber no limite seguro e usa amostra quando houver muitas possibilidades.
+- A fase continua em memória, sem criar produtos reais, sem alterar loja, pedidos, estoque ou dados salvos.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
+## 2026-06-06 — Preços: combinações de menu fase 1
+- Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Criei a leitura em memória das combinações possíveis de menus/combos, respeitando grupos, opções, mínimo, máximo e escolhas repetidas quando o grupo permite mais de uma unidade.
+- No modal de `Composição do Preço`, menus passam a mostrar um bloco `Combinações do menu` com a quantidade de combinações identificadas e alguns exemplos.
+- Nesta fase, a leitura ainda não calcula custo ou margem por combinação; ela prepara a base para as próximas fases sem alterar cadastro, pedidos, loja, estoque ou dados salvos.
+- Atualizei o cache-buster de `dinheiro.js` no Admin.
+
 ## 2026-06-06 — Preços: botão fechar no modal de composição
 - Arquivos alterados: `public/js/modules/dinheiro.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - No modal de detalhes da `Composição do Preço`, o botão do rodapé passa a aparecer como `Fechar`.

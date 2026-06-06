@@ -4644,6 +4644,280 @@ Modules.Temporadas = (function () {
     };
   }
 
+  function _realMenuCombinationSignals(orders, actionContext, limit) {
+    actionContext = actionContext || {};
+    var productIndex = _seasonProductIndex(actionContext.products || []);
+    var grouped = {};
+    (orders || []).forEach(function (rawOrder) {
+      var order = _normalizeSeasonOrder(rawOrder);
+      if (!order || !_isValidSeasonOrder(order)) return;
+      var itemCount = (order.items || []).length;
+      (order.items || []).forEach(function (item) {
+        var product = _seasonProductForOrderItem(item, productIndex);
+        var groups = _menuChoiceGroupsForSeason(product);
+        if (!product || !groups.length) return;
+        var combination = _soldCombinationForSeason(product, item);
+        if (!combination || !combination.selections.length) return;
+        var quantity = Math.max(1, _number(item.quantity, 1));
+        var revenue = _money(item.total || (item.unitPrice * quantity));
+        var unitPrice = quantity > 0 ? revenue / quantity : _money(item.unitPrice);
+        var cost = _soldCombinationCostForSeason(combination, actionContext);
+        var fees = _soldCombinationFeesForSeason(unitPrice, order.channel, actionContext, itemCount);
+        var profitUnit = unitPrice - cost - fees;
+        var key = [
+          String(product.id || item.productId || item.id || product.name || item.name || ''),
+          combination.label,
+          order.channel || ''
+        ].join('::');
+        if (!grouped[key]) {
+          grouped[key] = {
+            productId: String(product.id || item.productId || item.id || ''),
+            productName: product.name || product.title || item.name || 'Produto',
+            combination: combination.label,
+            channel: _channelLabel(order.channel || ''),
+            orders: 0,
+            quantity: 0,
+            revenue: 0,
+            cost: 0,
+            fees: 0,
+            profit: 0
+          };
+        }
+        grouped[key].orders += 1;
+        grouped[key].quantity += quantity;
+        grouped[key].revenue += revenue;
+        grouped[key].cost += cost * quantity;
+        grouped[key].fees += fees * quantity;
+        grouped[key].profit += profitUnit * quantity;
+      });
+    });
+    var rows = Object.keys(grouped).map(function (key) {
+      var row = grouped[key];
+      row.averagePrice = row.quantity > 0 ? row.revenue / row.quantity : 0;
+      row.averageCost = row.quantity > 0 ? row.cost / row.quantity : 0;
+      row.averageFees = row.quantity > 0 ? row.fees / row.quantity : 0;
+      row.marginPercent = row.revenue > 0 ? (row.profit / row.revenue) * 100 : 0;
+      row.status = _soldCombinationStatus(row);
+      row.reason = _soldCombinationReason(row);
+      return row;
+    });
+    var top = rows.slice().sort(function (a, b) {
+      return b.quantity - a.quantity || b.revenue - a.revenue;
+    }).slice(0, Math.max(1, limit || 6));
+    var risk = rows.slice().filter(function (row) {
+      return row.status === 'margem_baixa' || row.status === 'prejuizo' || row.status === 'sem_custo';
+    }).sort(function (a, b) {
+      return a.marginPercent - b.marginPercent || b.revenue - a.revenue;
+    }).slice(0, 3);
+    var seen = {};
+    return top.concat(risk).filter(function (row) {
+      var key = [row.productId, row.combination, row.channel].join('::');
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).slice(0, Math.max(1, limit || 6));
+  }
+
+  function _seasonProductIndex(products) {
+    var byId = {};
+    var byName = {};
+    (products || []).forEach(function (product) {
+      if (!product) return;
+      var id = String(product.id || product.uid || product.productId || '').trim();
+      var name = _foldText(product.name || product.title || product.nome || '');
+      if (id) byId[id] = product;
+      if (name) byName[name] = product;
+    });
+    return { byId: byId, byName: byName };
+  }
+
+  function _seasonProductForOrderItem(item, index) {
+    index = index || { byId: {}, byName: {} };
+    var id = String(item && (item.productId || item.id || item.itemId) || '').trim();
+    var name = _foldText(item && item.name || '');
+    return (id && index.byId[id]) || (name && index.byName[name]) || null;
+  }
+
+  function _menuChoiceGroupsForSeason(product) {
+    var groups = Array.isArray(product && product.menuChoiceGroups) ? product.menuChoiceGroups : [];
+    return groups.map(function (group, groupIndex) {
+      var rawOptions = Array.isArray(group && group.options) ? group.options
+        : Array.isArray(group && group.items) ? group.items
+        : Array.isArray(group && group.opcoes) ? group.opcoes
+        : Array.isArray(group && group.choices) ? group.choices
+        : [];
+      var options = rawOptions.map(function (option, optionIndex) {
+        if (!option || typeof option !== 'object') return null;
+        var label = String(_firstValue(option.name, option.label, option.title, option.value, option.ref, 'Opção ' + (optionIndex + 1))).trim();
+        return {
+          id: String(_firstValue(option.id, option.optionId, option.ref, label)),
+          ref: String(_firstValue(option.ref, option.stockRef, option.stockItemRef, '')),
+          label: label,
+          name: label,
+          priceExtra: _money(_firstValue(option.priceExtra, option.extraPrice, option.price, option.valorExtra, 0)),
+          unitCost: _money(_firstValue(option.stockUnitCost, option.unitCost, option.cost, 0)),
+          stockItemId: String(_firstValue(option.stockItemId, option.itemId, '')),
+          stockItemType: String(_firstValue(option.stockItemType, option.itemClass, option.classe, ''))
+        };
+      }).filter(Boolean);
+      if (!options.length) return null;
+      return {
+        id: String(_firstValue(group.id, group.key, 'group_' + groupIndex)),
+        title: String(_firstValue(group.title, group.name, group.label, 'Escolha ' + (groupIndex + 1))),
+        options: options
+      };
+    }).filter(Boolean);
+  }
+
+  function _soldCombinationForSeason(product, item) {
+    return _soldCombinationFromStructuredChoices(product, item) || _soldCombinationFromChoiceText(product, item);
+  }
+
+  function _soldCombinationFromStructuredChoices(product, item) {
+    var choices = _structuredSeasonChoices(item);
+    if (!choices.length) return null;
+    var groups = _menuChoiceGroupsForSeason(product);
+    var selections = [];
+    var extraPrice = 0;
+    groups.forEach(function (group) {
+      var selected = [];
+      choices.forEach(function (choice) {
+        if (!_seasonChoiceGroupMatches(group, choice.groupId, choice.groupName || choice.group || choice.title)) return;
+        var option = _seasonMatchMenuOption(group, choice.optionName || choice.name || choice.label || choice.value || choice.option, choice.ref || choice.optionRef || choice.stockRef || choice.stockItemRef);
+        if (!option) return;
+        var qty = Math.max(1, _number(_firstValue(choice.quantity, choice.qty, choice.count, 1), 1));
+        selected.push(Object.assign({}, option, { qty: qty }));
+        extraPrice += _money(option.priceExtra) * qty;
+      });
+      if (selected.length) selections.push({ groupId: group.id, groupName: group.title, options: selected });
+    });
+    if (!selections.length) return null;
+    return { selections: selections, extraPrice: extraPrice, label: _seasonCombinationLabel(selections) };
+  }
+
+  function _structuredSeasonChoices(item) {
+    var fields = ['menuChoices', 'choiceDetails', 'selectedChoiceDetails', 'variantChoices', 'selectedOptions', 'variants', 'options'];
+    for (var i = 0; i < fields.length; i++) {
+      var list = item && item[fields[i]];
+      if (Array.isArray(list) && list.some(function (choice) { return choice && typeof choice === 'object'; })) {
+        return list.filter(function (choice) { return choice && typeof choice === 'object'; });
+      }
+    }
+    return [];
+  }
+
+  function _soldCombinationFromChoiceText(product, item) {
+    var texts = Array.isArray(item && item.choices) ? item.choices : [];
+    if (!texts.length) return null;
+    var groups = _menuChoiceGroupsForSeason(product);
+    var selections = [];
+    var extraPrice = 0;
+    groups.forEach(function (group) {
+      var selected = [];
+      texts.forEach(function (choiceText) {
+        if (typeof choiceText !== 'string') return;
+        var parsed = _parseSeasonChoiceText(choiceText);
+        if (!_seasonChoiceGroupMatches(group, '', parsed.group)) return;
+        parsed.options.forEach(function (parsedOption) {
+          var option = _seasonMatchMenuOption(group, parsedOption.name, '');
+          if (!option) return;
+          selected.push(Object.assign({}, option, { qty: parsedOption.qty }));
+          extraPrice += _money(option.priceExtra) * parsedOption.qty;
+        });
+      });
+      if (selected.length) selections.push({ groupId: group.id, groupName: group.title, options: selected });
+    });
+    if (!selections.length) return null;
+    return { selections: selections, extraPrice: extraPrice, label: _seasonCombinationLabel(selections) };
+  }
+
+  function _parseSeasonChoiceText(value) {
+    var text = String(value || '');
+    var parts = text.split(':');
+    var group = parts.length > 1 ? parts.shift() : '';
+    var rest = parts.join(':') || text;
+    return {
+      group: group.trim(),
+      options: rest.split(',').map(function (part) {
+        var raw = String(part || '').trim();
+        var match = raw.match(/\s+x\s*(\d+)\s*$/i);
+        var qty = match ? parseInt(match[1], 10) || 1 : 1;
+        var name = match ? raw.replace(/\s+x\s*\d+\s*$/i, '').trim() : raw;
+        return { name: name, qty: qty };
+      }).filter(function (entry) { return entry.name; })
+    };
+  }
+
+  function _seasonChoiceGroupMatches(group, groupId, groupName) {
+    if (groupId && String(group.id || '') === String(groupId)) return true;
+    var wanted = _foldText(groupName || '');
+    if (!wanted) return false;
+    return _foldText(group.title || '') === wanted || _foldText(group.name || '') === wanted;
+  }
+
+  function _seasonMatchMenuOption(group, optionName, ref) {
+    var refKey = String(ref || '').trim();
+    var nameKey = _foldText(optionName || '');
+    return (group.options || []).filter(function (option) {
+      return (refKey && String(option.ref || '') === refKey) || (nameKey && (_foldText(option.label || '') === nameKey || _foldText(option.name || '') === nameKey));
+    })[0] || null;
+  }
+
+  function _seasonCombinationLabel(selections) {
+    return (selections || []).map(function (selection) {
+      var choices = (selection.options || []).map(function (option) {
+        return option.label + (_number(option.qty, 0) > 1 ? ' x' + Math.round(_number(option.qty, 1)) : '');
+      }).join(', ');
+      return selection.groupName + ': ' + choices;
+    }).join(' / ');
+  }
+
+  function _soldCombinationCostForSeason(combination, actionContext) {
+    return (combination.selections || []).reduce(function (sum, selection) {
+      return sum + (selection.options || []).reduce(function (lineSum, option) {
+        return lineSum + _seasonMenuOptionUnitCost(option, actionContext) * Math.max(1, _number(option.qty, 1));
+      }, 0);
+    }, 0);
+  }
+
+  function _seasonMenuOptionUnitCost(option, actionContext) {
+    var ref = String(option && option.ref || '').trim();
+    var parts = ref ? ref.split(':') : [];
+    var refType = parts[0] || '';
+    var refId = parts.slice(1).join(':');
+    var itemId = String(option && (option.stockItemId || option.itemId) || refId || '').trim();
+    if ((refType === 'ficha' || refType === 'receita' || refType === 'base_producao') && itemId) {
+      return _recipeUnitCost(_findRecipeById(itemId, actionContext.recipes || []), actionContext.costItems || []);
+    }
+    if ((refType === 'produto_pronto' || refType === 'pronto' || refType === 'item' || refType === 'insumo' || refType === 'ingrediente' || refType === 'embalagem') && itemId) {
+      return _costItemUnitCost(_findCostItemById(itemId, actionContext.costItems || []));
+    }
+    return _money(option && option.unitCost || 0);
+  }
+
+  function _soldCombinationFeesForSeason(unitPrice, channel, actionContext, orderItemCount) {
+    var config = _channelConfigFor(channel, actionContext && actionContext.salesChannels || []);
+    if (!config) return 0;
+    var commission = _money(unitPrice) * _number(config.commissionPct, 0) / 100;
+    var commissionTax = commission > 0 ? commission * _number(config.taxPct, 0) / 100 : 0;
+    var fixed = Math.max(1, Math.round(_number(orderItemCount, 1))) === 1 ? _money(config.fixedFee || 0) : 0;
+    return commission + commissionTax + fixed;
+  }
+
+  function _soldCombinationStatus(row) {
+    if (!_number(row.averageCost, 0)) return 'sem_custo';
+    if (_number(row.profit, 0) < 0) return 'prejuizo';
+    if (_number(row.marginPercent, 0) < 25) return 'margem_baixa';
+    return 'saudavel';
+  }
+
+  function _soldCombinationReason(row) {
+    if (row.status === 'sem_custo') return 'falta custo da combinação';
+    if (row.status === 'prejuizo') return 'vendeu abaixo do custo e taxas';
+    if (row.status === 'margem_baixa') return 'sobra apertada na combinação vendida';
+    return 'combinação vendida com sobra saudável';
+  }
+
   function _productChainCost(product, actionContext) {
     product = product || {};
     actionContext = actionContext || {};
@@ -8296,7 +8570,12 @@ Modules.Temporadas = (function () {
         couponCode: _getCouponCode(item),
         promotionName: _getPromotionName(item),
         promotionDiscount: _getNumber(item.promotionDiscount || item.promotionDiscountTotal || item.promoDiscount || item.discount || 0),
-        upsellDiscount: _getNumber(item.upsellDiscount || item.upsellDiscountTotal || 0)
+        upsellDiscount: _getNumber(item.upsellDiscount || item.upsellDiscountTotal || 0),
+        choices: Array.isArray(item.choices) ? item.choices : [],
+        choiceDetails: Array.isArray(item.choiceDetails) ? item.choiceDetails : [],
+        menuChoices: Array.isArray(item.menuChoices) ? item.menuChoices : [],
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : [],
+        variants: Array.isArray(item.variants) ? item.variants : []
       };
     }).filter(function (item) { return item.name; });
   }
@@ -9363,6 +9642,7 @@ Modules.Temporadas = (function () {
       topChannels: _simplePerformanceList(rolling30.topChannels || metrics.channelBreakdown || [], 4),
       strongHours: _simplePerformanceList(metrics.strongHours || [], 4),
       lowSellingProducts: _simplePerformanceList(metrics.lowSellingProducts || [], 4),
+      realMenuCombinations: _realMenuCombinationsForAI(metrics.realMenuCombinations || [], 6),
       actionPerformance: {
         couponOrders: Math.round(_number(rolling30.couponOrders, metrics.couponUsage || 0)),
         promotionOrders: Math.round(_number(rolling30.promotionOrders, _number(metrics.promotionDiscount, 0) > 0 ? 1 : 0)),
@@ -9400,6 +9680,30 @@ Modules.Temporadas = (function () {
       };
     }).filter(function (item) {
       return item.name || item.quantity || item.orders || item.revenue;
+    });
+  }
+
+  function _realMenuCombinationsForAI(items, limit) {
+    return (items || []).slice(0, limit || 6).map(function (item) {
+      item = item || {};
+      return {
+        productId: item.productId || '',
+        productName: item.productName || item.name || '',
+        combination: item.combination || item.label || '',
+        channel: item.channel || '',
+        orders: Math.round(_number(item.orders, 0)),
+        quantity: Math.round(_number(item.quantity, 0)),
+        revenue: _roundMoney(item.revenue),
+        averagePrice: _roundMoney(item.averagePrice),
+        averageCost: _roundMoney(item.averageCost),
+        averageFees: _roundMoney(item.averageFees),
+        profit: _roundMoney(item.profit),
+        marginPercent: Math.round(_number(item.marginPercent, 0)),
+        status: item.status || '',
+        reason: item.reason || ''
+      };
+    }).filter(function (item) {
+      return item.productName && item.combination && (item.orders || item.quantity || item.revenue);
     });
   }
 
@@ -9954,8 +10258,8 @@ Modules.Temporadas = (function () {
     var period = _seasonPeriod(season);
     var currentOrders = _ordersInPeriod(allOrders || [], period.start, period.currentEnd);
     var baselineOrders = _ordersInPeriod(allOrders || [], period.baselineStart, period.start);
-    var current = _buildRuntimeMetrics(currentOrders, period.elapsedDays || 1);
-    var baseline = _buildRuntimeMetrics(baselineOrders, period.durationDays || 30);
+    var current = _buildRuntimeMetrics(currentOrders, period.elapsedDays || 1, actionContext || {});
+    var baseline = _buildRuntimeMetrics(baselineOrders, period.durationDays || 30, actionContext || {});
     var validatedImpactSignals = _calculateValidatedImpactSignals(currentOrders, season, baseline, actionContext || {});
     current.lowSellingProducts = validatedImpactSignals.products && validatedImpactSignals.products.lowSellingProducts || [];
     var target = _targetValueForSeason(season);
@@ -10103,7 +10407,7 @@ Modules.Temporadas = (function () {
     return 30;
   }
 
-  function _buildRuntimeMetrics(orders, days) {
+  function _buildRuntimeMetrics(orders, days, actionContext) {
     var base = _buildBaselineMetrics(orders, days);
     var customers = {};
     var products = {};
@@ -10181,7 +10485,8 @@ Modules.Temporadas = (function () {
       upsellDiscount: upsellDiscount,
       upsellAddedRevenue: upsellAddedRevenue,
       pointsRedemption: pointsRedemption,
-      pointsDiscount: pointsDiscount
+      pointsDiscount: pointsDiscount,
+      realMenuCombinations: _realMenuCombinationSignals(orders || [], actionContext || {}, 8)
     };
   }
 

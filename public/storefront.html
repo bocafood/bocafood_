@@ -11206,6 +11206,8 @@
             originalPrice: num(item.originalPrice != null ? item.originalPrice : item.price),
             choices: Array.isArray(item.choices) ? item.choices : [],
             stockChoices: Array.isArray(item.stockChoices) ? item.stockChoices : [],
+            choiceDetails: Array.isArray(item.choiceDetails) ? item.choiceDetails : [],
+            menuChoices: Array.isArray(item.menuChoices) ? item.menuChoices : [],
             note: firstText(item.note, '')
           });
         }).filter(Boolean);
@@ -14592,6 +14594,36 @@
         return labels;
       }
 
+      function modalVariantChoiceDetails() {
+        return choiceDetailsFromSelections(modalProduct, modalSelections || {});
+      }
+
+      function choiceDetailsFromSelections(product, selectedByGroup) {
+        var details = [];
+        productVariants(product).forEach(function (group) {
+          var selected = selectedByGroup[group.id] || {};
+          (group.options || []).forEach(function (option) {
+            var selectedQty = num(selected[option.name]);
+            if (selectedQty <= 0) return;
+            details.push({
+              groupId: group.id || '',
+              groupName: group.title || t('options'),
+              optionName: firstText(option.name, option.label, option.title, ''),
+              label: firstText(option.name, option.label, option.title, ''),
+              name: firstText(option.name, option.label, option.title, ''),
+              ref: firstText(option.ref, option.stockRef, option.stockItemRef, ''),
+              optionRef: firstText(option.ref, option.stockRef, option.stockItemRef, ''),
+              stockRef: firstText(option.stockRef, option.ref, option.stockItemRef, ''),
+              stockItemRef: firstText(option.stockItemRef, option.stockRef, option.ref, ''),
+              priceExtra: optionPrice(option),
+              quantity: selectedQty,
+              qty: selectedQty
+            });
+          });
+        });
+        return details;
+      }
+
       function optionStockChoice(group, option, selectedQty) {
         var stockRef = firstText(option && option.stockRef, option && option.stockItemRef, option && option.stockItem, '');
         var stockType = firstText(option && option.stockItemType, option && option.itemClass, option && option.classe, '');
@@ -14685,7 +14717,9 @@
               upsellBenefitType: firstText(product.__upsellRule && product.__upsellRule.benefitType, product.__upsellRule && product.__upsellRule.benefit, ''),
               relatedToProductId: modalProduct && modalProduct.id || '',
               relatedToProductName: productName(modalProduct),
-              stockChoices: modalUpsellStockChoices(product.id, product)
+              stockChoices: modalUpsellStockChoices(product.id, product),
+              choiceDetails: modalUpsellChoiceDetails(product.id, product),
+              menuChoices: modalUpsellChoiceDetails(product.id, product)
             });
           }
         });
@@ -14696,7 +14730,9 @@
             originalExtraUnit: modalUpsellUnitExtra(paired.id, paired),
             relatedToProductId: modalProduct && modalProduct.id || '',
             relatedToProductName: productName(modalProduct),
-            stockChoices: modalUpsellStockChoices(paired.id, paired)
+            stockChoices: modalUpsellStockChoices(paired.id, paired),
+            choiceDetails: modalUpsellChoiceDetails(paired.id, paired),
+            menuChoices: modalUpsellChoiceDetails(paired.id, paired)
           });
         }
       }
@@ -14901,6 +14937,10 @@
 
       function modalUpsellStockChoices(productId, product) {
         return stockChoicesFromSelections(product, modalAddAlsoSelections[productId] || {});
+      }
+
+      function modalUpsellChoiceDetails(productId, product) {
+        return choiceDetailsFromSelections(product, modalAddAlsoSelections[productId] || {});
       }
 
       function modalUpsellChoicesText(productId, product) {
@@ -16677,6 +16717,8 @@
         if (found) {
           found.qty += qty;
           if (!Array.isArray(found.stockChoices) || !found.stockChoices.length) found.stockChoices = Array.isArray(options.stockChoices) ? options.stockChoices : [];
+          if (!Array.isArray(found.choiceDetails) || !found.choiceDetails.length) found.choiceDetails = Array.isArray(options.choiceDetails) ? options.choiceDetails : [];
+          if (!Array.isArray(found.menuChoices) || !found.menuChoices.length) found.menuChoices = Array.isArray(options.menuChoices) ? options.menuChoices : [];
         }
         else cart.push({
           key: key,
@@ -16688,6 +16730,8 @@
           originalPrice: originalUnitPrice,
           choices: choices || [],
           stockChoices: Array.isArray(options.stockChoices) ? options.stockChoices : [],
+          choiceDetails: Array.isArray(options.choiceDetails) ? options.choiceDetails : [],
+          menuChoices: Array.isArray(options.menuChoices) ? options.menuChoices : [],
           addAlsoDiscount: relationDiscount,
           upsellRuleId: upsellRuleId,
           upsellRuleName: options.upsellRuleName || '',
@@ -18288,7 +18332,7 @@
           items: cart.map(function (item) {
             var linePrice = cartLineUnitPrice(item);
             var linePromo = item.promo && cartLinePromoApplies(item) ? item.promo : null;
-            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [], stockChoices: item.stockChoices || [] };
+            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [], stockChoices: item.stockChoices || [], choiceDetails: item.choiceDetails || [], menuChoices: item.menuChoices || [] };
           }),
           subtotal: extra.subtotal,
           originalSubtotal: extra.originalSubtotal || extra.subtotal,
@@ -18896,7 +18940,9 @@
           if (!modalProduct) return;
           if (modalRequiredMissing()) { document.getElementById('modal-variants').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
           var added = addToCart(modalProduct.id, modalQty, document.getElementById('modal-note').value.trim(), modalVariantChoicesLabels(), modalMainUnitExtra(), {
-            stockChoices: modalVariantStockChoices()
+            stockChoices: modalVariantStockChoices(),
+            choiceDetails: modalVariantChoiceDetails(),
+            menuChoices: modalVariantChoiceDetails()
           });
           if (!added) return;
           addModalRelatedItemsToCart();

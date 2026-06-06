@@ -8,6 +8,7 @@ Modules.Dinheiro = (function () {
   var _priceView = { page: 1, pageSize: 12 };
   var _priceCompositionChannel = '0';
   var _priceListFilters = { q: '', price: 'todos', status: 'todos' };
+  var _menuCombinationView = { filter: 'todos', sort: 'margem-asc' };
 
   var TABS = [
     { key: 'resumo', label: 'Radar' },
@@ -46,7 +47,8 @@ Modules.Dinheiro = (function () {
       DB.getDocRoot('config', 'dinheiro'),
       DB.getDocRoot('config', 'canais_venda'),
       DB.getDocRoot('config', 'fiscal'),
-      DB.getDocRoot('config', 'tpv').catch(function () { return {}; })
+      DB.getDocRoot('config', 'tpv').catch(function () { return {}; }),
+      DB.getAll('orders').catch(function () { return []; })
     ]).then(function (r) {
       _data = {
         products: r[0] || [],
@@ -58,7 +60,8 @@ Modules.Dinheiro = (function () {
         dinheiro: _normalizeMoneyConfig(r[6] || {}),
         canais: _normalizeChannels(r[7] || {}, r[9] || {}),
         fiscal: _normalizeFiscalConfig(r[8] || {}),
-        tpv: r[9] || {}
+        tpv: r[9] || {},
+        orders: r[10] || []
       };
     });
   }
@@ -324,6 +327,252 @@ Modules.Dinheiro = (function () {
     return base;
   }
 
+  function _menuCombinationDiscovery(product, limit, channel) {
+    limit = Math.max(1, parseInt(limit, 10) || 120);
+    var groups = _menuGroupsForCombinations(product);
+    if (!groups.length) return { isMenu: false, groups: [], totalCount: 0, samples: [], truncated: false, analysis: null };
+    var totalCount = groups.reduce(function (total, group) {
+      return total * _menuGroupCombinationCount(group);
+    }, 1);
+    if (!isFinite(totalCount) || totalCount < 0) totalCount = 0;
+    var groupSamples = groups.map(function (group) {
+      return _menuGroupSelectionSamples(group, Math.max(limit, 12));
+    });
+    var samples = [];
+    function walk(groupIndex, selections, extraPrice) {
+      if (samples.length >= limit) return;
+      if (groupIndex >= groups.length) {
+        var sample = {
+          selections: selections.slice(),
+          extraPrice: extraPrice,
+          label: _menuCombinationLabel(selections)
+        };
+        sample.analysis = _menuCombinationMetrics(product, sample, channel || _cardapioChannel());
+        samples.push(sample);
+        return;
+      }
+      (groupSamples[groupIndex] || []).some(function (selection) {
+        var nextSelections = selections.concat(selection.options.length ? [selection] : []);
+        var nextExtra = extraPrice + selection.options.reduce(function (sum, option) {
+          return sum + (_num(option.priceExtra) * _num(option.qty || 1));
+        }, 0);
+        walk(groupIndex + 1, nextSelections, nextExtra);
+        return samples.length >= limit;
+      });
+    }
+    walk(0, [], 0);
+    return {
+      isMenu: true,
+      groups: groups,
+      totalCount: totalCount,
+      samples: samples,
+      truncated: totalCount > samples.length,
+      analysis: _menuCombinationSummary(samples)
+    };
+  }
+
+  function _menuCombinationMetrics(product, combination, channel) {
+    var basePrice = _priceForChannel(product, channel || _cardapioChannel());
+    var extraPrice = _num(combination && combination.extraPrice);
+    var soldPrice = combination && combination.priceOverride != null ? _num(combination.priceOverride) : null;
+    var price = soldPrice != null ? Math.max(0, soldPrice) : Math.max(0, basePrice + extraPrice);
+    var cost = _menuCombinationCost(combination);
+    var indirectInfo = _indirectCostInfo();
+    var indirect = cost.direct * (indirectInfo.percent / 100);
+    var totalCost = cost.direct + indirect;
+    var fee = _feesForPrice(price, channel, product);
+    var profit = price - totalCost - fee.total;
+    var margin = price > 0 ? (profit / price) * 100 : 0;
+    var markup = totalCost > 0 ? price / totalCost : 0;
+    var minMargin = _num(_data.dinheiro.minMarginPct || 40);
+    var status = _status(price, totalCost, margin, minMargin, profit, markup);
+    return {
+      basePrice: basePrice,
+      extraPrice: extraPrice,
+      price: price,
+      ingredientCost: cost.ingredients,
+      packagingCost: cost.packaging,
+      directCost: cost.direct,
+      indirectCost: indirect,
+      totalCost: totalCost,
+      fees: fee.total,
+      profit: profit,
+      margin: margin,
+      markup: markup,
+      status: status,
+      costDetails: _normalizeCostDetails(cost.details, cost.ingredients, cost.packaging)
+    };
+  }
+
+  function _menuCombinationCost(combination) {
+    var result = { direct: 0, ingredients: 0, packaging: 0, details: { ingredients: [], packaging: [] } };
+    ((combination && combination.selections) || []).forEach(function (selection) {
+      (selection.options || []).forEach(function (option) {
+        var qty = _num(option.qty || 1) || 1;
+        var c = _refCost(option.ref);
+        result.direct += c.direct * qty;
+        result.ingredients += c.ingredients * qty;
+        result.packaging += c.packaging * qty;
+        _appendCostDetails(result.details, c.details, qty);
+      });
+    });
+    return result;
+  }
+
+  function _menuCombinationSummary(samples) {
+    var withAnalysis = (samples || []).filter(function (sample) { return sample && sample.analysis; });
+    var analyzed = withAnalysis.map(function (sample) { return sample.analysis; });
+    if (!analyzed.length) return null;
+    function avg(key) {
+      return analyzed.reduce(function (sum, item) { return sum + _num(item[key]); }, 0) / analyzed.length;
+    }
+    var worst = withAnalysis.slice().sort(function (a, b) {
+      return _num(a.analysis.margin) - _num(b.analysis.margin) || _num(a.analysis.profit) - _num(b.analysis.profit);
+    })[0];
+    var best = withAnalysis.slice().sort(function (a, b) {
+      return _num(b.analysis.margin) - _num(a.analysis.margin) || _num(b.analysis.profit) - _num(a.analysis.profit);
+    })[0];
+    var highestCost = withAnalysis.slice().sort(function (a, b) {
+      return _num(b.analysis.totalCost) - _num(a.analysis.totalCost);
+    })[0];
+    var lowestCost = withAnalysis.slice().sort(function (a, b) {
+      return _num(a.analysis.totalCost) - _num(b.analysis.totalCost);
+    })[0];
+    return {
+      count: analyzed.length,
+      minCost: Math.min.apply(Math, analyzed.map(function (item) { return _num(item.totalCost); })),
+      avgCost: avg('totalCost'),
+      maxCost: Math.max.apply(Math, analyzed.map(function (item) { return _num(item.totalCost); })),
+      avgProfit: avg('profit'),
+      minMargin: Math.min.apply(Math, analyzed.map(function (item) { return _num(item.margin); })),
+      avgMargin: avg('margin'),
+      maxMargin: Math.max.apply(Math, analyzed.map(function (item) { return _num(item.margin); })),
+      minPrice: Math.min.apply(Math, analyzed.map(function (item) { return _num(item.price); })),
+      maxPrice: Math.max.apply(Math, analyzed.map(function (item) { return _num(item.price); })),
+      riskCount: analyzed.filter(function (item) { return item.status === 'prejuízo' || item.status === 'margem baixa' || item.status === 'sem custo'; }).length,
+      worst: worst || null,
+      best: best || null,
+      highestCost: highestCost || null,
+      lowestCost: lowestCost || null
+    };
+  }
+
+  function _menuGroupsForCombinations(product) {
+    var groups = Array.isArray(product && product.menuChoiceGroups) ? product.menuChoiceGroups : [];
+    return groups.map(function (group, index) {
+      var rawOptions = Array.isArray(group && group.options) ? group.options
+        : Array.isArray(group && group.items) ? group.items
+        : Array.isArray(group && group.opcoes) ? group.opcoes
+        : Array.isArray(group && group.choices) ? group.choices
+        : [];
+      var options = rawOptions.map(function (option, optionIndex) {
+        if (!option || typeof option !== 'object') return null;
+        var label = _firstText(option.name, option.label, option.title, option.value, option.ref, 'Opção ' + (optionIndex + 1));
+        return {
+          ref: option.ref || option.stockRef || option.stockItemRef || '',
+          label: label,
+          name: label,
+          priceExtra: _num(option.priceExtra != null ? option.priceExtra : option.extraPrice != null ? option.extraPrice : option.price != null ? option.price : option.valorExtra),
+          source: option
+        };
+      }).filter(Boolean);
+      if (!options.length) return null;
+      var max = parseInt(group.maxPerUnit || group.max || group.qty || 1, 10);
+      var min = parseInt(group.minPerUnit || group.min || (group.required ? 1 : 0), 10);
+      if (!isFinite(max) || max < 1) max = 1;
+      if (!isFinite(min) || min < 0) min = group.required ? 1 : 0;
+      if (min > max) min = max;
+      return {
+        id: _firstText(group.id, 'group_' + index),
+        title: _firstText(group.title, group.name, 'Escolha ' + (index + 1)),
+        min: min,
+        max: max,
+        required: group.required === true || min > 0,
+        options: options
+      };
+    }).filter(Boolean);
+  }
+
+  function _menuGroupCombinationCount(group) {
+    var n = (group.options || []).length;
+    if (!n) return 0;
+    var total = 0;
+    for (var size = Math.max(0, group.min || 0); size <= Math.max(group.max || 1, group.min || 0); size++) {
+      total += size === 0 ? 1 : _combinationWithRepetitionCount(n, size);
+    }
+    return total;
+  }
+
+  function _combinationWithRepetitionCount(optionsCount, size) {
+    if (size <= 0) return 1;
+    return _binomial(optionsCount + size - 1, size);
+  }
+
+  function _binomial(n, k) {
+    n = parseInt(n, 10);
+    k = parseInt(k, 10);
+    if (!isFinite(n) || !isFinite(k) || k < 0 || n < 0 || k > n) return 0;
+    k = Math.min(k, n - k);
+    var result = 1;
+    for (var i = 1; i <= k; i++) {
+      result = result * (n - k + i) / i;
+      if (result > Number.MAX_SAFE_INTEGER) return Number.MAX_SAFE_INTEGER;
+    }
+    return Math.round(result);
+  }
+
+  function _menuGroupSelectionSamples(group, limit) {
+    var out = [];
+    var options = group.options || [];
+    var min = Math.max(0, group.min || 0);
+    var max = Math.max(min, group.max || 1);
+    if (!options.length) return out;
+    if (min === 0) out.push({ groupId: group.id, groupName: group.title, options: [] });
+    function build(size, start, picks) {
+      if (out.length >= limit) return;
+      if (picks.length === size) {
+        var byIndex = {};
+        picks.forEach(function (idx) { byIndex[idx] = (byIndex[idx] || 0) + 1; });
+        out.push({
+          groupId: group.id,
+          groupName: group.title,
+          options: Object.keys(byIndex).map(function (idx) {
+            var option = options[Number(idx)];
+            return Object.assign({}, option, { qty: byIndex[idx] });
+          })
+        });
+        return;
+      }
+      for (var i = start; i < options.length; i++) {
+        picks.push(i);
+        build(size, i, picks);
+        picks.pop();
+        if (out.length >= limit) return;
+      }
+    }
+    for (var size = Math.max(1, min); size <= max; size++) {
+      build(size, 0, []);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  function _menuCombinationLabel(selections) {
+    if (!selections || !selections.length) return 'Sem escolhas obrigatórias';
+    return selections.map(function (selection) {
+      var choices = (selection.options || []).map(function (option) {
+        return option.label + (_num(option.qty) > 1 ? ' x' + option.qty : '');
+      }).join(', ');
+      return selection.groupName + ': ' + choices;
+    }).join(' / ');
+  }
+
+  function _menuCombinationCountLabel(count) {
+    count = Math.max(0, Math.round(_num(count)));
+    if (count >= Number.MAX_SAFE_INTEGER) return 'muitas combinações';
+    return count === 1 ? '1 combinação' : count + ' combinações';
+  }
+
   function _hasInternalComposition(product) {
     return _internalCompositionItems(product).length > 0;
   }
@@ -380,11 +629,13 @@ Modules.Dinheiro = (function () {
     var parts = String(ref || '').split(':');
     var type = parts[0];
     var id = parts.slice(1).join(':');
-    if (type === 'ficha') return _recipeDirectCost(_byId(_data.receitas, id));
-    if (type === 'pronto' || type === 'item') {
+    if (type === 'ficha' || type === 'receita') return _recipeDirectCost(_byId(_data.receitas, id));
+    if (type === 'base_producao') return _recipeDirectCost(_byId(_data.receitas, id));
+    if (type === 'pronto' || type === 'item' || type === 'produto_pronto' || type === 'insumo' || type === 'ingrediente' || type === 'embalagem') {
       var item = _byId(_data.itens, id);
       var direct = _itemCost(item);
-      var packaging = item && String(item.classe || item.itemClass || item.stockItemType || '').toLowerCase() === 'embalagem';
+      var itemClass = String(item && (item.classe || item.itemClass || item.stockItemType) || type).toLowerCase();
+      var packaging = itemClass === 'embalagem';
       return {
         direct: direct,
         ingredients: packaging ? 0 : direct,
@@ -1353,6 +1604,8 @@ Modules.Dinheiro = (function () {
       _priceMetric('Markup', analysis.markup ? analysis.markup.toFixed(2).replace('.', ',') + 'x' : '—', 'real') +
       '</div>' +
       _comboCostRangeBlock(analysis) +
+      _menuCombinationDiscoveryBlock(row.product, ch) +
+      _soldMenuCombinationsBlock(row.product) +
       '</section>' +
       '<section style="' + _priceModalCardStyle() + '">' +
       _priceModalSectionTitle('Distribuição do preço', 'Veja quanto do preço vai para custo, taxas e resultado.', 'donut_large') +
@@ -1402,6 +1655,364 @@ Modules.Dinheiro = (function () {
       '<span style="display:block;font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;">' + _esc(label) + '</span>' +
       '<strong style="display:block;font-size:15px;color:#1F1F1F;margin-top:3px;">' + UI.fmt(_num(value)) + '</strong>' +
       '<small style="display:block;font-size:11px;color:#6F6860;line-height:1.3;margin-top:3px;">' + _esc(note) + '</small>' +
+    '</div>';
+  }
+
+  function _menuCombinationDiscoveryBlock(product, channel) {
+    var info = _menuCombinationDiscovery(product, 250, channel);
+    if (!info.isMenu || !info.groups.length) return '';
+    var summary = info.analysis;
+    var analyzedNote = info.truncated ? 'amostra de ' + info.samples.length + ' combinações' : 'todas as combinações';
+    var insight = summary ? _menuCombinationInsight(summary, info.truncated) : '';
+    var listId = 'din-menu-combos-list-' + String(product && product.id || 'menu').replace(/[^a-zA-Z0-9_-]/g, '');
+    var filterStyle = 'height:34px;border:1px solid #E8DCD7;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:600;font-family:inherit;padding:0 28px 0 9px;outline:none;';
+    var summaryHtml = summary ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-top:10px;">' +
+      _menuCombinationMetric('Preço', UI.fmt(summary.minPrice) + ' a ' + UI.fmt(summary.maxPrice), 'com adicionais') +
+      _menuCombinationMetric('Custo médio', UI.fmt(summary.avgCost), UI.fmt(summary.minCost) + ' a ' + UI.fmt(summary.maxCost)) +
+      _menuCombinationMetric('Margem média', summary.avgMargin.toFixed(1).replace('.', ',') + '%', summary.minMargin.toFixed(1).replace('.', ',') + '% a ' + summary.maxMargin.toFixed(1).replace('.', ',') + '%') +
+      _menuCombinationMetric('Combinações em atenção', summary.riskCount, analyzedNote) +
+    '</div>' : '';
+    var extremesHtml = summary ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin-top:10px;">' +
+      _menuCombinationExtremeCard('Pior margem', summary.worst, '#B42318') +
+      _menuCombinationExtremeCard('Melhor margem', summary.best, '#1F6F43') +
+    '</div>' : '';
+    window._dinMenuCombinationData = window._dinMenuCombinationData || {};
+    window._dinMenuCombinationData[listId] = info.samples || [];
+    var listHtml = '<div style="margin-top:12px;border-top:1px solid #E8DCD7;padding-top:10px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Listagem das combinações</div><div style="font-size:11px;color:#8A7E7C;margin-top:2px;">Filtre para encontrar combinações com margem baixa, maior custo ou melhor resultado.</div></div>' +
+        '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">' +
+          '<select onchange="Modules.Dinheiro._setMenuCombinationView(\'' + _esc(listId) + '\',\'filter\',this.value)" style="' + filterStyle + '">' +
+            '<option value="todos"' + (_menuCombinationView.filter === 'todos' ? ' selected' : '') + '>Todas</option>' +
+            '<option value="risco"' + (_menuCombinationView.filter === 'risco' ? ' selected' : '') + '>Em atenção</option>' +
+            '<option value="saudavel"' + (_menuCombinationView.filter === 'saudavel' ? ' selected' : '') + '>Saudáveis</option>' +
+          '</select>' +
+          '<select onchange="Modules.Dinheiro._setMenuCombinationView(\'' + _esc(listId) + '\',\'sort\',this.value)" style="' + filterStyle + '">' +
+            '<option value="margem-asc"' + (_menuCombinationView.sort === 'margem-asc' ? ' selected' : '') + '>Menor margem</option>' +
+            '<option value="margem-desc"' + (_menuCombinationView.sort === 'margem-desc' ? ' selected' : '') + '>Maior margem</option>' +
+            '<option value="custo-desc"' + (_menuCombinationView.sort === 'custo-desc' ? ' selected' : '') + '>Maior custo</option>' +
+            '<option value="preco-desc"' + (_menuCombinationView.sort === 'preco-desc' ? ' selected' : '') + '>Maior preço</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div id="' + _esc(listId) + '">' + _menuCombinationListHtml(info.samples || [], _menuCombinationView) + '</div>' +
+    '</div>';
+    return '<div style="margin-top:12px;border:1px solid #E8DCD7;background:#FFFCF8;border-radius:14px;padding:12px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Combinações do menu</div>' +
+        '<p style="font-size:12px;color:#6F6860;line-height:1.4;margin:3px 0 0;">Leitura de preço, custo e margem por combinação possível deste menu.</p></div>' +
+        '<span style="height:30px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EADFD8;color:#1F1F1F;font-size:12px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;">' + _esc(_menuCombinationCountLabel(info.totalCount)) + '</span>' +
+      '</div>' +
+      (insight ? '<div style="margin-top:10px;padding:10px 11px;border-radius:12px;background:#fff;border:1px solid #EFE5E1;color:#5F514D;font-size:12px;line-height:1.45;">' + _esc(insight) + '</div>' : '') +
+      summaryHtml +
+      extremesHtml +
+      listHtml +
+      (info.truncated ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:8px;">Este menu tem muitas possibilidades. A listagem mostra ' + _esc(analyzedNote) + ' para manter a tela rápida.</div>' : '') +
+    '</div>';
+  }
+
+  function _menuCombinationInsight(summary, truncated) {
+    if (!summary) return '';
+    var source = truncated ? 'Na amostra analisada' : 'Nas combinações possíveis';
+    if (summary.riskCount > 0) {
+      return source + ', existem combinações que pedem atenção antes de vender. Comece revisando a pior margem e veja se algum adicional precisa de ajuste.';
+    }
+    var spread = _num(summary.maxMargin) - _num(summary.minMargin);
+    if (spread >= 20) return source + ', a margem muda bastante conforme a escolha. Vale olhar quais opções puxam o resultado para baixo.';
+    return source + ', as combinações estão próximas entre si. O preço do menu parece mais estável para as escolhas atuais.';
+  }
+
+  function _menuCombinationExtremeCard(title, sample, color) {
+    if (!sample || !sample.analysis) return '';
+    var a = sample.analysis;
+    return '<div style="background:#fff;border:1px solid #EFE5E1;border-radius:12px;padding:10px 11px;min-width:0;">' +
+      '<div style="font-size:10px;font-weight:800;color:' + color + ';text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">' + _esc(title) + '</div>' +
+      '<div style="font-size:11.5px;color:#5F514D;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sample.label || 'Combinação') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;">' +
+        '<strong style="font-size:12px;color:#1F1F1F;">' + UI.fmt(_num(a.price)) + '</strong>' +
+        '<span style="font-size:11px;color:#6F6860;">Custo ' + UI.fmt(_num(a.totalCost)) + '</span>' +
+        '<span style="font-size:11px;color:' + color + ';font-weight:750;">Margem ' + _num(a.margin).toFixed(1).replace('.', ',') + '%</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _menuCombinationListHtml(samples, view) {
+    view = view || _menuCombinationView;
+    var rows = _filterMenuCombinationRows(samples || [], view.filter || 'todos');
+    rows = _sortMenuCombinationRows(rows, view.sort || 'margem-asc');
+    var visible = rows.slice(0, 24);
+    if (!visible.length) return '<div style="background:#fff;border:1px dashed #E8DCD7;border-radius:12px;padding:12px;color:#6F6860;font-size:12px;line-height:1.4;">Nenhuma combinação encontrada com este filtro.</div>';
+    return '<div style="display:flex;flex-direction:column;gap:6px;">' + visible.map(_menuCombinationRowHtml).join('') + '</div>' +
+      (rows.length > visible.length ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:8px;">Mostrando 24 de ' + rows.length + ' combinações deste filtro.</div>' : '');
+  }
+
+  function _filterMenuCombinationRows(samples, filter) {
+    if (filter === 'risco') {
+      return (samples || []).filter(function (sample) {
+        var status = sample && sample.analysis && sample.analysis.status;
+        return status === 'prejuízo' || status === 'margem baixa' || status === 'sem custo' || status === 'atenção';
+      });
+    }
+    if (filter === 'saudavel') {
+      return (samples || []).filter(function (sample) {
+        return sample && sample.analysis && sample.analysis.status === 'saudável';
+      });
+    }
+    return (samples || []).slice();
+  }
+
+  function _sortMenuCombinationRows(rows, sort) {
+    return (rows || []).slice().sort(function (a, b) {
+      var aa = a && a.analysis || {};
+      var ba = b && b.analysis || {};
+      if (sort === 'margem-desc') return _num(ba.margin) - _num(aa.margin) || _num(ba.profit) - _num(aa.profit);
+      if (sort === 'custo-desc') return _num(ba.totalCost) - _num(aa.totalCost) || _num(ba.price) - _num(aa.price);
+      if (sort === 'preco-desc') return _num(ba.price) - _num(aa.price) || _num(ba.margin) - _num(aa.margin);
+      return _num(aa.margin) - _num(ba.margin) || _num(aa.profit) - _num(ba.profit);
+    });
+  }
+
+  function _menuCombinationRowHtml(sample) {
+    var a = sample && sample.analysis || {};
+    var tone = a.status === 'prejuízo' || a.status === 'margem baixa' ? '#B42318' : (a.status === 'atenção' || a.status === 'sem custo' ? '#D97706' : '#1F6F43');
+    var extra = _num(sample && sample.extraPrice);
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,max-content);gap:10px;align-items:start;background:#fff;border:1px solid #EFE5E1;border-radius:11px;padding:9px 10px;">' +
+      '<div style="min-width:0;">' +
+        '<div style="font-size:12px;color:#1F1F1F;font-weight:650;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(sample && sample.label || 'Combinação') + '</div>' +
+        '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">Custo ' + UI.fmt(_num(a.totalCost)) + ' · Taxas ' + UI.fmt(_num(a.fees)) + ' · Lucro ' + UI.fmt(_num(a.profit)) + '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;text-align:right;">' +
+        '<strong style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(_num(a.price)) + (extra ? ' · +' + UI.fmt(extra) : '') + '</strong>' +
+        '<span style="font-size:11px;color:' + tone + ';font-weight:800;white-space:nowrap;">' + _num(a.margin).toFixed(1).replace('.', ',') + '%</span>' +
+        '<span style="font-size:10.5px;color:' + tone + ';font-weight:750;background:#FAF8F4;border-radius:999px;padding:4px 7px;white-space:nowrap;">' + _esc(a.status || 'sem dados') + '</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _setMenuCombinationView(listId, key, value) {
+    if (key === 'filter') _menuCombinationView.filter = value || 'todos';
+    if (key === 'sort') _menuCombinationView.sort = value || 'margem-asc';
+    var host = document.getElementById(listId);
+    var data = window._dinMenuCombinationData && window._dinMenuCombinationData[listId] || [];
+    if (host) host.innerHTML = _menuCombinationListHtml(data, _menuCombinationView);
+  }
+
+  function _soldMenuCombinationsBlock(product) {
+    var rows = _soldMenuCombinationRows(product, 40);
+    if (!rows.length) return '';
+    var valid = rows.filter(function (row) { return row.analysis && row.analysis.price > 0; });
+    var revenue = valid.reduce(function (sum, row) { return sum + _num(row.total); }, 0);
+    var profit = valid.reduce(function (sum, row) { return sum + (_num(row.analysis.profit) * _num(row.qty || 1)); }, 0);
+    var avgMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+    var risk = valid.filter(function (row) {
+      var s = row.analysis.status;
+      return s === 'prejuízo' || s === 'margem baixa' || s === 'sem custo' || s === 'atenção';
+    }).length;
+    var summary = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin-top:10px;">' +
+      _menuCombinationMetric('Vendidas', rows.length, 'últimos pedidos') +
+      _menuCombinationMetric('Receita', UI.fmt(revenue), 'dessas combinações') +
+      _menuCombinationMetric('Margem média', avgMargin.toFixed(1).replace('.', ',') + '%', 'com canal do pedido') +
+      _menuCombinationMetric('Pedem atenção', risk, 'custo, taxa ou preço') +
+    '</div>';
+    return '<div style="margin-top:12px;border:1px solid #E8DCD7;background:#FFFCF8;border-radius:14px;padding:12px;">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
+        '<div><div style="font-size:11px;font-weight:800;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Combinações vendidas</div>' +
+        '<p style="font-size:12px;color:#6F6860;line-height:1.4;margin:3px 0 0;">Aqui a margem usa a escolha feita no pedido, o preço realmente cobrado e as taxas do canal daquele pedido.</p></div>' +
+        '<span class="mi" style="width:30px;height:30px;border-radius:10px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;">shopping_bag</span>' +
+      '</div>' +
+      summary +
+      '<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;">' + rows.slice(0, 12).map(_soldMenuCombinationRowHtml).join('') + '</div>' +
+      (rows.length > 12 ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:8px;">Mostrando 12 de ' + rows.length + ' combinações vendidas encontradas.</div>' : '') +
+    '</div>';
+  }
+
+  function _soldMenuCombinationRows(product, limit) {
+    if (!_menuGroupsForCombinations(product).length) return [];
+    var productId = String(product && product.id || '');
+    var productName = _fold(product && product.name || '');
+    var rows = [];
+    (_data.orders || []).filter(_validOrderForSoldMargin).some(function (order) {
+      var channel = _channelForOrder(order);
+      var orderNumber = _firstText(order.orderNumber, order.number, order.code, order.id ? '#' + String(order.id).slice(-6).toUpperCase() : 'Pedido');
+      var date = _firstText(order.orderDate, order.dataPedido, order.createdAt, order.createdDate, order.date, '');
+      _orderItemsForMargin(order).forEach(function (item, idx) {
+        if (rows.length >= limit) return;
+        if (!_orderItemMatchesProduct(item, productId, productName)) return;
+        var qty = _num(item.qty != null ? item.qty : item.quantity != null ? item.quantity : item.amount) || 1;
+        var total = _orderItemTotal(item, qty);
+        var unitPrice = qty > 0 ? total / qty : _num(item.price || item.unitPrice || item.valorUnitario);
+        var combination = _combinationFromSoldItem(product, item);
+        if (!combination || !combination.selections.length) return;
+        combination.priceOverride = unitPrice;
+        var analysis = _menuCombinationMetrics(product, combination, channel);
+        rows.push({
+          key: [order.id || orderNumber, productId || productName, idx].join(':'),
+          orderNumber: orderNumber,
+          date: date,
+          channel: channel && channel.name || _firstText(order.channel, order.source, 'Canal'),
+          customer: _firstText(order.customerName, order.clientName, order.name, ''),
+          qty: qty,
+          total: total,
+          label: combination.label,
+          analysis: analysis
+        });
+      });
+      return rows.length >= limit;
+    });
+    return rows.sort(function (a, b) {
+      return String(b.date || '').localeCompare(String(a.date || '')) || String(b.orderNumber || '').localeCompare(String(a.orderNumber || ''));
+    });
+  }
+
+  function _soldMenuCombinationRowHtml(row) {
+    var a = row && row.analysis || {};
+    var tone = a.status === 'prejuízo' || a.status === 'margem baixa' ? '#B42318' : (a.status === 'atenção' || a.status === 'sem custo' ? '#D97706' : '#1F6F43');
+    var date = row.date ? String(row.date).slice(0, 10) : '';
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,max-content);gap:10px;align-items:start;background:#fff;border:1px solid #EFE5E1;border-radius:11px;padding:9px 10px;">' +
+      '<div style="min-width:0;">' +
+        '<div style="font-size:12px;color:#1F1F1F;font-weight:650;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(row.label || 'Combinação vendida') + '</div>' +
+        '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(row.orderNumber || 'Pedido') + (date ? ' · ' + _esc(date) : '') + ' · ' + _esc(row.channel || 'Canal') + (row.customer ? ' · ' + _esc(row.customer) : '') + '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;text-align:right;">' +
+        '<strong style="font-size:12px;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(_num(a.price)) + ' x ' + _num(row.qty || 1).toFixed(0) + '</strong>' +
+        '<span style="font-size:11px;color:#6F6860;white-space:nowrap;">Custo ' + UI.fmt(_num(a.totalCost)) + '</span>' +
+        '<span style="font-size:11px;color:' + tone + ';font-weight:800;white-space:nowrap;">' + _num(a.margin).toFixed(1).replace('.', ',') + '%</span>' +
+        '<span style="font-size:10.5px;color:' + tone + ';font-weight:750;background:#FAF8F4;border-radius:999px;padding:4px 7px;white-space:nowrap;">' + _esc(a.status || 'sem dados') + '</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _combinationFromSoldItem(product, item) {
+    var structured = _structuredSoldChoices(item);
+    if (structured.length) return _combinationFromStructuredChoices(product, structured);
+    return _combinationFromChoiceText(product, item);
+  }
+
+  function _structuredSoldChoices(item) {
+    var fields = ['menuChoices', 'choiceDetails', 'selectedChoiceDetails', 'variantChoices'];
+    for (var i = 0; i < fields.length; i++) {
+      var key = fields[i];
+      var list = item && item[key];
+      if (Array.isArray(list) && list.length) {
+        return list.filter(function (choice) { return choice && typeof choice === 'object'; });
+      }
+    }
+    return [];
+  }
+
+  function _combinationFromStructuredChoices(product, choices) {
+    var groups = _menuGroupsForCombinations(product);
+    var selections = [];
+    var extraPrice = 0;
+    groups.forEach(function (group) {
+      var selected = [];
+      choices.forEach(function (choice) {
+        var groupMatch = _choiceGroupMatches(group, choice.groupId, choice.groupName || choice.group || choice.title);
+        if (!groupMatch) return;
+        var option = _matchMenuOption(group, choice.optionName || choice.name || choice.label || choice.value, choice.ref || choice.optionRef || choice.stockRef || choice.stockItemRef);
+        if (!option) return;
+        var qty = _num(choice.quantity != null ? choice.quantity : choice.qty != null ? choice.qty : choice.count) || 1;
+        selected.push(Object.assign({}, option, { qty: qty }));
+        extraPrice += _num(option.priceExtra) * qty;
+      });
+      if (selected.length) selections.push({ groupId: group.id, groupName: group.title, options: selected });
+    });
+    if (!selections.length) return null;
+    return { selections: selections, extraPrice: extraPrice, label: _menuCombinationLabel(selections) };
+  }
+
+  function _combinationFromChoiceText(product, item) {
+    var groups = _menuGroupsForCombinations(product);
+    var texts = Array.isArray(item && item.choices) ? item.choices : [];
+    var selections = [];
+    var extraPrice = 0;
+    groups.forEach(function (group) {
+      var selected = [];
+      texts.forEach(function (choiceText) {
+        var parsed = _parseSoldChoiceText(choiceText);
+        if (!_choiceGroupMatches(group, '', parsed.group)) return;
+        parsed.options.forEach(function (parsedOption) {
+          var option = _matchMenuOption(group, parsedOption.name, '');
+          if (!option) return;
+          selected.push(Object.assign({}, option, { qty: parsedOption.qty }));
+          extraPrice += _num(option.priceExtra) * parsedOption.qty;
+        });
+      });
+      if (selected.length) selections.push({ groupId: group.id, groupName: group.title, options: selected });
+    });
+    if (!selections.length) return null;
+    return { selections: selections, extraPrice: extraPrice, label: _menuCombinationLabel(selections) };
+  }
+
+  function _parseSoldChoiceText(value) {
+    var text = String(value || '');
+    var parts = text.split(':');
+    var group = parts.length > 1 ? parts.shift() : '';
+    var rest = parts.join(':') || text;
+    return {
+      group: group.trim(),
+      options: rest.split(',').map(function (part) {
+        var raw = String(part || '').trim();
+        var match = raw.match(/\s+x\s*(\d+)\s*$/i);
+        var qty = match ? parseInt(match[1], 10) || 1 : 1;
+        var name = match ? raw.replace(/\s+x\s*\d+\s*$/i, '').trim() : raw;
+        return { name: name, qty: qty };
+      }).filter(function (item) { return item.name; })
+    };
+  }
+
+  function _choiceGroupMatches(group, groupId, groupName) {
+    if (groupId && String(group.id || '') === String(groupId)) return true;
+    var wanted = _fold(groupName || '');
+    if (!wanted) return false;
+    return _fold(group.title || '') === wanted || _fold(group.name || '') === wanted;
+  }
+
+  function _matchMenuOption(group, optionName, ref) {
+    var refKey = String(ref || '').trim();
+    var nameKey = _fold(optionName || '');
+    return (group.options || []).find(function (option) {
+      return (refKey && String(option.ref || '') === refKey) || (nameKey && (_fold(option.label || '') === nameKey || _fold(option.name || '') === nameKey));
+    }) || null;
+  }
+
+  function _validOrderForSoldMargin(order) {
+    var status = _fold(_firstText(order && order.status, order && order.orderStatus, ''));
+    return status !== 'cancelado' && status !== 'cancelada' && status !== 'cancelled' && status !== 'estornado';
+  }
+
+  function _orderItemsForMargin(order) {
+    return Array.isArray(order && order.items) ? order.items
+      : Array.isArray(order && order.orderItems) ? order.orderItems
+      : Array.isArray(order && order.products) ? order.products
+      : [];
+  }
+
+  function _orderItemMatchesProduct(item, productId, productName) {
+    var itemId = String(_firstText(item && item.id, item && item.productId, item && item.product_id, item && item.itemId, ''));
+    if (productId && itemId && itemId === productId) return true;
+    return productName && _fold(_firstText(item && item.name, item && item.productName, item && item.title, '')) === productName;
+  }
+
+  function _orderItemTotal(item, qty) {
+    var total = _num(item && (item.total != null ? item.total : item.subtotal != null ? item.subtotal : item.lineTotal));
+    if (total > 0) return total;
+    return _num(item && (item.price != null ? item.price : item.unitPrice != null ? item.unitPrice : item.valorUnitario)) * (_num(qty) || 1);
+  }
+
+  function _channelForOrder(order) {
+    var raw = _fold(_firstText(order && order.channelName, order && order.salesChannelName, order && order.channel, order && order.source, order && order.originChannel, ''));
+    var found = (_data.canais || []).find(function (channel) {
+      return _fold(channel && channel.name || '') === raw;
+    });
+    return found || (raw ? { name: _firstText(order.channelName, order.salesChannelName, order.channel, order.source, order.originChannel, 'Canal'), commissionPct: _num(order.channelCommissionPct), fixedFee: _num(order.channelFixedFee), taxPct: _num(order.channelCommissionTaxPct || order.channelTaxPct) } : _cardapioChannel());
+  }
+
+  function _menuCombinationMetric(label, value, note) {
+    return '<div style="background:#fff;border:1px solid #EFE5E1;border-radius:12px;padding:9px 10px;">' +
+      '<span style="display:block;font-size:10px;font-weight:800;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;">' + _esc(label) + '</span>' +
+      '<strong style="display:block;font-size:13px;color:#1F1F1F;margin-top:3px;line-height:1.25;">' + _esc(value) + '</strong>' +
+      '<small style="display:block;font-size:10.5px;color:#6F6860;line-height:1.3;margin-top:3px;">' + _esc(note || '') + '</small>' +
     '</div>';
   }
 
@@ -2023,6 +2634,18 @@ Modules.Dinheiro = (function () {
   function _priceTd(v) { return '<td style="padding:13px 16px;vertical-align:middle;font-size:13px;color:#1F1F1F;white-space:nowrap;">' + v + '</td>'; }
   function _byId(list, id) { return (list || []).find(function (x) { return String(x.id) === String(id); }) || null; }
   function _num(v) { return parseFloat(String(v == null ? '' : v).replace(',', '.')) || 0; }
+  function _firstText() {
+    for (var i = 0; i < arguments.length; i++) {
+      var value = arguments[i];
+      if (value == null) continue;
+      var text = String(value).trim();
+      if (text) return text;
+    }
+    return '';
+  }
+  function _fold(value) {
+    return String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
   function _moneyInputValue(value) {
     var raw = String(value == null ? '' : value).trim();
     if (!raw) return 0;
@@ -2068,6 +2691,7 @@ Modules.Dinheiro = (function () {
     _clearPriceCompositionFilters: _clearPriceCompositionFilters,
     _openProductModal: _openProductModal,
     _updateProductPriceModal: _updateProductPriceModal,
+    _setMenuCombinationView: _setMenuCombinationView,
     _saveProductPrice: _saveProductPrice,
     _closeProductModal: _closeProductModal,
     _saveRegras: _saveRegras,

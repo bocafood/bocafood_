@@ -18,6 +18,8 @@ window.SeasonsAI = (function () {
     'Venda ligada à jogada é sinal de leitura, não motivo para trocar automaticamente a jogada antes da janela de resultado.',
     'Quando sugerir ação, use o plano operacional recebido e cite produto, canal, horário, cupom, promoção, upsell ou pontos somente se existirem no contexto.',
     'Use salesIntelligence para escolher a jogada mais específica possível: melhor produto, melhor canal, público provável, ação de venda disponível e sinais dos últimos 30 dias.',
+    'Quando salesIntelligence.realMenuCombinations existir, use essas combinações reais vendidas para escolher sabor/menu/oferta com mais precisão do que uma análise genérica do produto.',
+    'Se uma combinação real vende bem mas tem margem baixa, prefira ajuste de preço, troca de oferta, upsell sem desconto ou destaque de combinação mais saudável.',
     'A jogada deve vir pronta para execução, dizendo exatamente o que fazer, com qual produto/oferta, para qual público/canal, em qual janela e qual dado vai provar se funcionou.',
     'Se não houver produto/canal/público suficiente, diga que a jogada é criar base e peça registro de pedidos com produto, canal e horário, sem fingir que já existe produto vencedor.',
     'Se existir executionPlan.actions, use essas ações como fonte principal da Próxima Jogada e melhore apenas clareza, prioridade e linguagem.',
@@ -526,6 +528,7 @@ window.SeasonsAI = (function () {
       topChannels: _safeChannels(info.topChannels || []),
       strongHours: _safeSimpleList(info.strongHours || [], 4),
       lowSellingProducts: _safeProducts(info.lowSellingProducts || []),
+      realMenuCombinations: _safeRealMenuCombinations(info.realMenuCombinations || []),
       actionPerformance: {
         couponOrders: _round(_num(actionPerformance.couponOrders)),
         promotionOrders: _round(_num(actionPerformance.promotionOrders)),
@@ -557,6 +560,30 @@ window.SeasonsAI = (function () {
         suggestedGroups: _cleanList(customers.suggestedGroups || []).slice(0, 4)
       }
     };
+  }
+
+  function _safeRealMenuCombinations(items) {
+    return (items || []).slice(0, 6).map(function (item) {
+      item = item || {};
+      return {
+        productId: item.productId || '',
+        productName: item.productName || item.name || '',
+        combination: item.combination || item.label || '',
+        channel: item.channel || '',
+        orders: _round(_num(item.orders)),
+        quantity: _round(_num(item.quantity)),
+        revenue: _round(_num(item.revenue)),
+        averagePrice: _round(_num(item.averagePrice)),
+        averageCost: _round(_num(item.averageCost)),
+        averageFees: _round(_num(item.averageFees)),
+        profit: _round(_num(item.profit)),
+        marginPercent: _round(_num(item.marginPercent)),
+        status: item.status || '',
+        reason: item.reason || ''
+      };
+    }).filter(function (item) {
+      return item.productName && item.combination && (item.orders || item.quantity || item.revenue);
+    });
   }
 
   function _safeActionList(items, limit) {
