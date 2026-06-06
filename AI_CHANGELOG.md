@@ -1,5 +1,11 @@
 # AI Changelog
 
+## 2026-06-06 — Pedidos Glovo: baixa de estoque na importação
+- Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
+- A prévia de importação Glovo passa a vir com `Baixar estoque dos entregues` selecionado por padrão, mantendo a opção `Só histórico` para casos em que a usuária não quer alterar estoque.
+- A baixa de estoque das escolhas de menu/combo importadas passa a reconhecer `ref` e `optionId` como vínculo de estoque quando apontam para receita/produto produzido, produto pronto, base, insumo ou embalagem.
+- Diagnóstico no tenant Bocado Brasil: o pedido entregue `Glovo 101671131287` não gerou regularização porque foi importado com `stockImportMode: historico_sem_baixa_automatica` e `stockImportDeductEnabled: false`.
+
 ## 2026-06-06 — Pedidos: desbloqueio financeiro após ajuste de importação
 - Arquivos alterados: `public/js/modules/pedidos.js`, `AI_CHANGELOG.md`.
 - A sincronização do pedido com o Financeiro agora recalcula a divergência entre o total importado da Glovo e a soma atual dos itens do pedido antes de criar a entrada financeira.

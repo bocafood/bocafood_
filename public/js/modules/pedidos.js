@@ -5343,13 +5343,13 @@ Modules.Pedidos = (function () {
 
   function _stockRefFromChoiceBinding(choice, mainQty) {
     if (!choice || typeof choice !== 'object') return null;
-    var ref = String(_firstText(choice.stockRef, choice.stockItemRef, choice.stockItem, '') || '').trim();
+    var ref = String(_firstText(choice.stockRef, choice.stockItemRef, choice.stockItem, choice.ref, choice.optionId, '') || '').trim();
     var refParts = ref ? ref.split(':') : [];
     var refType = refParts[0] || '';
     var refId = refParts.slice(1).join(':');
     var stockType = _firstText(choice.stockItemType, choice.itemClass, choice.classe, '');
     if (!stockType && (refType === 'ficha' || refType === 'receita')) stockType = 'produto_produzido';
-    if (!stockType && refType === 'produto_pronto') stockType = 'produto_pronto';
+    if (!stockType && (refType === 'produto_pronto' || refType === 'pronto')) stockType = 'produto_pronto';
     if (!stockType && refType === 'embalagem') stockType = 'embalagem';
     if (!stockType && (refType === 'insumo' || refType === 'ingrediente')) stockType = 'insumo';
     if (!stockType && refType === 'base_producao') stockType = 'base_producao';
@@ -8502,7 +8502,7 @@ Modules.Pedidos = (function () {
         '<div style="display:grid;grid-template-columns:minmax(220px,300px) minmax(260px,1fr) minmax(220px,300px);gap:12px;align-items:end;">' +
           '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Canal de venda</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-channel" onchange="Modules.Pedidos._refreshOrderImportPreview()" style="' + _adminSelectStyle() + '">' + _orderImportChannelOptions(preferred) + '</select></div></label>' +
           '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Arquivo CSV</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><input type="file" accept=".csv,text/csv" onchange="Modules.Pedidos._handleOrderImportFile(this)" style="' + _adminInputStyle() + 'padding-top:9px;"></div></label>' +
-          '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Estoque</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-stock-mode" onchange="Modules.Pedidos._setOrderImportStockMode(this.value)" style="' + _adminSelectStyle() + '"><option value="history" selected>Só histórico</option><option value="deduct">Baixar estoque dos entregues</option></select></div></label>' +
+          '<label style="display:block;min-width:0;"><span style="font-size:11px;font-weight:650;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;">Estoque</span><div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:0 12px;min-height:42px;display:flex;align-items:center;"><select id="order-import-stock-mode" onchange="Modules.Pedidos._setOrderImportStockMode(this.value)" style="' + _adminSelectStyle() + '"><option value="deduct" selected>Baixar estoque dos entregues</option><option value="history">Só histórico</option></select></div></label>' +
         '</div>' +
         '<div style="padding:12px 14px;border:1px solid #EADFD8;border-radius:12px;background:#FFF9F6;color:#6F6860;font-size:13px;line-height:1.5;">A importação cria pedidos e entrada financeira. O estoque fica como histórico, a menos que você escolha baixar estoque dos pedidos entregues.</div>' +
         '<div id="order-import-preview-result">' + _orderImportEmptyHtml() + '</div>' +
@@ -8588,7 +8588,7 @@ Modules.Pedidos = (function () {
   function _orderImportStockMode() {
     var el = document.getElementById('order-import-stock-mode');
     var state = window._orderImportPreviewState || {};
-    var value = String(el && el.value || state.stockMode || 'history').trim();
+    var value = String(el && el.value || state.stockMode || 'deduct').trim();
     return value === 'deduct' ? 'deduct' : 'history';
   }
 
