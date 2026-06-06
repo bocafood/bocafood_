@@ -2599,19 +2599,26 @@ Modules.Pedidos = (function () {
   function _detailProductChoiceGroups(product) {
     product = product || {};
     var source = [];
-    if (Array.isArray(product.variants) && product.variants.length) source = product.variants;
-    else if (Array.isArray(product.variantGroupIds) && product.variantGroupIds.length) {
+    if (Array.isArray(product.variantGroupIds) && product.variantGroupIds.length) {
       source = product.variantGroupIds.map(function (id) {
         return (_variantGroups || []).find(function (group) { return String(group.id || group._id || '') === String(id || ''); });
       }).filter(Boolean);
     }
-    else if (Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) source = product.menuChoiceGroups;
-    else if (Array.isArray(product.menuItems) && product.menuItems.length) {
+    if (!source.length && Array.isArray(product.variants) && product.variants.length) source = product.variants;
+    if (!source.length && Array.isArray(product.menuChoiceGroups) && product.menuChoiceGroups.length) source = product.menuChoiceGroups;
+    if (!source.length && Array.isArray(product.menuItems) && product.menuItems.length) {
       source = product.menuItems.map(function (item, idx) {
         var label = _firstText(item.label, item.name, item.title, item.ref, 'Opção ' + (idx + 1));
         return { title: 'Escolha ' + (idx + 1), min: _num(item.qty || 1) || 1, max: _num(item.qty || 1) || 1, options: [{ id: _firstText(item.ref, label), ref: item.ref || '', label: label, priceExtra: 0 }] };
       });
     }
+    source = source.map(function (group) {
+      var id = _firstText(group && group.id, group && group._id, group && group.key, '');
+      if (!id) return group;
+      return (_variantGroups || []).find(function (fresh) {
+        return String(fresh && (fresh.id || fresh._id || fresh.key) || '') === String(id);
+      }) || group;
+    });
     return source.map(_normalizeDetailChoiceGroup).filter(Boolean);
   }
 

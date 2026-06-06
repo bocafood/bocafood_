@@ -2,6 +2,8 @@
 
 ## 2026-06-06 — Pedidos: prévia recarrega variantes atualizadas
 - Arquivos alterados: `public/js/modules/pedidos.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a prioridade das escolhas na importação: quando o produto tem `variantGroupIds`, a prévia usa o grupo global atualizado em vez da cópia antiga salva em `product.variants`.
+- Quando uma variante embutida possui o mesmo ID de um grupo global atualizado, a prévia substitui pela versão mais recente do grupo.
 - A `Prévia de importação de pedidos` agora recarrega produtos, grupos de variantes e canais de venda antes de abrir o modal.
 - Ao selecionar um CSV, a prévia também recarrega esses dados antes de montar os vínculos e escolhas.
 - Isso evita usar variantes antigas em memória quando a usuária acabou de editar um grupo no Cardápio.
