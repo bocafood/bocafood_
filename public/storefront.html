@@ -15438,6 +15438,12 @@
       function renderModalVariants() {
         var host = document.getElementById('modal-variants');
         var groups = productVariants(modalProduct);
+        if (!host) return;
+        host.style.display = groups.length ? '' : 'none';
+        if (!groups.length) {
+          host.innerHTML = '';
+          return;
+        }
         host.innerHTML = groups.map(function (group) {
           var needed = num(group.minPerUnit || group.min || (group.required ? 1 : 0)) * Math.max(1, modalQty);
           var used = groupUsed(group);
@@ -15458,8 +15464,14 @@
       function renderModalAddAlso() {
         var host = document.getElementById('modal-addalso');
         var list = addAlsoProducts(modalProduct);
+        if (!host) return;
         var ruleTitle = list[0] && list[0].__upsellRule ? firstText(list[0].__upsellRule.message, list[0].__upsellRule.customerMessage, list[0].__upsellRule.name, list[0].__upsellRule.title) : '';
         var title = firstText(modalProduct && modalProduct.addAlsoTitle, modalProduct && modalProduct.upsellTitle, ruleTitle, t('addMoreItems'));
+        host.style.display = list.length ? '' : 'none';
+        if (!list.length) {
+          host.innerHTML = '';
+          return;
+        }
         host.innerHTML = list.length ? '<section class="modal-option-section modal-upsell-section"><div class="modal-option-title"><span class="modal-upsell-title-copy"><span class="modal-upsell-spark"></span><span>' + text(title) + '</span></span><span class="modal-upsell-badge">' + text(t('upsellOffer')) + '</span></div>' + list.map(function (product) {
           var qty = num(modalAddAlso[product.id]);
           var image = imgOf(product);
@@ -15479,14 +15491,17 @@
         if (!host) return;
         var product = pairingProduct(modalProduct);
         if (!product) {
+          host.style.display = 'none';
           host.innerHTML = '';
           return;
         }
         var alreadyListed = addAlsoProducts(modalProduct).some(function (item) { return String(item.id) === String(product.id); });
         if (alreadyListed) {
+          host.style.display = 'none';
           host.innerHTML = '';
           return;
         }
+        host.style.display = '';
         var qty = num(modalAddAlso[product.id]);
         var image = imgOf(product);
         var unitPrice = modalRelatedUnitPrice(product.id, product, false);
@@ -15499,9 +15514,11 @@
 
       function renderModalReviews(product) {
         var host = document.getElementById('modal-reviews');
+        if (!host) return;
         var valid = reviews.filter(function (review) {
           return review && review.approved !== false && review.active !== false && (String(review.productId || '') === String(product.id) || String(review.productName || '').toLowerCase() === productName(product).toLowerCase());
         });
+        host.style.display = valid.length ? '' : 'none';
         host.innerHTML = valid.length ? '<div class="modal-review-card"><strong>' + text(t('productReviews')) + '</strong><br>' + text(firstText(valid[0].comment, valid[0].text, valid[0].review, t('reviewFallback'))) + '</div>' : '';
       }
 
