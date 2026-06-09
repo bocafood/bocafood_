@@ -4877,15 +4877,16 @@
     .cart-guest-contact {
       display: grid;
       gap: 6px;
-      width: 100%;
-      max-width: 100%;
+      width: min(100%, 168px);
+      max-width: 168px;
       min-width: 0;
+      justify-self: start;
     }
 
     .cart-guest-contact .cart-field,
     .cart-guest-contact .store-phone-box {
       width: 100%;
-      max-width: 100%;
+      max-width: 168px;
       min-width: 0;
     }
 
@@ -4899,7 +4900,7 @@
     }
 
     .cart-guest-contact .store-phone-box {
-      grid-template-columns: 88px minmax(0, 1fr);
+      grid-template-columns: 80px minmax(0, 1fr);
     }
 
     .cart-guest-contact .store-phone-box select,
