@@ -4878,11 +4878,15 @@
       display: grid;
       gap: 6px;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
     }
 
     .cart-guest-contact .cart-field,
     .cart-guest-contact .store-phone-box {
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
     }
 
     .cart-required-note {
@@ -4892,6 +4896,15 @@
       font-weight: 600;
       line-height: 1.25;
       letter-spacing: 0;
+    }
+
+    .cart-guest-contact .store-phone-box {
+      grid-template-columns: 88px minmax(0, 1fr);
+    }
+
+    .cart-guest-contact .store-phone-box select,
+    .cart-guest-contact .store-phone-box input {
+      min-width: 0;
     }
 
     .cart-segment + #pickup-fields,
@@ -8345,13 +8358,15 @@
 
       .cart-finalize-card .store-phone-box {
         min-height: 48px;
-        grid-template-columns: 104px minmax(0, 1fr);
+        grid-template-columns: 88px minmax(0, 1fr);
+        max-width: 100%;
       }
 
       .cart-finalize-card .store-phone-box select,
       .cart-finalize-card .store-phone-box input {
         min-height: 34px;
         font-size: 16px;
+        min-width: 0;
       }
 
       .cart-actions {
