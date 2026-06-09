@@ -18077,6 +18077,29 @@
         applyPendingCouponBeforeCartRender();
         var authUser = storeAuthUser();
         if (authUser && !fieldValue('customer-whatsapp')) applySavedAddressToCart(currentCustomerRecord(), false);
+        var customerNameField = document.getElementById('customer-name');
+        var customerNameLabel = document.getElementById('customer-name-label');
+        var customerWhatsappLabel = document.getElementById('customer-whatsapp-label');
+        var customerWhatsappBox = document.querySelector('.store-phone-box');
+        var currentCustomer = currentCustomerRecord() || {};
+        var authCustomerName = firstText(currentCustomer.name, currentCustomer.customerName, currentStoreUser && currentStoreUser.displayName, currentStoreUser && currentStoreUser.email, '');
+        var authCustomerPhone = firstText(customerWhatsapp(currentCustomer), currentStoreUser && currentStoreUser.phoneNumber, '');
+        var showGuestContactFields = !authUser;
+        if (customerNameField) {
+          customerNameField.style.display = showGuestContactFields ? '' : 'none';
+          if (!showGuestContactFields) setFieldValue('customer-name', authCustomerName || '');
+        }
+        if (customerNameLabel) customerNameLabel.style.display = showGuestContactFields ? '' : 'none';
+        if (customerWhatsappLabel) customerWhatsappLabel.style.display = showGuestContactFields ? '' : 'none';
+        if (customerWhatsappBox) customerWhatsappBox.style.display = showGuestContactFields ? '' : 'none';
+        if (!showGuestContactFields) {
+          setFieldValue('customer-phone', authCustomerPhone || '');
+          if (authCustomerPhone) {
+            var phone = splitPhoneValue(authCustomerPhone);
+            setFieldValue('customer-whatsapp-country', phone.country);
+            setFieldValue('customer-whatsapp', phone.number);
+          }
+        }
         var count = cart.reduce(function (sum, item) { return sum + item.qty; }, 0);
         var subtotal = cartTotal();
         var originalSubtotal = cartOriginalTotal();
