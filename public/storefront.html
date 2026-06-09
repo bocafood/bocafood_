@@ -13710,22 +13710,32 @@
         return !!id && cartProductIds().indexOf(id) >= 0;
       }
 
+      function cartHasDirectProduct(id) {
+        id = String(id || '');
+        if (!id) return false;
+        return cart.some(function (item) {
+          if (!item || String(item.id || '') !== id) return false;
+          if (item.relatedToProductId) return false;
+          return true;
+        });
+      }
+
       function cartHasTriggerForUpsell(rule) {
         if (!rule) return false;
         var type = String(rule.type || '').toLowerCase();
         if (type === 'valor_minimo' || type === 'carrinho') return true;
         var triggerIds = upsellRuleTriggerIds(rule);
-        if (triggerIds.length && triggerIds.some(cartHasProduct)) return true;
+        if (triggerIds.length && triggerIds.some(cartHasDirectProduct)) return true;
         var triggerNames = upsellRuleTriggerNames(rule).map(productTextKey);
         if (triggerNames.length && cart.some(function (item) {
           var product = findProduct(item && item.id);
-          return product && triggerNames.indexOf(productTextKey(productName(product))) >= 0;
+          return product && !item.relatedToProductId && triggerNames.indexOf(productTextKey(productName(product))) >= 0;
         })) return true;
         var triggerCategory = firstText(rule.triggerCategory, rule.trigger_category, rule.categoryTrigger);
         if (triggerCategory) {
           return cart.some(function (item) {
             var product = findProduct(item && item.id);
-            return product && String(productCategory(product)).toLowerCase() === String(triggerCategory).toLowerCase();
+            return product && !item.relatedToProductId && String(productCategory(product)).toLowerCase() === String(triggerCategory).toLowerCase();
           });
         }
         return true;
