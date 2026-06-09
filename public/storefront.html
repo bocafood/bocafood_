@@ -4874,19 +4874,22 @@
       font-weight: 900;
     }
 
+    .cart-guest-contact-card {
+      gap: 8px;
+    }
+
     .cart-guest-contact {
       display: grid;
       gap: 6px;
-      width: min(100%, 168px);
-      max-width: 168px;
+      width: 100%;
+      max-width: 100%;
       min-width: 0;
-      justify-self: start;
     }
 
-    .cart-guest-contact .cart-field,
-    .cart-guest-contact .store-phone-box {
+    .cart-guest-contact-card .cart-field,
+    .cart-guest-contact-card .store-phone-box {
       width: 100%;
-      max-width: 168px;
+      max-width: 100%;
       min-width: 0;
     }
 
@@ -4899,12 +4902,12 @@
       letter-spacing: 0;
     }
 
-    .cart-guest-contact .store-phone-box {
-      grid-template-columns: 80px minmax(0, 1fr);
+    .cart-guest-contact-card .store-phone-box {
+      grid-template-columns: 88px minmax(0, 1fr);
     }
 
-    .cart-guest-contact .store-phone-box select,
-    .cart-guest-contact .store-phone-box input {
+    .cart-guest-contact-card .store-phone-box select,
+    .cart-guest-contact-card .store-phone-box input {
       min-width: 0;
     }
 
@@ -10744,25 +10747,28 @@
                   <span>Pedido mínimo para entrega: <strong id="min-order-amt">€0,00</strong></span>
                   <span id="min-order-left"></span>
                 </div>
-                <div class="cart-guest-contact" id="cart-guest-contact">
-                  <div class="cart-field-label is-required" id="customer-name-label">Nome</div>
-                  <input class="cart-field" id="customer-name" type="text" placeholder="Nome">
-                  <div class="cart-field-label is-required" id="customer-whatsapp-label">WhatsApp de contacto</div>
-                  <div class="store-phone-box">
-                    <select id="customer-whatsapp-country" aria-label="Código do país">
-                      <option value="+34">🇪🇸 +34</option>
-                      <option value="+351">🇵🇹 +351</option>
-                      <option value="+55">🇧🇷 +55</option>
-                      <option value="+33">🇫🇷 +33</option>
-                      <option value="+39">🇮🇹 +39</option>
-                      <option value="+49">🇩🇪 +49</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="">Outro</option>
-                    </select>
-                    <input id="customer-whatsapp" type="tel" placeholder="Tu WhatsApp" autocomplete="tel-national">
+                <div class="cart-block cart-guest-contact-card" id="cart-guest-contact">
+                  <div class="cart-block-title"><span>Seus dados</span></div>
+                  <div class="cart-guest-contact">
+                    <div class="cart-field-label is-required" id="customer-name-label">Nome</div>
+                    <input class="cart-field" id="customer-name" type="text" placeholder="Nome">
+                    <div class="cart-field-label is-required" id="customer-whatsapp-label">WhatsApp de contacto</div>
+                    <div class="store-phone-box">
+                      <select id="customer-whatsapp-country" aria-label="Código do país">
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+351">🇵🇹 +351</option>
+                        <option value="+55">🇧🇷 +55</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+39">🇮🇹 +39</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="">Outro</option>
+                      </select>
+                      <input id="customer-whatsapp" type="tel" placeholder="Tu WhatsApp" autocomplete="tel-national">
+                    </div>
+                    <div class="cart-required-note" id="customer-required-note">Campos obrigatórios para continuar como convidado.</div>
                   </div>
-                  <div class="cart-required-note" id="customer-required-note">Campos obrigatórios para continuar como convidado.</div>
                 </div>
                 <input type="hidden" id="customer-phone" value="">
               </div>
