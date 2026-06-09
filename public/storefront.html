@@ -4868,6 +4868,32 @@
       line-height: 1.1;
     }
 
+    .cart-field-label.is-required::after {
+      content: ' *';
+      color: var(--brand);
+      font-weight: 900;
+    }
+
+    .cart-guest-contact {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .cart-guest-contact .cart-field,
+    .cart-guest-contact .store-phone-box {
+      width: 100%;
+    }
+
+    .cart-required-note {
+      margin: 2px 0 0;
+      color: #846f64;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
     .cart-segment + #pickup-fields,
     .cart-segment + #delivery-fields {
       margin-top: 10px;
@@ -10702,8 +10728,26 @@
                   <span>Pedido mínimo para entrega: <strong id="min-order-amt">€0,00</strong></span>
                   <span id="min-order-left"></span>
                 </div>
-                <div class="cart-field-label" id="customer-name-label">Nome</div>
-                <input class="cart-field" id="customer-name" type="text" placeholder="Nome">
+                <div class="cart-guest-contact" id="cart-guest-contact">
+                  <div class="cart-field-label is-required" id="customer-name-label">Nome</div>
+                  <input class="cart-field" id="customer-name" type="text" placeholder="Nome">
+                  <div class="cart-field-label is-required" id="customer-whatsapp-label">WhatsApp de contacto</div>
+                  <div class="store-phone-box">
+                    <select id="customer-whatsapp-country" aria-label="Código do país">
+                      <option value="+34">🇪🇸 +34</option>
+                      <option value="+351">🇵🇹 +351</option>
+                      <option value="+55">🇧🇷 +55</option>
+                      <option value="+33">🇫🇷 +33</option>
+                      <option value="+39">🇮🇹 +39</option>
+                      <option value="+49">🇩🇪 +49</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="">Outro</option>
+                    </select>
+                    <input id="customer-whatsapp" type="tel" placeholder="Tu WhatsApp" autocomplete="tel-national">
+                  </div>
+                  <div class="cart-required-note" id="customer-required-note">Campos obrigatórios para continuar como convidado.</div>
+                </div>
                 <input type="hidden" id="customer-phone" value="">
               </div>
               <div class="cart-order-card">
@@ -10758,21 +10802,6 @@
                     </label>
                   </div>
                   <div class="slot-hint" id="payment-instructions"></div>
-                  <div class="cart-field-label" id="customer-whatsapp-label">WhatsApp de contacto</div>
-                  <div class="store-phone-box">
-                    <select id="customer-whatsapp-country" aria-label="Código do país">
-                      <option value="+34">🇪🇸 +34</option>
-                      <option value="+351">🇵🇹 +351</option>
-                      <option value="+55">🇧🇷 +55</option>
-                      <option value="+33">🇫🇷 +33</option>
-                      <option value="+39">🇮🇹 +39</option>
-                      <option value="+49">🇩🇪 +49</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="">Outro</option>
-                    </select>
-                    <input id="customer-whatsapp" type="tel" placeholder="Tu WhatsApp" autocomplete="tel-national">
-                  </div>
                   <div class="cart-field-label" id="order-note-label">Observación para el pedido</div>
                   <textarea class="cart-note" id="customer-note" maxlength="400" placeholder="Observación para el pedido"></textarea>
                   <div class="checkout-warning" id="checkout-warning"></div>
@@ -18077,21 +18106,16 @@
         applyPendingCouponBeforeCartRender();
         var authUser = storeAuthUser();
         if (authUser && !fieldValue('customer-whatsapp')) applySavedAddressToCart(currentCustomerRecord(), false);
+        var customerGuestContact = document.getElementById('cart-guest-contact');
         var customerNameField = document.getElementById('customer-name');
-        var customerNameLabel = document.getElementById('customer-name-label');
-        var customerWhatsappLabel = document.getElementById('customer-whatsapp-label');
-        var customerWhatsappBox = document.querySelector('.store-phone-box');
         var currentCustomer = currentCustomerRecord() || {};
         var authCustomerName = firstText(currentCustomer.name, currentCustomer.customerName, currentStoreUser && currentStoreUser.displayName, currentStoreUser && currentStoreUser.email, '');
         var authCustomerPhone = firstText(customerWhatsapp(currentCustomer), currentStoreUser && currentStoreUser.phoneNumber, '');
         var showGuestContactFields = !authUser;
-        if (customerNameField) {
-          customerNameField.style.display = showGuestContactFields ? '' : 'none';
-          if (!showGuestContactFields) setFieldValue('customer-name', authCustomerName || '');
-        }
-        if (customerNameLabel) customerNameLabel.style.display = showGuestContactFields ? '' : 'none';
-        if (customerWhatsappLabel) customerWhatsappLabel.style.display = showGuestContactFields ? '' : 'none';
-        if (customerWhatsappBox) customerWhatsappBox.style.display = showGuestContactFields ? '' : 'none';
+        if (customerGuestContact) customerGuestContact.style.display = showGuestContactFields ? '' : 'none';
+        var customerRequiredNote = document.getElementById('customer-required-note');
+        if (customerRequiredNote) customerRequiredNote.textContent = t('required') + ' para continuar como convidado.';
+        if (customerNameField && !showGuestContactFields) setFieldValue('customer-name', authCustomerName || '');
         if (!showGuestContactFields) {
           setFieldValue('customer-phone', authCustomerPhone || '');
           if (authCustomerPhone) {
