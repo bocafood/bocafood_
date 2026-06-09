@@ -10702,7 +10702,8 @@
                   <span>Pedido mínimo para entrega: <strong id="min-order-amt">€0,00</strong></span>
                   <span id="min-order-left"></span>
                 </div>
-                <input type="hidden" id="customer-name" value="">
+                <div class="cart-field-label" id="customer-name-label">Nome</div>
+                <input class="cart-field" id="customer-name" type="text" placeholder="Nome">
                 <input type="hidden" id="customer-phone" value="">
               </div>
               <div class="cart-order-card">
@@ -12454,6 +12455,7 @@
           ['delivery-province-label', 'addressProvinceLabel'],
           ['delivery-country-label', 'addressCountryLabel'],
           ['postal-label', 'postal'],
+          ['customer-name-label', 'name'],
           ['customer-whatsapp-label', 'phone'],
           ['order-note-label', 'orderNoteLabel'],
           ['delivery-save-address-text', 'saveAddressForNext']
@@ -18587,6 +18589,20 @@
           openCheckoutChoiceModal();
           return;
         }
+        if (guestCheckoutApproved && !authUser) {
+          if (!customerName) {
+            showCartWarning(t('name') + ' ' + t('required') + ' para continuar como convidado.');
+            var guestNameInput = document.getElementById('customer-name');
+            if (guestNameInput && guestNameInput.focus) guestNameInput.focus();
+            return;
+          }
+          if (!firstText(joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'), document.getElementById('customer-phone').value.trim(), '').trim()) {
+            showCartWarning(t('phone') + ' ' + t('required') + ' para continuar como convidado.');
+            var guestWhatsappInput = document.getElementById('customer-whatsapp');
+            if (guestWhatsappInput && guestWhatsappInput.focus) guestWhatsappInput.focus();
+            return;
+          }
+        }
         if (authUser) {
           currentStoreUser = authUser;
           updateStoreUserUi();
@@ -19337,6 +19353,8 @@
           setFieldValue('customer-phone', joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'));
           savePublicCartState();
         };
+        var customerNameInput = document.getElementById('customer-name');
+        if (customerNameInput) customerNameInput.oninput = savePublicCartState;
         var customerWhatsappCountry = document.getElementById('customer-whatsapp-country');
         if (customerWhatsappCountry) customerWhatsappCountry.onchange = function () {
           setFieldValue('customer-phone', joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'));
