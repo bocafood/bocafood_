@@ -3968,7 +3968,7 @@
       .featured-price { margin-top: 8px; font-size: 15px; }
       .featured-action { min-height: 32px; padding: 0 12px; border-radius: 13px; font-size: 11px; }
       .featured-img { min-height: 142px; border-radius: 0; }
-      .category-strip { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+      .category-strip { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
       .store-search-panel { top: 6px; margin-bottom: 12px; }
       .store-search-box { min-height: 50px; border-radius: 18px; }
       .store-search-results.category-products { gap: 12px; }
@@ -8336,9 +8336,8 @@
     /* Modais: cobertura estável em telas móveis */
     .product-modal,
     .auth-modal {
-      width: 100vw;
-      height: 100vh;
-      min-height: 100vh;
+      width: 100%;
+      max-width: none;
       height: 100dvh;
       min-height: 100dvh;
       overscroll-behavior: contain;
@@ -8354,8 +8353,6 @@
       content: "";
       position: fixed;
       inset: 0;
-      width: 100vw;
-      height: 100vh;
       height: 100dvh;
       background: rgba(20, 15, 12, .44);
       backdrop-filter: blur(10px);
@@ -8393,7 +8390,7 @@
         right: 0 !important;
         top: 0 !important;
         bottom: 0 !important;
-        width: 100vw !important;
+        width: 100% !important;
         max-width: none !important;
         transform: none !important;
         background: transparent !important;
@@ -8401,9 +8398,7 @@
       }
 
       .cart-sheet {
-        width: 100vw;
-        height: 100vh;
-        min-height: 100vh;
+        width: 100%;
         height: 100dvh;
         min-height: 100dvh;
         overscroll-behavior: contain;
@@ -8413,8 +8408,6 @@
         content: "";
         position: fixed;
         inset: 0;
-        width: 100vw;
-        height: 100vh;
         height: 100dvh;
         background: rgba(20, 15, 12, .44);
         backdrop-filter: blur(10px);
@@ -8805,10 +8798,10 @@
       }
 
       .category-strip {
-        margin-left: -14px;
-        margin-right: -14px;
-        padding-left: 14px;
-        padding-right: 14px;
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
       }
 
       .category-pill {
@@ -9426,8 +9419,10 @@
       .studio-layout,
       .phone-stage,
       .phone-shell,
+      .phone-screen,
       .template-content {
         max-width: 100%;
+        min-width: 0;
       }
 
       .store-hero,
@@ -9475,10 +9470,10 @@
         position: sticky;
         top: 0;
         z-index: 12;
-        width: calc(100% + 24px);
-        max-width: calc(100% + 24px);
-        margin: 0 -12px 10px;
-        padding: 8px 12px 10px;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 0 10px;
+        padding: 8px 0 10px;
         gap: 7px;
         overflow-x: auto;
         overflow-y: hidden;
@@ -9521,9 +9516,9 @@
 
       .store-footer {
         margin-top: 18px;
-        width: calc(100% + 28px);
-        max-width: none;
-        margin-left: -14px;
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
         margin-right: 0;
         padding-bottom: calc(104px + env(safe-area-inset-bottom));
         border-radius: 0;
