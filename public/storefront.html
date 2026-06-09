@@ -9955,10 +9955,9 @@
 
       .product-modal .modal-panel.is-simple {
         width: min(560px, calc(100vw - 56px));
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
-        align-content: start;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100dvh - 40px);
       }
 
       .product-modal .modal-img-wrap,
@@ -9972,6 +9971,7 @@
       .product-modal .modal-panel.is-simple .modal-img-wrap,
       .product-modal .modal-panel.is-simple .modal-img,
       .product-modal .modal-panel.is-simple .modal-fallback {
+        flex: 0 0 auto;
         height: clamp(220px, 30vh, 300px);
         min-height: 220px;
       }
@@ -9985,15 +9985,15 @@
       .product-modal .modal-panel.is-simple .modal-body {
         flex: 0 0 auto;
         max-height: none;
-        padding: 11px 18px 0;
+        padding: 10px 18px 0;
         overflow: visible;
       }
 
       .product-modal .modal-panel.is-simple .modal-note {
-        min-height: 34px;
-        height: 34px;
-        margin-top: 6px;
-        padding: 7px 10px;
+        min-height: 30px;
+        height: 30px;
+        margin-top: 5px;
+        padding: 6px 10px;
         line-height: 1.2;
         resize: none;
       }
@@ -10001,7 +10001,8 @@
       .product-modal .modal-panel.is-simple .modal-footer {
         position: static;
         bottom: auto;
-        margin-top: 4px;
+        margin-top: 2px;
+        padding-top: 8px;
         background: transparent;
         border-top: 0;
       }
