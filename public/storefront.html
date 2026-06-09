@@ -6192,6 +6192,8 @@
         width: min(720px, 100%);
         display: grid;
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        align-content: start;
       }
 
       .product-modal .modal-panel.is-simple .modal-img-wrap,
@@ -6226,8 +6228,22 @@
       }
 
       .product-modal .modal-panel.is-simple .modal-body {
+        flex: 0 0 auto;
         max-height: none;
-        padding: 22px 22px 0;
+        padding: 16px 22px 0;
+        overflow: visible;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-note {
+        min-height: 40px;
+        height: 40px;
+        margin-top: 8px;
+        padding: 9px 10px;
+        resize: none;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-footer {
+        margin-top: 8px;
       }
 
       .modal-img-wrap,
@@ -9936,6 +9952,8 @@
         width: min(560px, calc(100vw - 56px));
         display: grid;
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        align-content: start;
       }
 
       .product-modal .modal-img-wrap,
@@ -9960,8 +9978,22 @@
       }
 
       .product-modal .modal-panel.is-simple .modal-body {
+        flex: 0 0 auto;
         max-height: none;
-        padding: 22px 22px 0;
+        padding: 15px 18px 0;
+        overflow: visible;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-note {
+        min-height: 40px;
+        height: 40px;
+        margin-top: 8px;
+        padding: 9px 10px;
+        resize: none;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-footer {
+        margin-top: 8px;
       }
 
       .product-modal .modal-footer {
