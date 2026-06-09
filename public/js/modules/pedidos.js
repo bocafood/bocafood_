@@ -1475,6 +1475,7 @@ Modules.Pedidos = (function () {
 
   function _setOrdersBulkStatus(value) {
     _ordersBulkStatus = String(value || '').trim();
+    if (_activeTab === 'lista') _paintTodosPanels();
   }
 
   function _getOrdersBulkStatus() {
