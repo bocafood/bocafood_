@@ -11026,6 +11026,8 @@
       var stockConfig = {};
       var storeCustomers = [];
       var pointsMovements = [];
+      var pointsCollectionsLoaded = false;
+      var pointsCollectionsLoading = null;
       var currentStoreUser = null;
       var authMode = 'login';
       var publicAuthInitialized = false;
@@ -11263,6 +11265,24 @@
         if (!db || !activeTenantId) return [];
         var snap = await col(name).get();
         return snap.docs.map(function (doc) { return Object.assign({ id: doc.id }, doc.data() || {}); });
+      }
+
+      function loadPointsCollections() {
+        if (pointsCollectionsLoaded) return Promise.resolve({ storeCustomers: storeCustomers, pointsMovements: pointsMovements });
+        if (pointsCollectionsLoading) return pointsCollectionsLoading;
+        if (!db || !activeTenantId) return Promise.resolve({ storeCustomers: [], pointsMovements: [] });
+        pointsCollectionsLoading = Promise.all([safeDocs('store_customers'), safeDocs('points_movements')]).then(function (docs) {
+          storeCustomers = docs[0] || [];
+          pointsMovements = docs[1] || [];
+          pointsCollectionsLoaded = true;
+          return { storeCustomers: storeCustomers, pointsMovements: pointsMovements };
+        }).catch(function (err) {
+          console.warn('Points collections load error', err);
+          return { storeCustomers: storeCustomers, pointsMovements: pointsMovements };
+        }).finally(function () {
+          pointsCollectionsLoading = null;
+        });
+        return pointsCollectionsLoading;
       }
 
       async function safeConfig(id) {
@@ -13626,7 +13646,7 @@
         card.classList.toggle('logged-in', loggedIn);
         card.querySelector('.loyalty-title').textContent = firstText(cfg.loyaltyCtaTitle, name);
         var textEl = card.querySelector('.loyalty-text');
-        if (loggedIn) {
+        if (loggedIn && customer && (customer.pointsBalance != null || customer.points != null)) {
           textEl.innerHTML = '<span class="loyalty-points-line"><strong class="loyalty-points-value">' + text(customerPointsBalance(customer)) + '</strong><span class="loyalty-points-label">' + text(t('pointsBalanceNote')) + '</span></span>';
         } else {
           textEl.textContent = firstText(pointsCfg.storeText, cfg.loyaltyShortText, cfg.loyaltyText, t('loyaltyText'));
@@ -15762,6 +15782,7 @@
           renderSavedAddressList(current);
           renderCheckoutAddressBook();
           renderLoyalty();
+          renderCart();
           var accountModal = document.getElementById('account-modal');
           if (accountModal && accountModal.classList.contains('open')) renderAccountModal();
           return current;
@@ -15846,6 +15867,7 @@
         if (label) label.textContent = authUser ? firstText(authUser.displayName, authUser.email, t('account')) : t('account');
         if (avatar) avatar.innerHTML = authUser ? customerAvatarHtml(customer, false) : customerAvatarHtml(null, true);
         renderLoyalty();
+        renderCart();
       }
 
       function accountPanelText(key) {
@@ -17149,6 +17171,7 @@
       }
 
       function findPointsCustomer(query) {
+        if (!pointsCollectionsLoaded) return null;
         var normalized = normalizeContact(query);
         var digits = onlyDigits(query);
         if (!normalized && !digits) return null;
@@ -17164,7 +17187,7 @@
       }
 
       function customerPointMovements(customer) {
-        if (!customer) return [];
+        if (!customer || !pointsCollectionsLoaded) return [];
         var id = String(customer.id || customer.uid || customer.customerId || '');
         var contact = normalizeContact(customerContactText(customer));
         var digits = onlyDigits(customerContactText(customer));
@@ -17206,6 +17229,17 @@
         document.getElementById('points-history').innerHTML = '<div class="points-status">' + text(t('pointsHistoryEmpty')) + '</div>';
       }
 
+      function renderPointsLoading() {
+        document.getElementById('points-balance').textContent = '--';
+        document.getElementById('points-discount').textContent = '--';
+        var status = document.getElementById('points-status');
+        if (status) {
+          status.textContent = 'Carregando...';
+          status.style.display = '';
+        }
+        document.getElementById('points-history').innerHTML = '<div class="points-status">Carregando...</div>';
+      }
+
       function setPointsLoginVisible(visible) {
         var loginBox = document.getElementById('points-login-required');
         if (!loginBox) return;
@@ -17239,6 +17273,15 @@
 
       function checkPointsLookup() {
         var input = document.getElementById('points-lookup');
+        if (!pointsCollectionsLoaded) {
+          renderPointsLoading();
+          loadPointsCollections().then(function () {
+            var customer = findPointsCustomer(input && input.value);
+            if (!customer) { renderPointsEmpty(t('pointsNotFound')); return; }
+            renderPointsCustomer(customer);
+          });
+          return;
+        }
         var customer = findPointsCustomer(input && input.value);
         if (!customer) { renderPointsEmpty(t('pointsNotFound')); return; }
         renderPointsCustomer(customer);
@@ -17252,6 +17295,20 @@
         setPointsLoginVisible(!authUser);
         if (!authUser) {
           renderPointsEmpty('');
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        if (!pointsCollectionsLoaded) {
+          renderPointsLoading();
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
+          loadPointsCollections().then(function () {
+            var customer = currentCustomerRecord();
+            if (customer) renderPointsCustomer(customer);
+            else renderPointsEmpty(t('pointsUnavailable'));
+          });
+          return;
         } else {
           var customer = currentCustomerRecord();
           if (customer) renderPointsCustomer(customer);
@@ -19790,7 +19847,7 @@
               activeTenantId = candidates[i];
               loadStep = 'carregar dados do tenant';
               var docs = await Promise.all([
-                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeConfig('estoque'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('store_customers'), safeDocs('points_movements'), safeDocs('stock_movements'), safeDocs('fichasTecnicas'), safeDocs('itens_custo')
+                safeConfig('geral'), safeConfig('aparencia'), safeConfig('template'), safeConfig('operacao'), safeConfig('horarios'), safeConfig('zonas'), safeConfig('pontos_program'), safeConfig('integracoes'), safeConfig('seo'), safeConfig('estoque'), safeDocs('categories'), safeDocs('products'), safeDocs('variantGroups'), safeDocs('tags'), safeDocs('reviews'), safeDocs('promotions'), safeDocs('promocoes'), safeDocs('coupons'), safeDocs('upsellRules'), safeDocs('orderSlots'), safeDocs('stock_movements'), safeDocs('fichasTecnicas'), safeDocs('itens_custo')
               ]);
               configuredStoreLanguage = firstText(
                 docs[2] && docs[2].language,
@@ -19817,12 +19874,13 @@
               coupons = docs[17] || [];
               upsellRules = docs[18] || [];
               slotCounts = (docs[19] || []).reduce(function (acc, item) { if (item && item.id) acc[item.id] = num(item.count); return acc; }, {});
-              storeCustomers = docs[20] || [];
-              pointsMovements = docs[21] || [];
-              stockMovements = docs[22] || [];
-              stockRecipes = docs[23] || [];
-              stockCostItems = docs[24] || [];
-              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, stockConfigLoaded: Object.keys(stockConfig || {}).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, customersLoaded: storeCustomers.length, pointsMovementsLoaded: pointsMovements.length, stockMovementsLoaded: stockMovements.length, stockRecipesLoaded: stockRecipes.length, stockCostItemsLoaded: stockCostItems.length };
+              stockMovements = docs[20] || [];
+              stockRecipes = docs[21] || [];
+              stockCostItems = docs[22] || [];
+              storeCustomers = [];
+              pointsMovements = [];
+              pointsCollectionsLoaded = false;
+              window.__templateTenantDebug = { requestedTenantId: tenantId, activeTenantId: activeTenantId, configLoaded: Object.keys(cfg).length, stockConfigLoaded: Object.keys(stockConfig || {}).length, categoriesLoaded: categories.length, productsLoaded: products.length, variantGroupsLoaded: variantGroups.length, tagsLoaded: productTags.length, reviewsLoaded: reviews.length, promotionsLoaded: promotions.length, couponsLoaded: coupons.length, upsellRulesLoaded: upsellRules.length, stockMovementsLoaded: stockMovements.length, stockRecipesLoaded: stockRecipes.length, stockCostItemsLoaded: stockCostItems.length, pointsCollectionsLoaded: pointsCollectionsLoaded };
               if (Object.keys(cfg).length || categories.length || products.length) break;
             }
           }
