@@ -11194,6 +11194,42 @@
         return 'bocafood_public_cart_' + String(key).replace(/[^a-z0-9_-]/gi, '_');
       }
 
+      function publicUpsellPromptStorageKey(rule) {
+        var key = activeTenantId || tenantId || requestedStoreSlug || 'default';
+        return 'bocafood_public_upsell_prompt_' + String(key).replace(/[^a-z0-9_-]/gi, '_') + '_' + String(upsellRuleId(rule) || 'rule').replace(/[^a-z0-9_-]/gi, '_');
+      }
+
+      function upsellRuleDisplayLimit(rule) {
+        return Math.max(0, num(rule && (rule.displayLimit || rule.limit || 0)));
+      }
+
+      function upsellRuleDisplayCount(rule) {
+        if (!rule || !window.localStorage) return 0;
+        try {
+          return Math.max(0, parseInt(localStorage.getItem(publicUpsellPromptStorageKey(rule)) || '0', 10) || 0);
+        } catch (err) {
+          return 0;
+        }
+      }
+
+      function upsellRuleDisplayLimitReached(rule) {
+        var limit = upsellRuleDisplayLimit(rule);
+        if (!limit) return false;
+        return upsellRuleDisplayCount(rule) >= limit;
+      }
+
+      function markUpsellRuleDisplayed(rule) {
+        var limit = upsellRuleDisplayLimit(rule);
+        if (!limit || !window.localStorage) return;
+        var key = publicUpsellPromptStorageKey(rule);
+        try {
+          var current = Math.max(0, parseInt(localStorage.getItem(key) || '0', 10) || 0);
+          localStorage.setItem(key, String(current + 1));
+        } catch (err) {
+          console.warn('Upsell prompt counter error', err);
+        }
+      }
+
       function savePublicCartState() {
         if (!publicCartRestored || !window.localStorage) return;
         var payload = {
@@ -13953,6 +13989,7 @@
         targetMoment = targetMoment === 'whatsapp' ? 'whatsapp' : 'trigger';
         if (!isUpsellRuleActiveForCart(rule)) return false;
         if (upsellRuleDisplayMoment(rule) !== targetMoment) return false;
+        if (upsellRuleDisplayLimitReached(rule)) return false;
         if (cartUpsellRuleSelected(rule) || cartUpsellRuleDismissed(rule)) return false;
         if (!cartHasTriggerForUpsell(rule)) return false;
         var benefit = upsellRuleBenefitType(rule);
@@ -14073,6 +14110,7 @@
 
       function openCartUpsellModal(rule) {
         if (!rule || cartUpsellModalOpen) return;
+        if (upsellRuleDisplayLimitReached(rule)) return;
         var modal = document.getElementById('cart-upsell-modal');
         if (!modal) return;
         var title = document.getElementById('cart-upsell-title');
@@ -14113,6 +14151,7 @@
         }
         if (fallback) fallback.style.display = suggested && imgOf(suggested) ? 'none' : '';
         modal.dataset.ruleId = upsellRuleId(rule);
+        markUpsellRuleDisplayed(rule);
         cartUpsellModalOpen = true;
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
