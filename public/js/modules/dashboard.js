@@ -662,12 +662,12 @@ Modules.Dashboard = (function () {
       '</div>' +
       '<div style="padding:10px;background:#fff;display:flex;flex-direction:column;gap:9px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px;"><span style="font-size:11px;color:#8A6F5A;text-transform:uppercase;letter-spacing:.03em;">Etapa atual</span><span style="font-size:11px;color:#6F6860;">' + phaseDone + '/' + phaseSteps.length + '</span></div>' +
-          '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+          '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (nextStep.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (nextStep.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
             '<span class="mi" style="width:32px;height:32px;border-radius:11px;background:' + (nextStep.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (nextStep.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (nextStep.done ? 'check_circle' : _esc(nextStep.icon || 'arrow_forward')) + '</span>' +
             '<span style="min-width:0;"><span style="display:block;font-size:10.5px;color:#8A6F5A;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">Agora faça isso</span><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(nextStep.title || 'Continuar configuração') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(nextStep.text || 'Abra para ver o que preencher e onde continuar.') + '</span></span>' +
           '</button>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;align-items:center;">' +
-            '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir tela</button>' +
+            '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc((phase && phase.key) || '') + '\',' + nextIdx + ')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Abrir passo</button>' +
             '<button type="button" onclick="Modules.Dashboard._openChecklistSteps(\'' + _esc((phase && phase.key) || '') + '\')" class="dash-soft-btn" style="height:38px;padding:0 12px;border:1px solid #E8DCD7;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Ver etapas</button>' +
           '</div>' +
           '<div style="border-top:1px solid #F1ECE4;margin-top:1px;padding-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
@@ -1108,7 +1108,7 @@ Modules.Dashboard = (function () {
         '</div>' +
         '<div class="dash-checklist-body" style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;">' +
           phase.steps.map(function (step, idx) {
-            return '<button type="button" onclick="Modules.Dashboard._openChecklistStepRoute(\'' + _esc(phase.key || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
+            return '<button type="button" onclick="Modules.Dashboard._openChecklistGuide(\'' + _esc(phase.key || '') + '\',' + idx + ')" class="dash-action" style="text-align:left;border:1px solid ' + (step.done ? '#D9F2E3' : '#EAE4DA') + ';background:' + (step.done ? '#F4FBF6' : '#fff') + ';border-radius:14px;padding:11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-family:inherit;min-width:0;">' +
               '<span class="mi" style="width:30px;height:30px;border-radius:11px;background:' + (step.done ? '#E8F7EE' : '#FAF8F4') + ';color:' + (step.done ? '#1F6F43' : '#B42318') + ';font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">' + (step.done ? 'check_circle' : _esc(step.icon || 'arrow_forward')) + '</span>' +
               '<span style="min-width:0;"><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(step.title || '') + '</strong><span style="display:block;font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(step.text || '') + '</span></span>' +
             '</button>';
@@ -1155,6 +1155,7 @@ Modules.Dashboard = (function () {
             '<strong style="display:block;color:#1F1F1F;font-size:12px;margin-bottom:3px;">Quando este passo está pronto</strong>' + _esc(guide.ready || 'Quando as principais informações estiverem salvas e fizerem sentido para a rotina do negócio.') +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+            (guide.actionSelector ? '<button type="button" onclick="Modules.Dashboard._clickChecklistGuideAction()" class="dash-soft-btn" style="height:38px;padding:0 13px;border:none;background:#B42318;color:#fff;border-radius:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">' + _esc(guide.actionLabel || 'Abrir ação') + '</button>' : '') +
             '<button type="button" onclick="Modules.Dashboard._closeChecklistGuide()" class="dash-soft-btn" style="height:38px;padding:0 13px;border:1px solid #EAE4DA;background:#fff;color:#1F1F1F;border-radius:12px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;">Fechar</button>' +
           '</div>' +
         '</div>' +
@@ -1225,6 +1226,30 @@ Modules.Dashboard = (function () {
     if (!route) return;
     _navigateChecklistRoute(route);
     window.setTimeout(function () { _renderGlobalOnboarding(); }, 180);
+  }
+
+  function _clickChecklistGuideAction() {
+    var active = _activeChecklistGuide();
+    var guide = active && active.guide ? active.guide : null;
+    var selector = guide && guide.actionSelector ? String(guide.actionSelector) : '';
+    if (!selector) {
+      _openChecklistGuideRoute();
+      return;
+    }
+    _openChecklistGuideRoute();
+    var attempts = 0;
+    function tryClick() {
+      var target = null;
+      try { target = document.querySelector(selector); } catch (err) { target = null; }
+      if (target && typeof target.click === 'function') {
+        _closeChecklistGuide();
+        window.setTimeout(function () { target.click(); }, 40);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 8) window.setTimeout(tryClick, 150);
+    }
+    window.setTimeout(tryClick, 220);
   }
 
   function _navigateChecklistRoute(route) {
@@ -1587,7 +1612,9 @@ Modules.Dashboard = (function () {
           ['Status', 'Marque se está comprado, recebido ou pendente.']
         ],
         actions: ['Registre a compra do jeito que ela veio na nota ou recibo.', 'Confira quantidade e valor antes de salvar.', 'Depois confirme o recebimento quando os itens entrarem de verdade.'],
-        ready: 'Está pronto quando a primeira compra está salva com itens e valores corretos.'
+        ready: 'Está pronto quando a primeira compra está salva com itens e valores corretos.',
+        actionLabel: 'Nova compra',
+        actionSelector: 'button[onclick*="_openCompraModal(null)"]'
       },
       'Receber a compra no estoque': {
         icon: 'inventory_2',
@@ -2685,7 +2712,7 @@ Modules.Dashboard = (function () {
         steps: [
           { title: 'Finalizar cardápio de venda', text: 'Complete os produtos, revise preços, categorias e o que ficará visível para vender.', icon: 'menu_book', route: 'catalogo/produtos', done: hasStorefrontCatalogReady },
           { title: 'Configurar cardápio online', text: 'Use sua identidade, capa, logo e informações para vender com confiança.', icon: 'store', route: 'loja-online/template', done: hasStorefrontIdentity },
-          { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/template', done: hasCheckout },
+          { title: 'Conferir entrega e retirada', text: 'Garanta que a cliente saiba como e quando vai receber o pedido.', icon: 'local_shipping', route: 'loja-online/operacao', done: hasCheckout },
           { title: 'Configurar e publicar link da loja', text: 'Escolha o nome do link, publique a loja e confira como a cliente vai acessar o cardápio.', icon: 'link', route: 'loja-online/link-da-loja', done: hasPublishedStoreLink }
         ]
       },
@@ -3003,6 +3030,7 @@ Modules.Dashboard = (function () {
     _openGuidedRoute: _openGuidedRoute,
     _openChecklistGuide: _openChecklistGuide,
     _openChecklistGuideFromSelect: _openChecklistGuideFromSelect,
+    _clickChecklistGuideAction: _clickChecklistGuideAction,
     _openChecklistSteps: _openChecklistSteps,
     _closeChecklistSteps: _closeChecklistSteps,
     _closeChecklistGuide: _closeChecklistGuide,

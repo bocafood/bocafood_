@@ -20,6 +20,7 @@ Modules.Pedidos = (function () {
   var _bankAccounts = [];
   var _zones = [];
   var _canais = [];
+  var _postalHistory = [];
   var _activeTab = 'cozinha';
   var _reviewsHostId = '';
   var _alarmOn = _readAlarmPreference();
@@ -212,7 +213,8 @@ Modules.Pedidos = (function () {
       DB.getDocRoot ? DB.getDocRoot('config', 'dominio').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'tpv').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'operacao').catch(function () { return null; }) : Promise.resolve(null),
-      DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([])
+      DB.getAll ? DB.getAll('contas_bancarias').catch(function () { return []; }) : Promise.resolve([]),
+      DB.getAll ? DB.getAll('postal_history').catch(function () { return []; }) : Promise.resolve([])
     ]).then(function (res) {
       _customers = res[0] || [];
       _reviews = res[1] || [];
@@ -228,6 +230,7 @@ Modules.Pedidos = (function () {
       _tpvConfig = res[13] || {};
       _operationConfig = res[14] || {};
       _bankAccounts = res[15] || [];
+      _postalHistory = res[16] || [];
       _canais = _normalizeCanais(res[11]);
       _domainConfig = res[12] || {};
       _syncOrderCustomerLinks(_orders);
@@ -411,7 +414,6 @@ Modules.Pedidos = (function () {
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
         _kitchenKpiCard('Pedidos filtrados', stats.totalOrders, 'resultado da busca atual', 'receipt_long', '#8A6F5A') +
-        _kitchenKpiCard('Clientes ligados', stats.customerHits, 'pedidos com cliente reconhecido', 'person_search', '#6C8777') +
         _kitchenKpiCard('Com avaliação', stats.reviewedOrders, 'vinculados a reviews', 'reviews', '#B45309') +
         _kitchenKpiCard('Ticket médio', stats.ticketOrders ? UI.fmt(stats.avgTicket) : '—', 'pedidos válidos filtrados', 'payments', '#B42318') +
       '</div>' +
@@ -1027,14 +1029,17 @@ Modules.Pedidos = (function () {
       if (row.orderId) orderMap[row.orderId] = true;
     });
     var ranking = _performanceRanking(rows);
+    var quantityRanking = ranking.slice().sort(function (a, b) {
+      return (b.qty - a.qty) || (b.revenue - a.revenue) || String(a.name || '').localeCompare(String(b.name || ''));
+    });
     return {
       revenue: revenue,
       qty: qty,
       rows: (rows || []).length,
       orders: Object.keys(orderMap).length,
       avgLine: rows && rows.length ? revenue / rows.length : 0,
-      topName: ranking[0] && ranking[0].name || '',
-      topQty: ranking[0] && ranking[0].qty || 0
+      topName: quantityRanking[0] && quantityRanking[0].name || '',
+      topQty: quantityRanking[0] && quantityRanking[0].qty || 0
     };
   }
 
@@ -1060,10 +1065,11 @@ Modules.Pedidos = (function () {
     (rows || []).forEach(function (row) {
       if (!row.dateTs || row.dateTs < previousStart || row.dateTs > now.getTime()) return;
       var key = row.productId || row.name;
-      if (!map[key]) map[key] = { name: row.name, currentRevenue: 0, previousRevenue: 0, currentQty: 0, previousQty: 0 };
+      if (!map[key]) map[key] = { name: row.name, currentRevenue: 0, previousRevenue: 0, currentQty: 0, previousQty: 0, orderHits: {} };
       if (row.dateTs >= currentStart) {
         map[key].currentRevenue += _num(row.total);
         map[key].currentQty += _num(row.qty);
+        if (row.orderId) map[key].orderHits[String(row.orderId)] = true;
       } else {
         map[key].previousRevenue += _num(row.total);
         map[key].previousQty += _num(row.qty);
@@ -1075,14 +1081,28 @@ Modules.Pedidos = (function () {
       return row;
     });
     var sold = items.filter(function (row) { return row.currentRevenue > 0 || row.currentQty > 0; });
-    var avg = sold.length ? sold.reduce(function (sum, row) { return sum + row.currentRevenue; }, 0) / sold.length : 0;
+    function median(values) {
+      values = (values || []).filter(function (value) { return isFinite(value) && value > 0; }).sort(function (a, b) { return a - b; });
+      if (!values.length) return 0;
+      var mid = Math.floor(values.length / 2);
+      return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+    }
+    sold.forEach(function (row) {
+      row.orderCount = Object.keys(row.orderHits || {}).length;
+    });
+    var dynamicRevenueLine = median(sold.map(function (row) { return row.currentRevenue; }));
+    var dynamicQtyLine = median(sold.map(function (row) { return row.currentQty; }));
+    var dynamicOrderLine = median(sold.map(function (row) { return row.orderCount; }));
+    var dynamicGrowthLine = median(sold.map(function (row) { return row.growth > 0 ? row.growth : 0; }));
     var buckets = { stars: [], bets: [], cash: [], review: [] };
     items.forEach(function (row) {
-      var highSales = row.currentRevenue > 0 && row.currentRevenue >= avg;
-      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || row.growth >= 10);
-      if (highSales && highGrowth) buckets.stars.push(row);
+      var highSales = row.currentRevenue > 0 && row.currentRevenue >= dynamicRevenueLine;
+      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || row.growth >= dynamicGrowthLine);
+      var orderCount = Object.keys(row.orderHits || {}).length;
+      var hasSalesBase = (dynamicQtyLine > 0 && row.currentQty > dynamicQtyLine) || (dynamicOrderLine > 0 && orderCount > dynamicOrderLine);
+      if (highSales && highGrowth && hasSalesBase) buckets.stars.push(row);
       else if (highGrowth) buckets.bets.push(row);
-      else if (highSales) buckets.cash.push(row);
+      else if (highSales && hasSalesBase) buckets.cash.push(row);
       else buckets.review.push(row);
     });
     buckets.stars.sort(function (a, b) { return b.currentRevenue - a.currentRevenue; });
@@ -1797,7 +1817,7 @@ Modules.Pedidos = (function () {
     var name = _clean(order.customerName || order.clientName || order.name);
     if (id) return _findCustomerByRecordId(id);
     return (_customers || []).find(function (c) {
-      if (phone && _customerPhoneMatchIsUnique(phone, _customerRecordId(c)) && _phoneMatchKey(c.phone || c.whatsapp) === phone) return true;
+      if (phone && _customerPhoneMatchIsUnique(phone, _customerRecordId(c)) && _phoneMatchKey(_customerPhoneValue(c)) === phone) return true;
       if (email && _clean(c.email || '') === email) return true;
       if (name && _clean(c.name || '') === name) return true;
       return false;
@@ -1810,7 +1830,7 @@ Modules.Pedidos = (function () {
     if (!phone) return null;
     if (!_customerPhoneMatchIsUnique(phone)) return null;
     return (_customers || []).find(function (c) {
-      return _phoneMatchKey(c.phone || c.whatsapp || '') === phone;
+      return _phoneMatchKey(_customerPhoneValue(c)) === phone;
     }) || null;
   }
 
@@ -1832,6 +1852,8 @@ Modules.Pedidos = (function () {
         phone: customer.phone || order.phone || '',
         customerPhone: customer.phone || order.customerPhone || '',
         whatsapp: customer.whatsapp || customer.phone || order.whatsapp || '',
+        phoneNormalized: _phoneMatchKey(customer.phone || customer.whatsapp || order.phone || order.customerPhone || order.whatsapp || ''),
+        whatsappNormalized: _phoneMatchKey(customer.whatsapp || customer.phone || order.whatsapp || order.phone || order.customerPhone || ''),
         email: customer.email || order.email || '',
         customerEmail: customer.email || order.customerEmail || ''
       };
@@ -2266,6 +2288,7 @@ Modules.Pedidos = (function () {
 
   var _detailModalOrderId = null;
   var _detailWhatsappPromptVisible = false;
+  var _detailProductQueryByOrder = {};
 
   function _detailOrderCustomer(order) {
     var customer = _matchedCustomer(order);
@@ -2285,14 +2308,15 @@ Modules.Pedidos = (function () {
     var promoDiscount = _num(order && (order.promoDiscountTotal != null ? order.promoDiscountTotal : order.promoDiscount != null ? order.promoDiscount : 0));
     var couponDiscount = _num(order && (order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount != null ? order.couponDiscount : 0));
     var pointsDiscount = _num(order && (order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount != null ? order.pointsDiscount : 0));
+    var manualDiscount = _num(order && (order.manualDiscountTotal != null ? order.manualDiscountTotal : order.manualDiscount != null ? order.manualDiscount : order.discountManual || 0));
     var deliveryFee = _num(order && (order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee != null ? order.fee : 0));
     var originalDeliveryFee = _num(order && (order.originalDeliveryFee != null ? order.originalDeliveryFee : order.shippingOriginalFee != null ? order.shippingOriginalFee : deliveryFee));
     var freeShippingApplied = !!(order && (order.freeShippingApplied || order.freeShippingPromotionId || order.freeShippingPromotion));
     var freeShippingPromotionName = _firstText(order && order.freeShippingPromotionName, order && order.freeShippingPromotion && order.freeShippingPromotion.name, '');
-    var discountTotal = _num(order && (order.discountTotal != null ? order.discountTotal : promoDiscount + couponDiscount + pointsDiscount));
+    var discountTotal = _num(order && (order.discountTotal != null ? order.discountTotal : promoDiscount + couponDiscount + pointsDiscount + manualDiscount));
     var couponCode = order && order.coupon ? _firstText(order.coupon.code, order.coupon.couponCode, order.coupon.name, '') : _firstText(order && order.couponCode, order && order.discountCode, '');
     var channelCosts = _orderChannelFinancialPatch(order || {}, total);
-    return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode, channelCosts: channelCosts };
+    return { total: total, paid: paid, pending: pending, method: method, status: status, subtotal: subtotal, originalSubtotal: originalSubtotal, promoDiscount: promoDiscount, couponDiscount: couponDiscount, pointsDiscount: pointsDiscount, manualDiscount: manualDiscount, deliveryFee: deliveryFee, originalDeliveryFee: originalDeliveryFee, freeShippingApplied: freeShippingApplied, freeShippingPromotionName: freeShippingPromotionName, discountTotal: discountTotal, couponCode: couponCode, channelCosts: channelCosts };
   }
 
   function _safeDetailValue(label, fn, fallback) {
@@ -2307,7 +2331,7 @@ Modules.Pedidos = (function () {
   function _basicDetailItemHTML(item, idx, order) {
     item = item || {};
     var pricing = _detailItemPricing(item);
-    var locked = _statusLocksOrderEditing(order && order.status);
+    var locked = !_orderDetailCanEditFields(order);
     return '<div class="pm-check-item" data-detail-item-index="' + idx + '" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F2EDED;">' +
       '<input type="checkbox"' + (item.checked ? ' checked' : '') + (locked ? ' disabled' : '') + ' onclick="event.stopPropagation();Modules.Pedidos._toggleItem(\'' + _esc(order && order.id || '') + '\',' + idx + ',this.parentNode)" style="margin-top:9px;width:16px;height:16px;accent-color:#1A9E5A;flex-shrink:0;cursor:pointer;">' +
       '<div style="flex:1;min-width:0;">' +
@@ -2454,18 +2478,9 @@ Modules.Pedidos = (function () {
     order = order || {};
     if (order.type === 'pickup') return '';
     var deliveryAddress = order.deliveryAddress && typeof order.deliveryAddress === 'object' ? order.deliveryAddress : {};
-    var number = _firstText(order.addressNumber, deliveryAddress.number, '');
-    var complement = _firstText(order.addressComplement, deliveryAddress.complement, '');
-    var city = _firstText(order.addressCity, deliveryAddress.city, deliveryAddress.locality, '');
-    var province = _firstText(order.addressProvince, deliveryAddress.province, deliveryAddress.state, '');
-    var country = _firstText(order.addressCountry, deliveryAddress.country, deliveryAddress.countryCode, '');
     var zone = _firstText(order.deliveryZoneName, order.zone, deliveryAddress.zone, '');
     var lines = [
-      _detailSmallLine('Número', number),
-      _detailSmallLine('Complemento', complement),
-      _detailSmallLine('Zona de entrega', zone),
-      _detailSmallLine('Localidade', [city, province].filter(Boolean).join(' · ')),
-      _detailSmallLine('País', country)
+      _detailSmallLine('Zona de entrega', zone)
     ].filter(Boolean);
     return lines.length ? '<div style="margin-top:8px;display:grid;gap:5px;">' + lines.join('') + '</div>' : '';
   }
@@ -2477,9 +2492,10 @@ Modules.Pedidos = (function () {
     if (payment.promoDiscount) rows.push(_detailSmallLine('Promoções', '-' + UI.fmt(payment.promoDiscount)));
     if (payment.couponDiscount) rows.push(_detailSmallLine('Cupom' + (payment.couponCode ? ' ' + payment.couponCode : ''), '-' + UI.fmt(payment.couponDiscount)));
     if (payment.pointsDiscount) rows.push(_detailSmallLine('Pontos', '-' + UI.fmt(payment.pointsDiscount)));
+    if (payment.manualDiscount) rows.push(_detailSmallLine('Desconto manual', '-' + UI.fmt(payment.manualDiscount)));
     if (payment.freeShippingApplied) rows.push(_detailSmallLine('Frete grátis' + (payment.freeShippingPromotionName ? ' · ' + payment.freeShippingPromotionName : ''), payment.originalDeliveryFee ? UI.fmt(payment.originalDeliveryFee) + ' → ' + UI.fmt(0) : UI.fmt(0)));
     if (payment.deliveryFee) rows.push(_detailSmallLine('Entrega', UI.fmt(payment.deliveryFee)));
-    if (payment.discountTotal && !rows.some(function (line) { return line.indexOf('Promoções') >= 0 || line.indexOf('Cupom') >= 0 || line.indexOf('Pontos') >= 0; })) rows.push(_detailSmallLine('Descontos', '-' + UI.fmt(payment.discountTotal)));
+    if (payment.discountTotal && !rows.some(function (line) { return line.indexOf('Promoções') >= 0 || line.indexOf('Cupom') >= 0 || line.indexOf('Pontos') >= 0 || line.indexOf('Desconto manual') >= 0; })) rows.push(_detailSmallLine('Descontos', '-' + UI.fmt(payment.discountTotal)));
     var channelCosts = payment.channelCosts || {};
     if (_num(channelCosts.channelFeeTotal) > 0) {
       if (_num(channelCosts.channelCommissionAmount) > 0) rows.push(_detailSmallLine('Comissão', '-' + UI.fmt(channelCosts.channelCommissionAmount)));
@@ -2662,8 +2678,8 @@ Modules.Pedidos = (function () {
     var item = order ? _orderItemsArray(order)[idx] : null;
     var product = item ? _findProductForOrderItem(item) : null;
     var groups = _detailProductChoiceGroups(product);
-    if (order && _statusLocksOrderEditing(order.status)) {
-      UI.toast('Pedido entregue não permite editar itens. Altere somente para Cancelado para estornar.', 'info');
+    if (order && !_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite editar itens. Pedidos pendentes continuam editáveis.', 'info');
       return;
     }
     if (!order || !item || !groups.length) {
@@ -2731,8 +2747,8 @@ Modules.Pedidos = (function () {
     var order = (_orders || []).find(function (x) { return String(x.id || '') === String(state.orderId || ''); });
     var item = order ? _orderItemsArray(order)[state.index] : null;
     if (!order || !item) return;
-    if (_statusLocksOrderEditing(order.status)) {
-      UI.toast('Pedido entregue não permite editar itens. Altere somente para Cancelado para estornar.', 'info');
+    if (!_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite editar itens. Pedidos pendentes continuam editáveis.', 'info');
       return;
     }
     var choices = [];
@@ -2824,7 +2840,7 @@ Modules.Pedidos = (function () {
     var p = _detailItemPricing(item);
     var product = _findProductForOrderItem(item);
     var hasChoiceEditor = _detailProductChoiceGroups(product).length > 0;
-    var locked = _statusLocksOrderEditing(order && order.status);
+    var locked = !_orderDetailCanEditFields(order);
     var disabled = locked ? ' disabled' : '';
     var extra = [];
     if (p.variants) extra.push('<div class="order-detail-item-extra" title="' + _esc(p.variants) + '">' + _esc(p.variants) + '</div>');
@@ -3089,12 +3105,23 @@ Modules.Pedidos = (function () {
   function _orderAddressText(order) {
     order = order || {};
     var deliveryAddress = order.deliveryAddress && typeof order.deliveryAddress === 'object' ? order.deliveryAddress : {};
-    var street = _firstText(order.address, order.streetAddress, deliveryAddress.address, deliveryAddress.street, '');
+    var street = _firstText(order.streetAddress, deliveryAddress.address, deliveryAddress.street, order.address, '');
     var number = _firstText(order.addressNumber, deliveryAddress.number, '');
     var complement = _firstText(order.addressComplement, order.complement, deliveryAddress.complement, '');
-    var neighborhood = _firstText(order.neighborhood, deliveryAddress.neighborhood, order.deliveryZoneName, order.zone, '');
+    var neighborhood = _firstText(order.neighborhood, deliveryAddress.neighborhood, '');
     var postal = _firstText(order.postalCode, order.postal, deliveryAddress.postalCode, deliveryAddress.zip, '');
-    var parts = [[street, number].filter(Boolean).join(', '), complement, neighborhood, postal].filter(Boolean);
+    var city = _firstText(order.city, order.addressCity, deliveryAddress.city, deliveryAddress.locality, '');
+    var province = _firstText(order.province, order.addressProvince, deliveryAddress.province, deliveryAddress.state, '');
+    var country = _firstText(order.country, order.addressCountry, deliveryAddress.country, deliveryAddress.countryCode, '');
+    var cityLine = [postal, city].filter(Boolean).join(' ');
+    var rawParts = [[street, number].filter(Boolean).join(', '), complement, neighborhood, cityLine, province, country].filter(Boolean);
+    var parts = [];
+    rawParts.forEach(function (part) {
+      var clean = String(part || '').trim();
+      var key = _fold(clean);
+      if (!clean || parts.some(function (existing) { return _fold(existing) === key; })) return;
+      parts.push(clean);
+    });
     return parts.join(' · ');
   }
 
@@ -3170,7 +3197,7 @@ Modules.Pedidos = (function () {
     var match = _customers.find(function (c) {
       if (order.customerId && _customerRecordId(c) === String(order.customerId)) return true;
       var opPhone = _phone(phone);
-      if (opPhone && _phone(c.phone || c.whatsapp || '') === opPhone) return true;
+      if (opPhone && _phone(_customerPhoneValue(c)) === opPhone) return true;
       return _clean(c.name || '') === _clean(name);
     });
     var data = {
@@ -3521,7 +3548,7 @@ Modules.Pedidos = (function () {
       var phoneHref = _safeDetailValue('telefone', function () { return _orderPhoneHref(o); }, '');
       var topName = _firstText(o.customerName, o.clientName, o.name, customer && customer.name, 'Cliente');
       var topDate = _safeDetailValue('data do pedido', function () { return _orderScheduleInfo(o).text; }, _firstText(o.deliveryDate, o.pickupDate, o.scheduleDate, o.createdAt, 'Sem data'));
-      var orderEditingLocked = _statusLocksOrderEditing(o.status);
+      var orderEditingLocked = !_orderDetailCanEditFields(o);
       var currentDetailStatus = String(o.status || 'Pendente');
       var hasCurrentStatusColumn = COLUMNS.some(function (c) { return c.key === currentDetailStatus; });
       var statusOptions = (orderEditingLocked && !hasCurrentStatusColumn
@@ -3555,11 +3582,12 @@ Modules.Pedidos = (function () {
       var channelFeesHTML = _safeDetailValue('taxas do canal', function () { return _detailChannelFeeInputsHTML(o, payment, orderEditingLocked); }, '');
       var stockTraceHTML = _safeDetailValue('rastreio de estoque', function () { return _detailStockTraceHTML(o); }, '');
       var observationsHTML = _safeDetailValue('observações', function () { return _detailObservationBlocks(o); }, '<div style="font-size:13px;color:#8A7E7C;">Sem observações.</div>');
+      var addProductHTML = _safeDetailValue('adicionar produto', function () { return _detailAddProductHTML(o, orderEditingLocked); }, '');
       var paymentFinanceLocked = _orderPaymentFinanceLocked(o);
       var lockedDisabledAttr = orderEditingLocked ? ' disabled' : '';
       var paymentDisabledAttr = paymentFinanceLocked || orderEditingLocked ? ' disabled' : '';
       var paymentLockedHint = paymentFinanceLocked ? '<div style="margin:0 0 8px;padding:8px 10px;border:1px solid #EADFD8;border-radius:11px;background:#FAF8F4;color:#6F6860;font-size:11.5px;line-height:1.4;">Pagamento enviado ao Financeiro. Para alterar forma, conta ou status, estorne primeiro a entrada financeira vinculada.</div>' : '';
-      var orderLockedHint = orderEditingLocked ? '<div style="margin:0 0 9px;padding:9px 11px;border:1px solid #F3D6C2;border-radius:12px;background:#FFF7F0;color:#9A3412;font-size:12px;font-weight:700;line-height:1.4;">Pedido entregue. Os dados ficam bloqueados; para corrigir, altere somente o status para Cancelado e o sistema estorna o pagamento.</div>' : '';
+      var orderLockedHint = orderEditingLocked ? '<div style="margin:0 0 9px;padding:9px 11px;border:1px solid #F3D6C2;border-radius:12px;background:#FFF7F0;color:#9A3412;font-size:12px;font-weight:700;line-height:1.4;">Pedido bloqueado para edição. Pedidos pendentes podem ser ajustados; pedidos cancelados, entregues ou com baixa de estoque preservam o histórico.</div>' : '';
       var detailCss = '<style>' +
         '.order-detail-modal-body{display:flex;flex-direction:column;gap:9px;font-family:Manrope,Inter,sans-serif;}' +
         '.order-detail-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:11px 12px;box-shadow:0 8px 18px rgba(31,31,31,.035);min-width:0;}' +
@@ -3568,10 +3596,10 @@ Modules.Pedidos = (function () {
         '.order-detail-title{font-size:13px;font-weight:800;color:#1F1F1F;line-height:1.25;margin-bottom:3px;}' +
         '.order-detail-hint{font-size:11px;color:#8A7E7C;line-height:1.35;margin-bottom:0;}' +
         '.order-detail-grid{display:grid;gap:9px 10px;align-items:start;min-width:0;}' +
-        '.order-detail-top-grid{display:grid;grid-template-columns:minmax(230px,.46fr) minmax(360px,.82fr) minmax(260px,.58fr);gap:9px;align-items:start;}' +
+        '.order-detail-top-grid{display:grid;grid-template-columns:minmax(175px,.30fr) minmax(520px,1fr) minmax(270px,.52fr);gap:10px;align-items:start;}' +
         '.order-detail-main-grid{grid-template-columns:minmax(0,1fr);align-items:center;}' +
         '.order-detail-service-grid{grid-template-columns:minmax(0,1fr);}' +
-        '.order-detail-service-row{display:grid;grid-template-columns:minmax(180px,.62fr) minmax(260px,1fr);gap:9px 10px;align-items:start;}' +
+        '.order-detail-service-row{display:grid;grid-template-columns:minmax(190px,.48fr) minmax(360px,1fr);gap:10px 12px;align-items:start;}' +
         '.order-detail-schedule-grid{grid-template-columns:minmax(135px,.34fr) minmax(135px,.34fr);align-items:end;justify-content:start;max-width:320px;}' +
         '.order-detail-schedule-grid .order-detail-status-field{grid-column:1/-1;}' +
         '.order-detail-payment-grid{grid-template-columns:minmax(0,1fr);align-items:end;justify-content:start;}' +
@@ -3586,7 +3614,7 @@ Modules.Pedidos = (function () {
         '.order-detail-tile{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(31,31,31,.02);min-width:0;}' +
         '.order-detail-soft-box{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px;min-width:0;}' +
         '.order-detail-soft-title{font-size:10px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}' +
-        '.order-detail-soft-value{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.35;overflow-wrap:anywhere;}' +
+        '.order-detail-soft-value{font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.42;overflow-wrap:anywhere;}' +
         '.order-detail-items-table{display:grid;gap:0;min-width:760px;}' +
         '.order-detail-item-row{display:grid;grid-template-columns:22px minmax(220px,1fr) 116px 150px 108px minmax(150px,auto);gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F2EDED;}' +
         '.order-detail-item-row:last-child{border-bottom:0;}' +
@@ -3596,7 +3624,7 @@ Modules.Pedidos = (function () {
         '.order-detail-item-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;white-space:nowrap;}' +
         '.order-detail-item-subtotal{font-size:13px;font-weight:800;color:#B42318;text-align:right;white-space:nowrap;}' +
         '.pm-check-item:last-child{border-bottom:0!important;}' +
-        '@media(max-width:1120px){.order-detail-top-grid{grid-template-columns:minmax(190px,.38fr) minmax(0,1fr)}.order-detail-payment-card{grid-column:1/-1}.order-detail-payment-grid{grid-template-columns:minmax(180px,.64fr) minmax(180px,.64fr) minmax(120px,.36fr);max-width:650px}.order-detail-summary-grid{grid-template-columns:repeat(3,minmax(105px,150px))}}' +
+        '@media(max-width:1180px){.order-detail-top-grid{grid-template-columns:minmax(170px,.34fr) minmax(0,1fr)}.order-detail-payment-card{grid-column:1/-1}.order-detail-payment-grid{grid-template-columns:minmax(180px,.64fr) minmax(180px,.64fr) minmax(120px,.36fr);max-width:650px}.order-detail-summary-grid{grid-template-columns:repeat(3,minmax(105px,150px))}}' +
         '@media(max-width:980px){.order-detail-top-grid,.order-detail-service-grid,.order-detail-service-row{grid-template-columns:1fr}.order-detail-schedule-grid,.order-detail-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none}.order-detail-payment-grid .order-detail-paid-field,.order-detail-schedule-grid .order-detail-status-field{grid-column:1/-1}.order-detail-summary-grid{grid-template-columns:repeat(3,minmax(105px,1fr))}}' +
         '@media(max-width:640px){.order-detail-card{padding:11px}.order-detail-top-grid,.order-detail-main-grid,.order-detail-service-grid,.order-detail-service-row,.order-detail-schedule-grid,.order-detail-payment-grid,.order-detail-summary-grid{grid-template-columns:1fr!important}.order-detail-head{margin-bottom:8px}}' +
         '</style>';
@@ -3631,8 +3659,6 @@ Modules.Pedidos = (function () {
                 '<div class="order-detail-soft-title">' + _esc(deliveryLabel) + '</div>' +
                 '<div class="order-detail-soft-value">' + _esc(addressText || (o.type === 'pickup' ? 'Retirada no local' : 'Sem endereço')) + '</div>' +
                 (o.type === 'delivery' && o.zone ? '<div style="margin-top:6px;font-size:12px;color:#6F6860;">Zona: ' + _esc(o.zone) + '</div>' : '') +
-                (o.type === 'delivery' && o.postalCode ? '<div style="margin-top:4px;font-size:12px;color:#6F6860;">CP: ' + _esc(o.postalCode) + '</div>' : '') +
-                addressMetaHTML +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -3655,6 +3681,7 @@ Modules.Pedidos = (function () {
               '<div><label class="order-detail-label">Forma de pagamento</label><div class="order-detail-field-control"><select id="detail-payment-method"' + paymentDisabledAttr + '>' + _paymentMethodOptions(payment.method) + '</select></div></div>' +
               '<div><label class="order-detail-label">Conta bancária</label><div class="order-detail-field-control"><select id="detail-bank-account"' + paymentDisabledAttr + '>' + _bankAccountOptions(_orderBankAccountId(o)) + '</select></div></div>' +
               '<div><label class="order-detail-label">Status do pagamento</label><div class="order-detail-field-control"><select id="detail-payment-status" onchange="Modules.Pedidos._detailPaymentSync()"' + paymentDisabledAttr + '>' + _paymentStatusOptions(payment.status || (payment.paid >= payment.total && payment.total > 0 ? 'pago' : payment.paid > 0 ? 'parcial' : 'previsto')) + '</select></div></div>' +
+              '<div><label class="order-detail-label">Desconto</label><div class="order-detail-field-control"><input id="detail-manual-discount" type="text" inputmode="decimal" value="' + _esc(UI.fmt(payment.manualDiscount || 0)) + '" placeholder="€0,00" onblur="Modules.Pedidos._formatDetailMoneyField(this)"' + lockedDisabledAttr + '></div></div>' +
               '<div id="detail-paid-amount-box" class="order-detail-paid-field" style="display:' + (((payment.status || '').toLowerCase() === 'parcial') ? 'block' : 'none') + ';">' +
                 '<label class="order-detail-label">Valor pago</label><div class="order-detail-field-control"><input id="detail-paid-amount" type="number" step="0.01" value="' + _esc(String(payment.paid || 0)) + '" placeholder="0,00"' + paymentDisabledAttr + '></div>' +
               '</div>' +
@@ -3680,6 +3707,7 @@ Modules.Pedidos = (function () {
           '</div>' +
           '<div class="order-detail-card">' +
             '<div class="order-detail-head"><span class="mi">restaurant_menu</span><div><div class="order-detail-title">Itens do pedido</div></div></div>' +
+            addProductHTML +
             (itemsHTML ? '<div style="overflow-x:auto;max-width:100%;"><div class="order-detail-items-table">' + itemsHTML + '</div></div>' : '<div style="font-size:13px;color:#8A7E7C;">Sem itens neste pedido.</div>') +
           '</div>' +
         '</section>' +
@@ -3702,7 +3730,7 @@ Modules.Pedidos = (function () {
       var overlay = document.createElement('div');
       overlay.id = 'pedidos-detail-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(31,31,31,.42);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Manrope,Inter,sans-serif;';
-      overlay.innerHTML = '<div style="background:#fff;width:100%;max-width:1120px;max-height:90vh;border-radius:18px;box-shadow:0 24px 70px rgba(31,31,31,.26);display:flex;flex-direction:column;overflow:hidden;">' +
+      overlay.innerHTML = '<div style="background:#fff;width:100%;max-width:1240px;max-height:90vh;border-radius:18px;box-shadow:0 24px 70px rgba(31,31,31,.26);display:flex;flex-direction:column;overflow:hidden;">' +
         '<div style="padding:18px 22px;border-bottom:1px solid #EAE4DA;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex:0 0 auto;background:#fff;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:11px;font-weight:700;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Pedido</div>' +
@@ -3747,8 +3775,8 @@ Modules.Pedidos = (function () {
   function _toggleItem(orderId, idx, el) {
     var o = _orders.find(function (x) { return x.id === orderId; });
     if (!o) return;
-    if (_statusLocksOrderEditing(o.status)) {
-      UI.toast('Pedido entregue não permite editar itens. Altere somente para Cancelado para estornar.', 'info');
+    if (!_orderDetailCanEditFields(o)) {
+      UI.toast('Este pedido não permite editar itens. Pedidos pendentes continuam editáveis.', 'info');
       return;
     }
     var items = _orderItemsArray(o).slice();
@@ -3811,8 +3839,9 @@ Modules.Pedidos = (function () {
     var deliveryFee = _num(order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee || 0);
     var couponDiscount = _num(order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount || 0);
     var pointsDiscount = _num(order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount || 0);
+    var manualDiscount = _num(order.manualDiscountTotal != null ? order.manualDiscountTotal : order.manualDiscount != null ? order.manualDiscount : order.discountManual || 0);
     var adjustment = _num(order.adjustment || order.manualAdjustment || 0);
-    var total = Math.max(subtotal + deliveryFee + adjustment - couponDiscount - pointsDiscount, 0);
+    var total = Math.max(subtotal + deliveryFee + adjustment - couponDiscount - pointsDiscount - manualDiscount, 0);
     return {
       items: items,
       itemCount: items.length,
@@ -3824,11 +3853,299 @@ Modules.Pedidos = (function () {
       subtotalOriginal: originalSubtotal,
       promoDiscountTotal: promoDiscount,
       promoDiscount: promoDiscount,
-      discountTotal: promoDiscount + couponDiscount + pointsDiscount,
+      manualDiscountTotal: manualDiscount,
+      manualDiscount: manualDiscount,
+      discountManual: manualDiscount,
+      discountTotal: promoDiscount + couponDiscount + pointsDiscount + manualDiscount,
       total: total,
       amount: total,
       grandTotal: total
     };
+  }
+
+  function _detailAddProductHTML(order, locked) {
+    if (locked) return '';
+    var orderId = String(order && order.id || '');
+    var query = _detailProductQueryByOrder[orderId] || '';
+    return '<div style="margin:0 0 10px;display:grid;gap:7px;">' +
+      '<div class="order-detail-field-control order-detail-product-search"><input id="detail-product-search" type="search" value="' + _esc(query) + '" placeholder="Adicionar produto pelo nome" oninput="Modules.Pedidos._detailSearchProducts(\'' + _esc(orderId) + '\',this.value)" autocomplete="off"></div>' +
+      '<div id="detail-product-results">' + _detailProductResultsHTML(orderId, query) + '</div>' +
+    '</div>';
+  }
+
+  function _detailProductResultsHTML(orderId, query) {
+    query = String(query || '').trim();
+    var folded = _fold(query);
+    if (!folded) return '';
+    var list = (_products || []).filter(function (product) {
+      if (!product) return false;
+      if (product.active === false || product.disabled === true || product.deleted === true) return false;
+      if (!folded) return true;
+      var hay = _fold([
+        product.name,
+        product.title,
+        product.nome,
+        product.category,
+        product.categoria,
+        product.description,
+        product.descricao,
+        Array.isArray(product.tags) ? product.tags.join(' ') : ''
+      ].join(' '));
+      return hay.indexOf(folded) >= 0;
+    }).slice(0, 8);
+    if (!list.length) return '<div style="font-size:12px;color:#8A7E7C;line-height:1.45;">Nenhum produto encontrado.</div>';
+    return '<div style="display:grid;gap:5px;max-height:210px;overflow:auto;padding-right:2px;">' + list.map(function (product) {
+      var id = String(product.id || product._id || product.productId || '');
+      var price = _manualOrderProductBasePrice(product);
+      var category = _firstText(product.category, product.categoria, '');
+      return '<button type="button" onclick="Modules.Pedidos._detailAddProduct(\'' + _esc(orderId) + '\',\'' + _esc(id) + '\')" style="width:100%;border:1px solid #EFE4DC;border-radius:10px;background:#fff;padding:7px 9px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;cursor:pointer;font-family:inherit;">' +
+        '<span style="min-width:0;"><strong style="display:block;font-size:12.5px;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(_firstText(product.name, product.title, product.nome, 'Produto')) + '</strong>' +
+        (category ? '<small style="display:block;margin-top:2px;font-size:11px;color:#8A7E7C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(category) + '</small>' : '') + '</span>' +
+        '<span style="font-size:12px;font-weight:800;color:#B42318;white-space:nowrap;">' + _esc(UI.fmt(price)) + '</span>' +
+      '</button>';
+    }).join('') + '</div>';
+  }
+
+  function _detailSearchProducts(orderId, query) {
+    orderId = String(orderId || '');
+    _detailProductQueryByOrder[orderId] = String(query || '');
+    var render = function () {
+      var el = document.getElementById('detail-product-results');
+      if (el) el.innerHTML = _detailProductResultsHTML(orderId, _detailProductQueryByOrder[orderId] || '');
+    };
+    if ((_products || []).length) return render();
+    _ensureProductsLoadedForStock().then(render).catch(render);
+  }
+
+  function _detailOrderItemFromProduct(product, choices, order) {
+    choices = Array.isArray(choices) ? choices : [];
+    var id = String(product && (product.id || product._id || product.productId) || '');
+    var channel = _firstText(order && order.channel, order && order.source, order && order.originChannel, order && order.originSource, '');
+    var basePrice = _manualOrderProductBasePrice(product);
+    var channelPrice = _productPriceForSalesChannel(product, channel) || basePrice;
+    var extra = _detailChoiceExtraTotal(choices);
+    var unit = +(channelPrice + extra).toFixed(2);
+    var originalUnit = +(basePrice + extra).toFixed(2);
+    var qty = 1;
+    var total = +(unit * qty).toFixed(2);
+    var itemKey = _manualOrderChoiceKey(id, choices);
+    var name = _firstText(product && product.name, product && product.title, product && product.nome, 'Produto');
+    return {
+      itemKey: itemKey,
+      productId: id,
+      id: id,
+      name: name,
+      productName: name,
+      category: _firstText(product && product.category, product && product.categoria, ''),
+      qty: qty,
+      quantity: qty,
+      basePrice: channelPrice,
+      originalUnitPrice: Math.max(originalUnit, unit),
+      originalPrice: Math.max(originalUnit, unit),
+      price: unit,
+      unitPrice: unit,
+      finalPrice: unit,
+      total: total,
+      subtotal: total,
+      lineTotal: total,
+      originalTotal: +(Math.max(originalUnit, unit) * qty).toFixed(2),
+      originalSubtotal: +(Math.max(originalUnit, unit) * qty).toFixed(2),
+      choices: choices,
+      selectedOptions: choices,
+      variants: choices,
+      options: choices,
+      stockChoices: _manualOrderStockChoicesFromChoices(choices),
+      choiceDetails: choices,
+      menuChoices: choices,
+      internalNote: _firstText(product && product.internalNote, product && product.internalNotes, product && product.kitchenNote, ''),
+      productInternalNote: _firstText(product && product.internalNote, product && product.internalNotes, product && product.kitchenNote, ''),
+      madeToOrder: !!(product && (product.madeToOrder || product.productMadeToOrder || product.sobEncomenda)),
+      productMadeToOrder: !!(product && (product.madeToOrder || product.productMadeToOrder || product.sobEncomenda)),
+      sobEncomenda: !!(product && (product.madeToOrder || product.productMadeToOrder || product.sobEncomenda)),
+      productionLeadDays: _productProductionLeadDays(product),
+      productionLeadTimeDays: _productProductionLeadDays(product),
+      fiscal: _orderItemFiscal(product, { name: name })
+    };
+  }
+
+  function _detailPersistItems(order, items, successMessage) {
+    var payload = _orderItemTotalsPayload(order, items);
+    payload.updatedAt = _nowIso();
+    return DB.update('orders', order.id, payload).then(function () {
+      Object.assign(order, payload);
+      _syncOrderFinanceMovement(order.id, order);
+      _refreshDetailView(order.id);
+      UI.toast(successMessage || 'Pedido atualizado.', 'success');
+    });
+  }
+
+  function _detailAddConfiguredProduct(order, product, choices) {
+    if (!order || !product) return;
+    if (!_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite adicionar produtos. Pedidos pendentes continuam editáveis.', 'info');
+      return;
+    }
+    var newItem = _detailOrderItemFromProduct(product, choices, order);
+    var items = _detailEditedItems(order);
+    var existingIndex = items.findIndex(function (item) {
+      var sameKey = String(item.itemKey || '') && String(item.itemKey || '') === String(newItem.itemKey || '');
+      var sameSimpleProduct = !choices.length && String(item.productId || item.id || '') === String(newItem.productId || newItem.id || '');
+      return sameKey || sameSimpleProduct;
+    });
+    if (existingIndex >= 0) {
+      var current = Object.assign({}, items[existingIndex]);
+      var pricing = _detailItemPricing(current);
+      var qty = Math.max(_num(pricing.qty), 0) + 1;
+      var unit = _num(pricing.finalUnit || current.finalPrice || current.price || current.unitPrice);
+      current.qty = qty;
+      current.quantity = qty;
+      current.total = +(qty * unit).toFixed(2);
+      current.subtotal = current.total;
+      current.lineTotal = current.total;
+      items[existingIndex] = current;
+    } else {
+      items.push(newItem);
+    }
+    if (order && order.id) _detailProductQueryByOrder[String(order.id)] = '';
+    return _detailPersistItems(order, items, 'Produto adicionado ao pedido.').catch(function (err) {
+      UI.toast('Erro ao adicionar produto: ' + (err && err.message ? err.message : 'falha ao salvar'), 'error');
+    });
+  }
+
+  function _detailAddProduct(orderId, productId) {
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    if (!order) return;
+    if (!_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite adicionar produtos. Pedidos pendentes continuam editáveis.', 'info');
+      return;
+    }
+    _ensureProductsLoadedForStock().then(function () {
+      var product = _findProductByAnyId(productId) || (_products || []).find(function (p) { return String(p.id || p._id || '') === String(productId || ''); });
+      if (!product) {
+        UI.toast('Produto não encontrado.', 'error');
+        return;
+      }
+      if (_detailProductChoiceGroups(product).length) {
+        _openDetailAddChoicesModal(orderId, productId);
+        return;
+      }
+      _detailAddConfiguredProduct(order, product, []);
+    }).catch(function (err) {
+      UI.toast('Erro ao carregar produtos: ' + (err && err.message ? err.message : 'falha'), 'error');
+    });
+  }
+
+  function _openDetailAddChoicesModal(orderId, productId) {
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(orderId || ''); });
+    var product = _findProductByAnyId(productId);
+    var groups = _detailProductChoiceGroups(product);
+    if (!order || !product || !groups.length) return;
+    var body = '<style>' +
+      '.order-choice-editor{display:grid;gap:12px;font-family:Manrope,Inter,sans-serif;}' +
+      '.order-choice-card{background:linear-gradient(180deg,#fff 0%,#FFFCFA 100%);border:1px solid #EADFD8;border-radius:16px;padding:14px;box-shadow:0 10px 22px rgba(31,31,31,.045);}' +
+      '.order-choice-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;}' +
+      '.order-choice-title{font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
+      '.order-choice-help{font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
+      '.order-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;}' +
+      '.order-choice-option{min-width:0;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;cursor:pointer;box-sizing:border-box;}' +
+      '.order-choice-option input{width:16px;height:16px;accent-color:#B42318;flex:0 0 auto;}' +
+      '.order-choice-thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto;background:#F7F1EE;}' +
+      '.order-choice-option-name{font-size:12px;color:#1F1F1F;line-height:1.25;}' +
+      '.order-choice-option-price{font-size:11px;color:#6F6860;line-height:1.25;margin-top:2px;}' +
+      '@media(max-width:720px){.order-choice-options{grid-template-columns:1fr;}}' +
+    '</style>' +
+    '<div class="order-choice-editor">' +
+      '<div style="font-size:12px;color:#6F6860;line-height:1.45;">Escolha as opções para adicionar este produto ao pedido pendente.</div>' +
+      groups.map(function (group, groupIdx) {
+        var inputType = group.max === 1 && group.min > 0 ? 'radio' : 'checkbox';
+        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '') + '.') : ('Escolha até ' + group.max + '.');
+        return '<div class="order-choice-card" data-choice-group="' + groupIdx + '" data-min="' + _esc(String(group.min)) + '" data-max="' + _esc(String(group.max)) + '">' +
+          '<div class="order-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">tune</span><div><div class="order-choice-title">' + _esc(group.title) + '</div><div class="order-choice-help">' + _esc(rule) + '</div></div></div>' +
+          '<div class="order-choice-options">' +
+            group.options.map(function (option, optionIdx) {
+              return '<label class="order-choice-option">' +
+                '<input type="' + inputType + '" name="order-add-choice-' + groupIdx + '" data-group-index="' + groupIdx + '" data-option-index="' + optionIdx + '">' +
+                (option.img ? '<img class="order-choice-thumb" src="' + _esc(option.img) + '" alt="">' : '') +
+                '<span style="min-width:0;"><span class="order-choice-option-name">' + _esc(option.label) + '</span>' +
+                (option.priceExtra ? '<span class="order-choice-option-price">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') +
+                '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+    window._orderDetailAddChoicesState = { orderId: orderId, productId: productId, groups: groups };
+    window._orderDetailAddChoicesModal = UI.modal({
+      title: 'Adicionar produto',
+      body: body,
+      footer: '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" onclick="Modules.Pedidos._closeDetailAddChoicesModal()" style="height:40px;padding:0 14px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Cancelar</button><button type="button" onclick="Modules.Pedidos._saveDetailAddChoices()" style="height:40px;padding:0 16px;border:none;border-radius:10px;background:#B42318;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 10px 22px rgba(180,35,24,.16);">Adicionar</button></div>',
+      maxWidth: '760px'
+    });
+    if (window._orderDetailAddChoicesModal && window._orderDetailAddChoicesModal.el) window._orderDetailAddChoicesModal.el.style.zIndex = '9100';
+  }
+
+  function _closeDetailAddChoicesModal() {
+    if (window._orderDetailAddChoicesModal && window._orderDetailAddChoicesModal.close) window._orderDetailAddChoicesModal.close();
+    window._orderDetailAddChoicesModal = null;
+    window._orderDetailAddChoicesState = null;
+  }
+
+  function _detailChoicesFromState(state) {
+    var choices = [];
+    var invalid = '';
+    (state.groups || []).forEach(function (group, groupIdx) {
+      var checked = Array.prototype.slice.call(document.querySelectorAll('input[data-group-index="' + groupIdx + '"]:checked'));
+      if (checked.length < group.min) invalid = 'Complete "' + group.title + '" antes de salvar.';
+      if (!invalid && checked.length > group.max) invalid = 'Em "' + group.title + '", escolha no máximo ' + group.max + '.';
+      checked.forEach(function (input) {
+        var option = group.options[parseInt(input.getAttribute('data-option-index'), 10)] || {};
+        choices.push({
+          groupId: group.id,
+          group: group.title,
+          groupName: group.title,
+          optionId: option.id,
+          ref: option.ref || '',
+          option: option.label,
+          optionName: option.label,
+          label: option.label,
+          name: option.label,
+          value: option.label,
+          priceExtra: _num(option.priceExtra),
+          img: option.img || '',
+          stockRef: option.stockRef || '',
+          stockItemId: option.stockItemId || '',
+          stockItemName: option.stockItemName || '',
+          stockItemType: option.stockItemType || '',
+          itemClass: option.itemClass || option.stockItemType || '',
+          classe: option.classe || option.stockItemType || '',
+          stockQuantityPerChoice: _num(option.stockQuantityPerChoice || option.stockQuantity),
+          stockQuantity: _num(option.stockQuantity || option.stockQuantityPerChoice),
+          stockUnit: option.stockUnit || option.unit || '',
+          stockUnitCost: _num(option.stockUnitCost),
+          qty: 1
+        });
+      });
+    });
+    return { choices: choices, invalid: invalid };
+  }
+
+  function _saveDetailAddChoices() {
+    var state = window._orderDetailAddChoicesState || {};
+    var order = (_orders || []).find(function (x) { return String(x.id || '') === String(state.orderId || ''); });
+    var product = _findProductByAnyId(state.productId);
+    if (!order || !product) return;
+    if (!_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite adicionar produtos. Pedidos pendentes continuam editáveis.', 'info');
+      return;
+    }
+    var result = _detailChoicesFromState(state);
+    if (result.invalid) {
+      UI.toast(result.invalid, 'error');
+      return;
+    }
+    _closeDetailAddChoicesModal();
+    _detailAddConfiguredProduct(order, product, result.choices);
   }
 
   function _orderItemsSubtotalValue(order) {
@@ -3878,8 +4195,8 @@ Modules.Pedidos = (function () {
   function _removeDetailItem(orderId, idx) {
     var order = _orders.find(function (x) { return String(x.id || '') === String(orderId || ''); });
     if (!order) return;
-    if (_statusLocksOrderEditing(order.status)) {
-      UI.toast('Pedido entregue não permite remover itens. Altere somente para Cancelado para estornar.', 'info');
+    if (!_orderDetailCanEditFields(order)) {
+      UI.toast('Este pedido não permite remover itens. Pedidos pendentes continuam editáveis.', 'info');
       return;
     }
     var items = _detailEditedItems(order);
@@ -3907,6 +4224,7 @@ Modules.Pedidos = (function () {
     var bankAccountSel = document.getElementById('detail-bank-account');
     var paymentStatusSel = document.getElementById('detail-payment-status');
     var paidAmountInput = document.getElementById('detail-paid-amount');
+    var manualDiscountInput = document.getElementById('detail-manual-discount');
     var channelCommissionInput = document.getElementById('detail-channel-commission-pct');
     var channelTaxInput = document.getElementById('detail-channel-tax-pct');
     var channelFixedInput = document.getElementById('detail-channel-fixed-fee');
@@ -3927,6 +4245,7 @@ Modules.Pedidos = (function () {
     var nextBankAccountId = String((bankAccountSel && bankAccountSel.value) || _orderBankAccountId(order || {}) || '').trim();
     var nextPaymentStatus = String((paymentStatusSel && paymentStatusSel.value) || (order && order.paymentStatus) || 'previsto').trim() || 'previsto';
     var nextPaidAmount = _num((paidAmountInput && paidAmountInput.value) || (order && order.paidAmount) || 0);
+    var nextManualDiscount = Math.max(0, _num((manualDiscountInput && manualDiscountInput.value) || 0));
     var isPickup = order && order.type === 'pickup';
     var nextScheduleDate = String((scheduleDateSel && scheduleDateSel.value) || (isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var nextScheduleTime = String((scheduleTimeSel && scheduleTimeSel.value) || (isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
@@ -3938,9 +4257,10 @@ Modules.Pedidos = (function () {
     var currentBankAccountId = _orderBankAccountId(order || {});
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
     var currentPaidAmount = _num(order && order.paidAmount);
+    var currentManualDiscount = _num(order && (order.manualDiscountTotal != null ? order.manualDiscountTotal : order.manualDiscount != null ? order.manualDiscount : order.discountManual || 0));
     var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
-    var orderEditingLocked = _statusLocksOrderEditing(currentStatus);
+    var orderEditingLocked = !_orderDetailCanEditFields(order);
     if (_orderPaymentFinanceLocked(order || {})) {
       nextPaymentMethod = currentPaymentMethod;
       nextBankAccountId = currentBankAccountId;
@@ -3952,6 +4272,7 @@ Modules.Pedidos = (function () {
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
     var bankAccountChanged = nextBankAccountId !== currentBankAccountId;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
+    var discountChanged = Math.abs(nextManualDiscount - currentManualDiscount) > 0.001;
     var channelFeePatch = null;
     var channelFeeChanged = false;
     if (channelCommissionAmountInput || channelTaxAmountInput || channelFixedAmountInput) {
@@ -4027,7 +4348,12 @@ Modules.Pedidos = (function () {
       }
     }
     var editedItems = _detailEditedItems(order || {});
-    var itemTotalsPayload = _orderItemTotalsPayload(order || {}, editedItems);
+    var totalsBaseOrder = Object.assign({}, order || {}, {
+      manualDiscountTotal: nextManualDiscount,
+      manualDiscount: nextManualDiscount,
+      discountManual: nextManualDiscount
+    });
+    var itemTotalsPayload = _orderItemTotalsPayload(totalsBaseOrder, editedItems);
     var currentItemsJson = JSON.stringify(_orderItemsArray(order).map(function (item) {
       var p = _detailItemPricing(item);
       return {
@@ -4044,8 +4370,8 @@ Modules.Pedidos = (function () {
       };
     }));
     var checklistChanged = !!_detailChecklistDirty[String(id || '')];
-    var itemsChanged = currentItemsJson !== editedItemsJson || checklistChanged;
-    if (itemsChanged && _paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = itemTotalsPayload.total;
+    var itemsChanged = currentItemsJson !== editedItemsJson || checklistChanged || discountChanged;
+    if ((itemsChanged || discountChanged) && _paymentStatusIsPaid(nextPaymentStatus)) nextPaidAmount = itemTotalsPayload.total;
     var paymentMetaChanged = nextPaymentStatus !== currentPaymentStatus || Math.abs(nextPaidAmount - currentPaidAmount) > 0.001;
     var retryCancelledStockReversal = !statusChanged && _statusCancelsStockMovement(nextStatus);
     var tasks = [];
@@ -4507,9 +4833,21 @@ Modules.Pedidos = (function () {
     return ['cancelado', 'cancelada', 'canceled', 'cancelled'].indexOf(key) >= 0;
   }
 
+  function _statusIsPendingOrder(status) {
+    var key = _fold(status || '');
+    return !key || key === 'pendente' || key === 'pending';
+  }
+
   function _statusLocksOrderEditing(status) {
     var key = _fold(status || '');
     return ['entregado', 'entregue', 'delivered', 'concluido', 'finalizado'].indexOf(key) >= 0;
+  }
+
+  function _orderDetailCanEditFields(order) {
+    if (!order) return false;
+    if (_statusLocksOrderEditing(order.status)) return false;
+    if (_statusCancelsStockMovement(order.status)) return false;
+    return !order.stockMovementCreated;
   }
 
   function _createOrderStockMovements(orderId, order) {
@@ -5870,9 +6208,10 @@ Modules.Pedidos = (function () {
         productInternalNote: _firstText(item.productInternalNote, item.internalNote, product.internalNote, product.internalNotes, product.kitchenNote, ''),
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : (item.promoId || ''),
         promoName: calc && calc.promo ? _firstText(calc.promo.name, calc.promo.title, 'Promoção') : (item.promoName || ''),
-        promoType: calc && calc.promo ? String(calc.promo.type || '') : (item.promoType || ''),
+        promoType: calc && calc.calc ? String(calc.calc.type || '') : (item.promoType || ''),
         promoLeve: calc && calc.calc ? _num(calc.calc.leve || 0) : _num(item.promoLeve || 0),
         promoPague: calc && calc.calc ? _num(calc.calc.pague || 0) : _num(item.promoPague || 0),
+        promoBundleMatchMode: calc && calc.calc ? (calc.calc.bundleMatchMode || 'same_product') : (item.promoBundleMatchMode || 'same_product'),
         promoMinOrder: calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : _num(item.promoMinOrder || 0),
         addAlsoDiscount: 0,
         upsellRuleId: '',
@@ -5894,6 +6233,26 @@ Modules.Pedidos = (function () {
           promoType: '',
           priceOrigin: _manualOrderState.channel === 'cardapio' ? 'automático' : 'manual'
         });
+      }
+      return item;
+    });
+    var savedGroupTotals = _manualOrderAnyParticipantLineTotals(items.map(function (item, idx) {
+      return {
+        item: item,
+        original: _num(item.originalPrice),
+        qty: item.quantity || 1,
+        calc: item.promoId ? {
+          promo: { id: item.promoId },
+          calc: { type: item.promoType, leve: item.promoLeve, pague: item.promoPague, bundleMatchMode: item.promoBundleMatchMode || 'same_product' }
+        } : null,
+        lineKey: _manualOrderPreparedLineKey({ item: item }, idx)
+      };
+    }), subtotalOriginal);
+    items = items.map(function (item, idx) {
+      var savedLineKey = _manualOrderPreparedLineKey({ item: item }, idx);
+      if (savedGroupTotals[savedLineKey] != null) {
+        var savedQty = Math.max(1, item.quantity || 1);
+        return Object.assign({}, item, { finalPrice: savedGroupTotals[savedLineKey] / savedQty });
       }
       if (item.promoType === 'add1' && item.promoLeve > 0 && item.promoPague > 0 && item.promoLeve > item.promoPague) {
         var qty = Math.max(1, item.quantity || 1);
@@ -6082,6 +6441,13 @@ Modules.Pedidos = (function () {
       DB.add('orders', payload).then(function (ref) {
         var createdId = (ref && ref.id) ? String(ref.id) : '';
         if (createdId) payload.id = createdId;
+        _rememberPostalCode(postalCode, {
+          source: 'manual_order',
+          city: city,
+          province: province,
+          country: country,
+          neighborhood: neighborhood || zone
+        });
         return _syncOrderFinanceMovement(createdId || '', payload).then(function () {
           return _syncOrderStockMovement(createdId || '', payload, payload.status);
         }).then(function (stockPatch) {
@@ -6174,7 +6540,7 @@ Modules.Pedidos = (function () {
     }
     var phone = _phone(_manualOrderState.customerPhone || '');
     if (phone) {
-      var byPhone = (_customers || []).find(function (c) { return _phone(c.phone || c.whatsapp || '') === phone; });
+      var byPhone = (_customers || []).find(function (c) { return _phone(_customerPhoneValue(c)) === phone; });
       if (byPhone) return byPhone;
     }
     var email = _clean(_manualOrderState.customerEmail || '');
@@ -6192,7 +6558,7 @@ Modules.Pedidos = (function () {
     source.forEach(function (addr, index) {
       if (!addr) return;
       var address = _firstText(addr.address, addr.street, addr.streetAddress, addr.route, addr.addressLine, addr.line1, addr.formattedAddress, addr.fullAddress, addr.endereco, '');
-      var postalCode = _firstText(addr.postalCode, addr.zip, addr.codigoPostal, addr.postcode, '');
+      var postalCode = _postalCodeValue(addr);
       var neighborhood = _firstText(addr.neighborhood, addr.zone, addr.bairro, addr.area, addr.district, '');
       if (!(address || postalCode || neighborhood)) return;
       list.push({
@@ -6210,7 +6576,7 @@ Modules.Pedidos = (function () {
     });
     if (!list.length) {
       var legacyAddress = _firstText(customer.address, customer.streetAddress, customer.fullAddress, customer.street, customer.addressLine, customer.formattedAddress, customer.endereco, '');
-      var legacyPostal = _firstText(customer.postalCode, customer.zip, customer.codigoPostal, customer.postcode, '');
+      var legacyPostal = _postalCodeValue(customer);
       var legacyZone = _firstText(customer.neighborhood, customer.zone, customer.bairro, customer.area, customer.district, '');
       if (legacyAddress || legacyPostal || legacyZone) {
         list.push({
@@ -6327,13 +6693,13 @@ Modules.Pedidos = (function () {
     var raw = String(value || '').trim();
     var match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
     return {
-      prefix: match ? match[1] : '+34',
+      prefix: match ? match[1] : '',
       number: match ? String(match[2] || '').trim() : raw.replace(/^\+/, '')
     };
   }
 
   function _manualOrderPhonePrefixOptions(selected) {
-    var current = String(selected || '+34');
+    var current = String(selected || '');
     var labels = {
       '+34': '🇪🇸 +34',
       '+351': '🇵🇹 +351',
@@ -6343,7 +6709,7 @@ Modules.Pedidos = (function () {
     };
     var options = ['+34', '+351', '+55', '+33', '+39'];
     if (options.indexOf(current) < 0) options.unshift(current);
-    return options.map(function (value) {
+    return '<option value=""' + (!current ? ' selected' : '') + '>DDI</option>' + options.filter(Boolean).map(function (value) {
       return '<option value="' + _esc(value) + '"' + (value === current ? ' selected' : '') + '>' + _esc(labels[value] || value) + '</option>';
     }).join('');
   }
@@ -6396,7 +6762,7 @@ Modules.Pedidos = (function () {
     _manualOrderState.customerCity = addr.city || '';
     _manualOrderState.customerProvince = addr.province || '';
     _manualOrderState.customerCountry = addr.country || '';
-    _manualOrderState.customerPostalCode = addr.postalCode || '';
+    _manualOrderState.customerPostalCode = _firstText(_postalCodeValue(addr), _postalCodeValue(customer), '');
     _manualOrderState.customerZone = addr.neighborhood || addr.postalCode || '';
     _manualOrderMaybeSyncShipping();
     _manualOrderRefresh();
@@ -6578,7 +6944,7 @@ Modules.Pedidos = (function () {
     _manualOrderState.customerCity = _firstText(primaryAddress.city, customer.city, customer.cidade, '') || '';
     _manualOrderState.customerProvince = _firstText(primaryAddress.province, customer.province, customer.state, customer.estado, '') || '';
     _manualOrderState.customerCountry = _firstText(primaryAddress.country, customer.country, customer.pais, '') || '';
-    _manualOrderState.customerPostalCode = _firstText(primaryAddress.postalCode, customer.postalCode, customer.zip, customer.codigoPostal, '') || '';
+    _manualOrderState.customerPostalCode = _firstText(_postalCodeValue(primaryAddress), _postalCodeValue(customer), '') || '';
     _manualOrderState.customerZone = _manualOrderState.customerNeighborhood || _manualOrderState.customerPostalCode;
     _manualOrderState.customerPreferences = _firstText(customer.preferences, customer.preference, customer.notes, customer.notesDelivery) || '';
     _manualOrderState.customerNotes = _firstText(customer.notes, customer.obs, customer.observations) || '';
@@ -6706,36 +7072,47 @@ Modules.Pedidos = (function () {
       '.manual-choice-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;}' +
       '.manual-choice-title{font-size:13px;font-weight:760;color:#1F1F1F;line-height:1.25;}' +
       '.manual-choice-help{font-size:11px;color:#6F6860;line-height:1.35;margin-top:2px;}' +
-      '.manual-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;}' +
-      '.manual-choice-option{min-width:0;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;cursor:pointer;box-sizing:border-box;}' +
+      '.manual-choice-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFF7F2;border:1px solid #F0D8CC;border-radius:12px;padding:10px 12px;margin-top:10px;}' +
+      '.manual-choice-summary span{font-size:11px;color:#6F6860;line-height:1.25;}' +
+      '.manual-choice-summary strong{font-size:13px;color:#B42318;font-weight:820;line-height:1.2;white-space:nowrap;}' +
+      '.manual-choice-group-count{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;border-radius:999px;background:#FFF7F2;color:#B42318;font-size:12px;font-weight:820;}' +
+      '.manual-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;}' +
+      '.manual-choice-option{min-width:0;display:grid;grid-template-columns:18px 38px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border:1px solid #EADFD8;border-radius:12px;background:#FFFCF8;cursor:pointer;box-sizing:border-box;}' +
       '.manual-choice-option input{width:16px;height:16px;accent-color:#B42318;flex:0 0 auto;}' +
       '.manual-choice-thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto;background:#F7F1EE;}' +
+      '.manual-choice-thumb-placeholder{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#F7F1EE;color:#A39B90;}' +
+      '.manual-choice-copy{min-width:0;display:flex;flex-direction:column;gap:2px;}' +
       '.manual-choice-option-name{font-size:12px;color:#1F1F1F;line-height:1.25;}' +
       '.manual-choice-option-price{font-size:11px;color:#6F6860;line-height:1.25;margin-top:2px;}' +
+      '.manual-choice-stepper{display:grid;grid-template-columns:28px 26px 28px;align-items:center;gap:4px;justify-self:end;}' +
+      '.manual-choice-stepper button{width:28px;height:28px;border:1px solid #EADFD8;border-radius:9px;background:#fff;color:#1F1F1F;font-size:15px;font-weight:750;cursor:pointer;font-family:inherit;}' +
+      '.manual-choice-stepper span{font-size:12px;font-weight:800;color:#1F1F1F;text-align:center;}' +
       '@media(max-width:720px){.manual-choice-options{grid-template-columns:1fr;}}' +
+      '@media(max-width:520px){.manual-choice-option{grid-template-columns:18px 34px minmax(0,1fr);}.manual-choice-stepper{grid-column:1/-1;justify-self:end;}}' +
     '</style>' +
     '<div class="manual-choice-editor">' +
-      '<div class="manual-choice-card"><div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">tune</span><div><div class="manual-choice-title">' + _esc(_firstText(product.name, product.title, product.nome, 'Produto')) + '</div><div class="manual-choice-help">Escolha as opções antes de adicionar ao pedido manual.</div></div></div></div>' +
+      '<div class="manual-choice-card"><div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">tune</span><div><div class="manual-choice-title">' + _esc(_firstText(product.name, product.title, product.nome, 'Produto')) + '</div><div class="manual-choice-help">Escolha as opções antes de adicionar ao pedido manual.</div></div></div><div class="manual-choice-summary"><span>Total de itens escolhidos</span><strong data-manual-choice-total>0 itens</strong></div></div>' +
       groups.map(function (group, groupIdx) {
-        var inputType = group.max === 1 ? 'radio' : 'checkbox';
-        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '') + '.') : ('Escolha até ' + group.max + '.');
-        return '<div class="manual-choice-card" data-manual-choice-group="' + groupIdx + '" data-min="' + _esc(String(group.min)) + '" data-max="' + _esc(String(group.max)) + '">' +
-          '<div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">radio_button_checked</span><div><div class="manual-choice-title">' + _esc(group.title) + '</div><div class="manual-choice-help">' + _esc(rule) + '</div></div></div>' +
+	        var rule = group.min > 0 ? ('Escolha ' + group.min + (group.max !== group.min ? ' a ' + group.max : '') + '.') : ('Escolha até ' + group.max + '.');
+	        return '<div class="manual-choice-card" data-manual-choice-group="' + groupIdx + '" data-min="' + _esc(String(group.min)) + '" data-max="' + _esc(String(group.max)) + '">' +
+          '<div class="manual-choice-head"><span class="mi" style="font-size:18px;color:#8A7E7C;">radio_button_checked</span><div style="min-width:0;flex:1;"><div class="manual-choice-title">' + _esc(group.title) + '</div><div class="manual-choice-help">' + _esc(rule) + '</div></div><span class="manual-choice-group-count" data-manual-choice-group-count="' + groupIdx + '">0</span></div>' +
           '<div class="manual-choice-options">' +
-            group.options.map(function (option, optionIdx) {
-              return '<label class="manual-choice-option">' +
-                '<input type="' + inputType + '" name="manual-choice-' + groupIdx + '" data-manual-group-index="' + groupIdx + '" data-manual-option-index="' + optionIdx + '" onchange="Modules.Pedidos._manualOrderSyncChoiceGroup(' + groupIdx + ')">' +
-                (option.img ? '<img class="manual-choice-thumb" src="' + _esc(option.img) + '" alt="">' : '') +
-                '<span style="min-width:0;"><span class="manual-choice-option-name">' + _esc(option.label) + '</span>' +
-                (option.priceExtra ? '<span class="manual-choice-option-price">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') +
-                '</span>' +
-              '</label>';
-            }).join('') +
+	            group.options.map(function (option, optionIdx) {
+	              var optionKey = groupIdx + '-' + optionIdx;
+	              return '<div class="manual-choice-option">' +
+	                '<input type="checkbox" name="manual-choice-' + groupIdx + '" data-manual-group-index="' + groupIdx + '" data-manual-option-index="' + optionIdx + '" data-manual-choice-check="' + _esc(optionKey) + '" onchange="Modules.Pedidos._manualOrderSetChoiceQty(' + groupIdx + ',' + optionIdx + ', this.checked ? Math.max(1, Modules.Pedidos._manualOrderChoiceQty(' + groupIdx + ',' + optionIdx + ')) : 0)">' +
+	                (option.img ? '<img class="manual-choice-thumb" src="' + _esc(option.img) + '" alt="">' : '<span class="manual-choice-thumb-placeholder"><span class="mi" style="font-size:16px;">restaurant</span></span>') +
+	                '<span class="manual-choice-copy"><span class="manual-choice-option-name">' + _esc(option.label) + '</span>' +
+	                (option.priceExtra ? '<span class="manual-choice-option-price">' + (option.priceExtra > 0 ? '+' : '') + UI.fmt(option.priceExtra) + '</span>' : '') +
+	                '</span>' +
+	                '<span class="manual-choice-stepper"><button type="button" onclick="Modules.Pedidos._manualOrderStepChoiceQty(' + groupIdx + ',' + optionIdx + ',-1)">−</button><span data-manual-choice-qty="' + _esc(optionKey) + '">0</span><button type="button" onclick="Modules.Pedidos._manualOrderStepChoiceQty(' + groupIdx + ',' + optionIdx + ',1)">+</button></span>' +
+	              '</div>';
+	            }).join('') +
           '</div>' +
         '</div>';
       }).join('') +
     '</div>';
-    window._manualOrderChoicesState = { productId: String(id || ''), groups: groups };
+    window._manualOrderChoicesState = { productId: String(id || ''), groups: groups, choiceQty: {} };
     window._manualOrderChoicesModal = UI.modal({
       title: 'Opções do produto',
       body: body,
@@ -6745,16 +7122,79 @@ Modules.Pedidos = (function () {
     if (window._manualOrderChoicesModal && window._manualOrderChoicesModal.el) window._manualOrderChoicesModal.el.style.zIndex = '9200';
   }
 
-  function _manualOrderSyncChoiceGroup(index) {
-    var group = document.querySelector('[data-manual-choice-group="' + index + '"]');
-    if (!group) return;
-    var max = parseInt(group.getAttribute('data-max'), 10) || 1;
-    if (max <= 1) return;
-    var checked = Array.prototype.slice.call(group.querySelectorAll('input:checked'));
-    if (checked.length <= max) return;
-    checked[checked.length - 1].checked = false;
-    UI.toast('Escolha no máximo ' + max + ' opção(ões).', 'warning');
-  }
+	  function _manualOrderSyncChoiceGroup(index) {
+	    var group = document.querySelector('[data-manual-choice-group="' + index + '"]');
+	    if (!group) return;
+	    var max = parseInt(group.getAttribute('data-max'), 10) || 1;
+	    var used = _manualOrderChoiceGroupUsed(index);
+	    if (used <= max) return;
+	    UI.toast('Escolha no máximo ' + max + ' item(ns).', 'warning');
+	  }
+
+	  function _manualOrderChoiceQty(groupIdx, optionIdx) {
+	    var state = window._manualOrderChoicesState || {};
+	    var key = String(groupIdx) + '-' + String(optionIdx);
+	    return _num((state.choiceQty || {})[key]);
+	  }
+
+	  function _manualOrderChoiceGroupUsed(groupIdx) {
+	    var state = window._manualOrderChoicesState || {};
+	    var prefix = String(groupIdx) + '-';
+	    return Object.keys(state.choiceQty || {}).reduce(function (sum, key) {
+	      return key.indexOf(prefix) === 0 ? sum + _num(state.choiceQty[key]) : sum;
+	    }, 0);
+	  }
+
+	  function _manualOrderRefreshChoiceSummary() {
+	    var state = window._manualOrderChoicesState || {};
+	    var total = Object.keys(state.choiceQty || {}).reduce(function (sum, key) {
+	      return sum + _num(state.choiceQty[key]);
+	    }, 0);
+	    var totalEl = document.querySelector('[data-manual-choice-total]');
+	    if (totalEl) totalEl.textContent = total + ' ' + (total === 1 ? 'item' : 'itens');
+	    (state.groups || []).forEach(function (group, groupIdx) {
+	      var countEl = document.querySelector('[data-manual-choice-group-count="' + groupIdx + '"]');
+	      if (countEl) countEl.textContent = String(_manualOrderChoiceGroupUsed(groupIdx));
+	    });
+	  }
+
+	  function _manualOrderSetChoiceQty(groupIdx, optionIdx, qty) {
+	    var state = window._manualOrderChoicesState || {};
+	    state.choiceQty = state.choiceQty || {};
+	    var group = (state.groups || [])[groupIdx] || {};
+	    var max = parseInt(group.max, 10) || 1;
+	    var key = String(groupIdx) + '-' + String(optionIdx);
+	    var current = _num(state.choiceQty[key]);
+	    var requested = Math.max(0, parseInt(qty, 10) || 0);
+	    if (max === 1 && requested > 0) {
+	      Object.keys(state.choiceQty).forEach(function (existingKey) {
+	        if (existingKey.indexOf(String(groupIdx) + '-') !== 0 || existingKey === key) return;
+	        delete state.choiceQty[existingKey];
+	        var existingQty = document.querySelector('[data-manual-choice-qty="' + existingKey + '"]');
+	        var existingCheck = document.querySelector('[data-manual-choice-check="' + existingKey + '"]');
+	        if (existingQty) existingQty.textContent = '0';
+	        if (existingCheck) existingCheck.checked = false;
+	      });
+	      current = 0;
+	    }
+	    var usedWithoutCurrent = _manualOrderChoiceGroupUsed(groupIdx) - current;
+	    var allowed = Math.max(0, max - usedWithoutCurrent);
+	    var next = Math.min(requested, allowed);
+	    if (requested > next) UI.toast('Escolha no máximo ' + max + ' item(ns).', 'warning');
+	    if (next > 0) state.choiceQty[key] = next;
+	    else delete state.choiceQty[key];
+	    window._manualOrderChoicesState = state;
+	    var qtyEl = document.querySelector('[data-manual-choice-qty="' + key + '"]');
+	    var check = document.querySelector('[data-manual-choice-check="' + key + '"]');
+	    if (qtyEl) qtyEl.textContent = String(next);
+	    if (check) check.checked = next > 0;
+	    _manualOrderRefreshChoiceSummary();
+	    _manualOrderSyncChoiceGroup(groupIdx);
+	  }
+
+	  function _manualOrderStepChoiceQty(groupIdx, optionIdx, delta) {
+	    _manualOrderSetChoiceQty(groupIdx, optionIdx, _manualOrderChoiceQty(groupIdx, optionIdx) + (parseInt(delta, 10) || 0));
+	  }
 
   function _saveManualOrderChoices() {
     var state = window._manualOrderChoicesState || {};
@@ -6764,12 +7204,13 @@ Modules.Pedidos = (function () {
     var invalid = '';
     (state.groups || []).forEach(function (group, groupIdx) {
       if (invalid) return;
-      var checked = Array.prototype.slice.call(document.querySelectorAll('input[data-manual-group-index="' + groupIdx + '"]:checked'));
-      if (checked.length < group.min) invalid = 'Complete "' + group.title + '" antes de adicionar.';
-      if (!invalid && checked.length > group.max) invalid = 'Em "' + group.title + '", escolha no máximo ' + group.max + '.';
-      checked.forEach(function (input) {
-        var option = group.options[parseInt(input.getAttribute('data-manual-option-index'), 10)] || {};
-        choices.push({
+	      var used = _manualOrderChoiceGroupUsed(groupIdx);
+	      if (used < group.min) invalid = 'Complete "' + group.title + '" antes de adicionar.';
+	      if (!invalid && used > group.max) invalid = 'Em "' + group.title + '", escolha no máximo ' + group.max + '.';
+	      (group.options || []).forEach(function (option, optionIdx) {
+	        var qty = _manualOrderChoiceQty(groupIdx, optionIdx);
+	        if (qty <= 0) return;
+	        choices.push({
           groupId: group.id,
           group: group.title,
           groupName: group.title,
@@ -6793,9 +7234,10 @@ Modules.Pedidos = (function () {
           stockQuantity: _num(option.stockQuantity || option.stockQuantityPerChoice),
           stockUnit: option.stockUnit || option.unit || '',
           stockUnitCost: _num(option.stockUnitCost),
-          qty: 1
-        });
-      });
+	          qty: qty,
+	          quantity: qty
+	        });
+	      });
     });
     if (invalid) {
       UI.toast(invalid, 'error');
@@ -7013,6 +7455,14 @@ Modules.Pedidos = (function () {
     return isFinite(n) ? n : 0;
   }
 
+  function _manualOrderPromoBundleMatchMode(promo) {
+    var raw = _fold(promo && (promo.bundleMatchMode || promo.bundleScope || promo.benefitProductRule || promo.matchMode || '') || '');
+    raw = raw.replace(/\s+/g, '_');
+    return raw === 'any_participant' || raw === 'any' || raw === 'mixed' || raw === 'mix' || raw === 'todos_participantes' || raw === 'qualquer_participante'
+      ? 'any_participant'
+      : 'same_product';
+  }
+
   function _manualOrderPromoIsActive(promo) {
     if (!promo) return false;
     if (promo.active === false) return false;
@@ -7112,6 +7562,7 @@ Modules.Pedidos = (function () {
       value: value,
       leve: leve,
       pague: pague,
+      bundleMatchMode: _manualOrderPromoBundleMatchMode(promo),
       original: original,
       final: final,
       discount: Math.max(original - final, 0),
@@ -7131,6 +7582,7 @@ Modules.Pedidos = (function () {
     qty = Math.max(1, _num(qty || 1));
     if (!calc || !calc.calc) return original * qty;
     if (calc.calc.type === 'add1') {
+      if (calc.calc.bundleMatchMode === 'any_participant') return original * qty;
       var leve = parseInt(calc.calc.leve || 0, 10) || 0;
       var pague = parseInt(calc.calc.pague || 0, 10) || 0;
       if (leve > 0 && pague > 0 && leve > pague) {
@@ -7140,6 +7592,51 @@ Modules.Pedidos = (function () {
       }
     }
     return _num(calc.calc.final) * qty;
+  }
+
+  function _manualOrderPromoGroupKey(calc) {
+    return calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.promoId || calc.promo.slug || calc.promo.name || '') : '';
+  }
+
+  function _manualOrderPreparedLineKey(entry, idx) {
+    return String(entry && entry.item && (entry.item.itemKey || entry.item.productId || entry.item.id) || idx);
+  }
+
+  function _manualOrderAnyParticipantLineTotals(entries, subtotalOriginal) {
+    var groups = {};
+    (entries || []).forEach(function (entry, idx) {
+      var calc = entry && entry.calc;
+      if (!calc || !calc.calc || calc.calc.type !== 'add1' || calc.calc.bundleMatchMode !== 'any_participant') return;
+      var minOrder = calc.promo ? _manualOrderPromoMinOrder(calc.promo) : 0;
+      if (minOrder && subtotalOriginal < minOrder) return;
+      var groupKey = _manualOrderPromoGroupKey(calc);
+      if (!groupKey) return;
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(Object.assign({}, entry, { lineKey: _manualOrderPreparedLineKey(entry, idx) }));
+    });
+    var totals = {};
+    Object.keys(groups).forEach(function (groupKey) {
+      var group = groups[groupKey] || [];
+      if (!group.length) return;
+      var calc = group[0].calc.calc || {};
+      var leve = parseInt(calc.leve || 0, 10) || 0;
+      var pague = parseInt(calc.pague || 0, 10) || 0;
+      if (!(leve > 0 && pague > 0 && leve > pague)) return;
+      var units = [];
+      group.forEach(function (entry) {
+        var qty = Math.max(1, _num(entry.qty || 1));
+        var price = _num(entry.original);
+        totals[entry.lineKey] = price * qty;
+        for (var i = 0; i < qty; i += 1) units.push({ lineKey: entry.lineKey, price: price });
+      });
+      var freeCount = Math.floor(units.length / leve) * Math.max(0, leve - pague);
+      if (!(freeCount > 0)) return;
+      units.sort(function (a, b) { return a.price - b.price; });
+      units.slice(0, freeCount).forEach(function (unit) {
+        totals[unit.lineKey] = Math.max(_num(totals[unit.lineKey]) - _num(unit.price), 0);
+      });
+    });
+    return totals;
   }
 
   function _manualOrderLineTotal(original, qty, calc, item) {
@@ -7278,6 +7775,44 @@ Modules.Pedidos = (function () {
     return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b); });
   }
 
+  function _manualOrderItemChoicesHtml(item) {
+    var choices = [];
+    ['choices', 'selectedOptions', 'variants', 'options', 'choiceDetails', 'menuChoices'].some(function (field) {
+      if (Array.isArray(item && item[field]) && item[field].length) {
+        choices = item[field];
+        return true;
+      }
+      return false;
+    });
+    if (!choices.length) return '';
+    var groups = [];
+    var groupMap = {};
+    choices.forEach(function (choice) {
+      var groupName = _firstText(choice.groupName, choice.group, choice.groupTitle, choice.title, 'Opção');
+      var groupKey = _fold(groupName) || 'opcao';
+      if (!groupMap[groupKey]) {
+        groupMap[groupKey] = { title: groupName, items: [] };
+        groups.push(groupMap[groupKey]);
+      }
+      groupMap[groupKey].items.push(choice);
+    });
+    return '<div style="margin-top:8px;display:grid;gap:6px;">' + groups.map(function (group) {
+      return '<div style="border:1px solid #F0E8E3;border-radius:10px;background:#FFFCF8;padding:7px 8px;">' +
+        '<div style="font-size:10px;font-weight:850;color:#8A7E7C;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">' + _esc(group.title) + '</div>' +
+        '<div style="display:grid;gap:4px;">' + group.items.map(function (choice) {
+          var qty = Math.max(1, _num(choice.qty || choice.quantity || 1));
+          var label = _firstText(choice.optionName, choice.option, choice.label, choice.name, choice.value, 'Escolha');
+          var extra = _num(choice.priceExtra || choice.price || 0);
+          return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:start;">' +
+            '<span style="min-width:24px;height:21px;padding:0 6px;border-radius:999px;background:#FFF0EE;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:850;">' + qty + 'x</span>' +
+            '<span style="min-width:0;font-size:12px;color:#2A2521;line-height:1.3;overflow-wrap:anywhere;">' + _esc(label) + '</span>' +
+            (extra ? '<span style="font-size:11px;color:#6F6860;white-space:nowrap;">' + (extra > 0 ? '+' : '-') + UI.fmt(Math.abs(extra)) + '</span>' : '') +
+          '</div>';
+        }).join('') + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
   function _manualOrderRenderSelected() {
     var items = _manualOrderState.items || [];
     if (!items.length) {
@@ -7288,32 +7823,45 @@ Modules.Pedidos = (function () {
       var original = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       return sum + original * (item.quantity || 1);
     }, 0);
-    return '<div style="display:flex;flex-direction:column;gap:8px;">' + items.map(function (item) {
+    var preparedPromoLines = items.map(function (item, idx) {
+      var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
+      return {
+        item: item,
+        calc: _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null,
+        original: _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0))),
+        qty: item.quantity || 1,
+        lineKey: String(item.itemKey || item.productId || idx)
+      };
+    });
+    var anyParticipantTotals = _manualOrderAnyParticipantLineTotals(preparedPromoLines, selectedOriginalSubtotal);
+    return '<div style="display:flex;flex-direction:column;gap:8px;">' + items.map(function (item, idx) {
       var product = (_products || []).find(function (p) { return String(p.id || '') === String(item.productId || ''); }) || {};
       var calc = _manualOrderState.channel === 'cardapio' ? _manualOrderBestPromoForProduct(product) : null;
       var original = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       var minOrder = calc && calc.promo ? _manualOrderPromoMinOrder(calc.promo) : 0;
       var calcApplies = calc && (!minOrder || selectedOriginalSubtotal >= minOrder);
       var qty = item.quantity || 1;
-      var lineTotal = calcApplies ? _manualOrderLineTotal(original, qty, calc, item) : (calc ? original * qty : _num(item.finalPrice || original) * qty);
-      var final = lineTotal / Math.max(1, qty);
-      var discount = Math.max((original * qty) - lineTotal, 0);
-      var choiceText = _detailChoiceText(item.choices || item.selectedOptions || item.variants || item.options);
+      var lineKeyForTotals = String(item.itemKey || item.productId || idx);
+	      var lineTotal = calcApplies && anyParticipantTotals[lineKeyForTotals] != null ? anyParticipantTotals[lineKeyForTotals] : (calcApplies ? _manualOrderLineTotal(original, qty, calc, item) : (calc ? original * qty : _num(item.finalPrice || original) * qty));
+	      var final = lineTotal / Math.max(1, qty);
+	      var discount = Math.max((original * qty) - lineTotal, 0);
+	      var hasDiscount = discount > 0.009;
+	      var choiceHtml = _manualOrderItemChoicesHtml(item);
       var itemKey = String(item.itemKey || item.productId || '');
       return '<div style="border:1.5px solid #E6DDDB;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:#fff;">' +
         '<div style="min-width:0;">' +
           '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(item.name || 'Produto') + '</div>' +
           '<div style="font-size:11px;color:#8A7E7C;margin-top:3px;">' + _esc(_firstText(product.category, item.category, '')) + '</div>' +
-          (choiceText ? '<div style="font-size:11px;color:#6F6860;line-height:1.35;margin-top:3px;">' + _esc(choiceText) + '</div>' : '') +
+          choiceHtml +
           (calcApplies ? '<div style="font-size:11px;font-weight:700;color:#C4362A;margin-top:4px;">' + _esc(calc.calc.type === 'pct' ? ('-' + Math.round(calc.calc.value) + '%') : calc.calc.type === 'eur' ? ('- ' + UI.fmt(calc.calc.value)) : calc.calc.type === 'add1' ? ('Leve ' + calc.calc.leve + ' pague ' + calc.calc.pague) : 'Oferta') + '</div>' : '') +
           ((item.madeToOrder || item.productMadeToOrder || item.sobEncomenda || product.madeToOrder || product.productMadeToOrder || product.sobEncomenda) ? '<div style="font-size:11px;font-weight:700;color:#9A3412;margin-top:4px;">Sob encomenda · prazo ' + Math.max(_num(item.productionLeadDays || item.productionLeadTimeDays), _productProductionLeadDays(product)) + ' dia(s)</div>' : '') +
         '</div>' +
-        '<div style="text-align:right;min-width:110px;">' +
-          '<div style="font-size:11px;color:#8A7E7C;">' + qty + 'x</div>' +
-          '<div style="font-size:12px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(original) + '</div>' +
-          '<div style="font-size:14px;font-weight:900;color:#1A1A1A;">' + UI.fmt(final) + '</div>' +
-          '<div style="font-size:11px;color:#8A7E7C;">Economia: ' + UI.fmt(discount * qty) + '</div>' +
-        '</div>' +
+	      '<div style="text-align:right;min-width:110px;">' +
+	          '<div style="font-size:11px;color:#8A7E7C;">' + qty + 'x</div>' +
+	          (hasDiscount ? '<div style="font-size:12px;color:#8A7E7C;text-decoration:line-through;">' + UI.fmt(original) + '</div>' : '') +
+	          '<div style="font-size:14px;font-weight:900;color:#1A1A1A;">' + UI.fmt(final) + '</div>' +
+	          (hasDiscount ? '<div style="font-size:11px;color:#8A7E7C;">Economia: ' + UI.fmt(discount) + '</div>' : '') +
+	        '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
           '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(itemKey) + '\',-1)" style="width:28px;height:28px;border-radius:8px;border:1px solid #D4C8C6;background:#fff;cursor:pointer;">−</button>' +
           '<button type="button" onclick="Modules.Pedidos._manualOrderChangeQty(\'' + _esc(itemKey) + '\',1)" style="width:28px;height:28px;border-radius:8px;border:none;background:#C4362A;color:#fff;cursor:pointer;font-weight:900;">+</button>' +
@@ -7337,10 +7885,12 @@ Modules.Pedidos = (function () {
       subtotalOriginal += original * qty;
       return { item: item, calc: calc, original: original, qty: qty };
     });
-    prepared.forEach(function (entry) {
+    var anyParticipantTotals = _manualOrderAnyParticipantLineTotals(prepared, subtotalOriginal);
+    prepared.forEach(function (entry, idx) {
       var minOrder = entry.calc && entry.calc.promo ? _manualOrderPromoMinOrder(entry.calc.promo) : 0;
       var calcApplies = entry.calc && (!minOrder || subtotalOriginal >= minOrder);
-      var lineTotal = calcApplies ? _manualOrderLineTotal(entry.original, entry.qty, entry.calc, entry.item) : (entry.calc ? entry.original * entry.qty : _num(entry.item.finalPrice || entry.original) * entry.qty);
+      var lineKey = _manualOrderPreparedLineKey(entry, idx);
+      var lineTotal = calcApplies && anyParticipantTotals[lineKey] != null ? anyParticipantTotals[lineKey] : (calcApplies ? _manualOrderLineTotal(entry.original, entry.qty, entry.calc, entry.item) : (entry.calc ? entry.original * entry.qty : _num(entry.item.finalPrice || entry.original) * entry.qty));
       var qty = entry.qty;
       subtotalFinal += lineTotal;
       promoDiscount += Math.max((entry.original * qty) - lineTotal, 0);
@@ -7507,7 +8057,7 @@ Modules.Pedidos = (function () {
     }
     var phone = _phone(order.customerPhone || order.phone || order.whatsapp || '');
     if (phone) {
-      var byPhone = (_customers || []).find(function (c) { return _phone(c.phone || c.whatsapp || '') === phone; });
+      var byPhone = (_customers || []).find(function (c) { return _phone(_customerPhoneValue(c)) === phone; });
       if (byPhone) return byPhone;
     }
     var email = _clean(order.customerEmail || order.email || '');
@@ -7680,7 +8230,7 @@ Modules.Pedidos = (function () {
       '.manual-order-field-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;min-width:0;}' +
       '.manual-order-field-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
       '.manual-order-field-control input:not([type=checkbox]),.manual-order-field-control select,.manual-order-field-control textarea{border:0!important;border-radius:8px!important;background:transparent!important;box-shadow:none!important;padding:0 8px!important;min-height:34px!important;}' +
-      '.manual-order-phone-box{display:grid;grid-template-columns:124px minmax(190px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.manual-order-phone-box{display:grid;grid-template-columns:88px minmax(190px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
       '.manual-order-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
       '.manual-order-phone-box select,.manual-order-phone-box input{border:0!important;background:transparent!important;box-shadow:none!important;min-height:34px!important;border-radius:8px!important;padding:0 8px!important;}' +
       '.manual-order-phone-box select{border-right:1px solid #E8DCD7!important;border-radius:8px 0 0 8px!important;}' +
@@ -7698,7 +8248,7 @@ Modules.Pedidos = (function () {
       '.manual-order-filter-row button{padding:7px 12px!important;border-radius:999px!important;font-size:12px!important;font-weight:650!important;font-family:inherit!important;cursor:pointer!important;}' +
       '.manual-order-sticky{display:flex;flex-direction:column;gap:12px;position:sticky;top:0;align-self:start;}' +
       '@media(max-width:1120px){.manual-order-body{grid-template-columns:1fr}.manual-order-sticky{position:static}.manual-order-service-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.mo-service-type,.mo-service-postal,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time{grid-column:span 3}.mo-service-address-select,.mo-service-street,.mo-service-custom-order{grid-column:1/-1}}' +
-      '@media(max-width:760px){.manual-order-customer-grid,.manual-order-service-grid,.manual-order-summary-grid,.manual-order-search-row,.manual-order-channel-row,.manual-order-channel-panel{grid-template-columns:1fr}.manual-order-delivery-grid{padding-left:0}.manual-order-email-field{grid-column:auto;max-width:none}.manual-order-phone-box{grid-template-columns:118px minmax(0,1fr)}.mo-service-type,.mo-service-address-select,.mo-service-postal,.mo-service-street,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time,.mo-service-custom-order{grid-column:auto}.manual-order-secondary-btn{width:100%;}}' +
+      '@media(max-width:760px){.manual-order-customer-grid,.manual-order-service-grid,.manual-order-summary-grid,.manual-order-search-row,.manual-order-channel-row,.manual-order-channel-panel{grid-template-columns:1fr}.manual-order-delivery-grid{padding-left:0}.manual-order-email-field{grid-column:auto;max-width:none}.manual-order-phone-box{grid-template-columns:86px minmax(0,1fr)}.mo-service-type,.mo-service-address-select,.mo-service-postal,.mo-service-street,.mo-service-number,.mo-service-complement,.mo-service-quarter,.mo-service-time,.mo-service-fee,.mo-service-order-time,.mo-service-custom-order{grid-column:auto}.manual-order-secondary-btn{width:100%;}}' +
       '</style>';
     body.innerHTML = modalCss +
       '<div class="manual-order-body">' +
@@ -7732,7 +8282,7 @@ Modules.Pedidos = (function () {
             '<div class="manual-order-grid manual-order-service-grid manual-order-delivery-grid" id="mo-delivery-block">' +
               '<div class="mo-service-type"><label>Tipo</label><div class="manual-order-field-control"><select id="mo-type" onchange="Modules.Pedidos._manualOrderSetType(this.value)"><option value="delivery">Entrega</option><option value="pickup">Retirada</option></select></div></div>' +
               '<div class="mo-delivery-only mo-service-address-select"><label>Endereço de entrega</label><div class="manual-order-field-control"><select id="mo-delivery-address" onchange="Modules.Pedidos._manualOrderSetDeliveryAddress(this.value)">' + _manualOrderDeliveryAddressOptions() + '</select></div></div>' +
-              '<div class="mo-delivery-only mo-service-postal"><label>Código postal</label><div class="manual-order-field-control"><input id="mo-postal-code" type="text" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP" oninput="Modules.Pedidos._manualOrderField(\'customerPostalCode\', this.value)"></div></div>' +
+              '<div class="mo-delivery-only mo-service-postal"><label>Código postal</label><div class="manual-order-field-control"><input id="mo-postal-code" type="text" list="mo-postal-suggestions" autocomplete="postal-code" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP" oninput="Modules.Pedidos._manualOrderField(\'customerPostalCode\', this.value)"></div>' + _manualOrderPostalDatalistHTML('mo-postal-suggestions') + '</div>' +
               '<div class="mo-delivery-only mo-service-street"><label>Rua</label><div class="manual-order-field-control"><input id="mo-address" type="text" value="' + _esc(_manualOrderState.customerAddress) + '" placeholder="Endereço de entrega" oninput="Modules.Pedidos._manualOrderField(\'customerAddress\', this.value)"></div></div>' +
               '<div class="mo-delivery-only mo-service-number"><label>Número / portal</label><div class="manual-order-field-control"><input id="mo-address-number" type="text" value="' + _esc(_manualOrderState.customerAddressNumber || '') + '" placeholder="Nº" oninput="Modules.Pedidos._manualOrderField(\'customerAddressNumber\', this.value)"></div></div>' +
               '<div class="mo-delivery-only mo-service-complement"><label>Piso / referência</label><div class="manual-order-field-control"><input id="mo-address-complement" type="text" value="' + _esc(_manualOrderState.customerAddressComplement || '') + '" placeholder="Piso, porta ou referência" oninput="Modules.Pedidos._manualOrderField(\'customerAddressComplement\', this.value)"></div></div>' +
@@ -7969,7 +8519,7 @@ Modules.Pedidos = (function () {
     return DB.getAll('store_customers').catch(function () { return _customers || []; }).then(function (rows) {
       var list = Array.isArray(rows) ? rows : [];
       var match = list.find(function (c) {
-        if (phoneKey && _phoneMatchKey(c.phone || c.whatsapp || '') === phoneKey) return true;
+        if (phoneKey && _phoneMatchKey(_customerPhoneValue(c)) === phoneKey) return true;
         if (!phoneKey && emailKey && _clean(c.email || '') === emailKey) return true;
         return false;
       }) || null;
@@ -7977,6 +8527,10 @@ Modules.Pedidos = (function () {
         name: name || (match && match.name) || phone || email || 'Cliente',
         phone: phone || (match && (match.phone || match.whatsapp)) || '',
         whatsapp: phone || (match && (match.whatsapp || match.phone)) || '',
+        phoneNormalized: phoneKey || _phoneMatchKey(match && (match.phone || match.whatsapp) || ''),
+        whatsappNormalized: phoneKey || _phoneMatchKey(match && (match.whatsapp || match.phone) || ''),
+        phoneDigits: phoneKey || _phoneMatchKey(match && (match.phone || match.whatsapp) || ''),
+        whatsappDigits: phoneKey || _phoneMatchKey(match && (match.whatsapp || match.phone) || ''),
         email: email || (match && match.email) || '',
         address: address || (match && match.address) || '',
         number: number || (match && (match.number || match.numero)) || '',
@@ -8051,13 +8605,13 @@ Modules.Pedidos = (function () {
         '.quick-client-control{background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
         '.quick-client-control:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
         '.quick-client-control input{width:100%;height:34px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;padding:0 8px;box-sizing:border-box;}' +
-        '.quick-client-phone{display:grid;grid-template-columns:124px minmax(220px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;}' +
+        '.quick-client-phone{display:grid;grid-template-columns:88px minmax(220px,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;}' +
         '.quick-client-phone:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
         '.quick-client-phone select,.quick-client-phone input{width:100%;height:34px;border:0;background:transparent;outline:none;font-size:14px;font-family:inherit;color:#1F1F1F;padding:0 8px;box-sizing:border-box;}' +
         '.quick-client-phone select{border-right:1px solid #E8DCD7;}' +
         '.quick-client-scroll{scrollbar-width:none;-ms-overflow-style:none;}' +
         '.quick-client-scroll::-webkit-scrollbar{display:none;}' +
-        '@media(max-width:760px){.quick-client-grid{grid-template-columns:1fr;}.quick-client-grid .wide{grid-column:auto;}.quick-client-phone{grid-template-columns:118px minmax(0,1fr);}}' +
+        '@media(max-width:760px){.quick-client-grid{grid-template-columns:1fr;}.quick-client-grid .wide{grid-column:auto;}.quick-client-phone{grid-template-columns:86px minmax(0,1fr);}}' +
       '</style>' +
       '<div style="padding:16px 20px;border-bottom:1px solid #F0E8E3;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex:0 0 auto;background:#fff;">' +
         '<div><div style="font-size:11px;font-weight:750;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Cliente rápido</div><h3 style="margin:0;font-size:20px;line-height:1.15;color:#1F1F1F;">Cadastrar cliente</h3></div>' +
@@ -8069,7 +8623,7 @@ Modules.Pedidos = (function () {
             '<label class="quick-client-field"><span>Nome do cliente</span><div class="quick-client-control"><input id="mo-qc-name" type="text" value="' + _esc(_manualOrderState.customerName || '') + '" placeholder="Nome"></div></label>' +
             '<label class="quick-client-field"><span>WhatsApp</span><div class="quick-client-phone"><select id="mo-qc-phone-prefix">' + _manualOrderPhonePrefixOptions(phoneParts.prefix) + '</select><input id="mo-qc-phone" type="text" value="' + _esc(phoneParts.number) + '" placeholder="' + _esc(_manualOrderPhonePlaceholder()) + '"></div></label>' +
             '<label class="quick-client-field wide"><span>E-mail</span><div class="quick-client-control"><input id="mo-qc-email" type="email" value="' + _esc(_manualOrderState.customerEmail || '') + '" placeholder="E-mail"></div></label>' +
-            '<label class="quick-client-field"><span>Código postal</span><div class="quick-client-control"><input id="mo-qc-postal-code" type="text" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP"></div></label>' +
+            '<label class="quick-client-field"><span>Código postal</span><div class="quick-client-control"><input id="mo-qc-postal-code" type="text" list="mo-qc-postal-suggestions" autocomplete="postal-code" value="' + _esc(_manualOrderState.customerPostalCode || '') + '" placeholder="CP">' + _manualOrderPostalDatalistHTML('mo-qc-postal-suggestions') + '</div></label>' +
             '<label class="quick-client-field wide"><span>Rua</span><div class="quick-client-control"><input id="mo-qc-address" type="text" value="' + _esc(_manualOrderState.customerAddress || '') + '" placeholder="Endereço de entrega"></div></label>' +
             '<label class="quick-client-field"><span>Número / portal</span><div class="quick-client-control"><input id="mo-qc-number" type="text" value="' + _esc(_manualOrderState.customerAddressNumber || '') + '" placeholder="Nº"></div></label>' +
             '<label class="quick-client-field"><span>Piso / referência</span><div class="quick-client-control"><input id="mo-qc-complement" type="text" value="' + _esc(_manualOrderState.customerAddressComplement || '') + '" placeholder="Piso, porta ou referência"></div></label>' +
@@ -8115,11 +8669,23 @@ Modules.Pedidos = (function () {
       UI.toast('Informe nome, WhatsApp ou e-mail para cadastrar o cliente.', 'error');
       return;
     }
+    var isPickup = String(_manualOrderState.type || _manualOrderState.deliveryType || '').toLowerCase() === 'pickup';
+    var hasDeliveryAddress = !isPickup && !![address, number, complement, neighborhood, city, province, country].filter(Boolean).join('').trim();
+    if (hasDeliveryAddress && !postalCode) {
+      UI.toast('Informe a caixa postal do cliente antes de salvar.', 'error');
+      return;
+    }
     var channel = String(_manualOrderState.channel || 'manual');
+    var phoneKey = _phoneMatchKey(phone);
+    var emailKey = _clean(email);
     var payload = {
       name: name || phone || email || 'Cliente',
       phone: phone,
       whatsapp: phone,
+      phoneNormalized: phoneKey,
+      whatsappNormalized: phoneKey,
+      phoneDigits: phoneKey,
+      whatsappDigits: phoneKey,
       email: email,
       address: address,
       number: number,
@@ -8154,14 +8720,43 @@ Modules.Pedidos = (function () {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    DB.add('store_customers', payload).then(function (ref) {
-      var id = String((ref && ref.id) || ref || '');
+    DB.getAll('store_customers').catch(function () { return _customers || []; }).then(function (rows) {
+      var list = Array.isArray(rows) ? rows : [];
+      var match = list.find(function (c) {
+        if (phoneKey && _phoneMatchKey(_customerPhoneValue(c)) === phoneKey) return true;
+        if (!phoneKey && emailKey && _clean(c.email || '') === emailKey) return true;
+        return false;
+      }) || null;
+      var matchId = _customerRecordId(match);
+      if (match) {
+        payload = Object.assign({}, match, payload, {
+          name: name || match.name || payload.name,
+          email: email || match.email || payload.email,
+          createdAt: match.createdAt || payload.createdAt,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      var op = matchId ? DB.update('store_customers', matchId, payload).then(function () { return matchId; }) : DB.add('store_customers', payload).then(function (ref) {
+        return ref && ref.id ? ref.id : ref;
+      });
+      return op;
+    }).then(function (id) {
+      id = String(id || '');
       var customer = Object.assign({}, payload, { id: id });
-      _customers.push(customer);
+      var idx = (_customers || []).findIndex(function (c) { return _customerRecordId(c) === id; });
+      if (idx >= 0) _customers[idx] = Object.assign({}, _customers[idx], customer);
+      else _customers.push(customer);
+      _rememberPostalCode(postalCode, {
+        source: 'manual_order_quick_customer',
+        city: city,
+        province: province,
+        country: country,
+        neighborhood: neighborhood || zone
+      });
       _manualOrderState.customerQuery = '';
       _manualOrderSelectCustomer(id);
       _closeManualOrderQuickCustomer();
-      UI.toast('Cliente cadastrado e selecionado.', 'success');
+      UI.toast('Cliente selecionado pelo telefone.', 'success');
     }).catch(function (err) {
       UI.toast('Erro ao cadastrar cliente: ' + (err && err.message ? err.message : 'falha ao salvar'), 'error');
     });
@@ -8297,7 +8892,8 @@ Modules.Pedidos = (function () {
     var deliveryFee = _num(order.deliveryFee != null ? order.deliveryFee : order.shippingFee != null ? order.shippingFee : order.fee || 0);
     var couponDiscount = _num(order.couponDiscountTotal != null ? order.couponDiscountTotal : order.couponDiscount || 0);
     var pointsDiscount = _num(order.pointsDiscountTotal != null ? order.pointsDiscountTotal : order.pointsDiscount || 0);
-    var expected = itemsSubtotal > 0 ? Math.max(0, itemsSubtotal + deliveryFee - couponDiscount - pointsDiscount) : 0;
+    var manualDiscount = _num(order.manualDiscountTotal != null ? order.manualDiscountTotal : order.manualDiscount != null ? order.manualDiscount : order.discountManual || 0);
+    var expected = itemsSubtotal > 0 ? Math.max(0, itemsSubtotal + deliveryFee - couponDiscount - pointsDiscount - manualDiscount) : 0;
     return _normalizeMoneyAgainstExpected(raw, expected || itemsSubtotal);
   }
 
@@ -8335,7 +8931,7 @@ Modules.Pedidos = (function () {
     var key = _phoneMatchKey(phone);
     if (!key) return false;
     var matches = (_customers || []).filter(function (c) {
-      return _phoneMatchKey(c.phone || c.whatsapp || '') === key;
+      return _phoneMatchKey(_customerPhoneValue(c)) === key;
     });
     if (matches.length !== 1) return false;
     if (!customerId) return true;
@@ -8350,6 +8946,85 @@ Modules.Pedidos = (function () {
     return isNaN(d.getTime()) ? 0 : d.getTime();
   }
 
+  function _customerPhoneValue(customer) {
+    customer = customer || {};
+    return customer.phone || customer.whatsapp || customer.customerPhone || customer.telefone || customer.phoneNormalized || customer.whatsappNormalized || customer.phoneDigits || customer.whatsappDigits || '';
+  }
+
+  function _postalCodeValue(source) {
+    source = source || {};
+    return _firstText(
+      source.postalCode,
+      source.postal,
+      source.zip,
+      source.zipCode,
+      source.postcode,
+      source.postCode,
+      source.codigoPostal,
+      source.codigo_postal,
+      source.caixaPostal,
+      source.caixa_postal,
+      source.cep,
+      ''
+    );
+  }
+
+  function _postalHistoryId(value) {
+    value = String(value || '').trim().toUpperCase();
+    return value ? 'cp_' + value.replace(/[^A-Z0-9_-]/g, '_').slice(0, 48) : '';
+  }
+
+  function _rememberPostalCode(value, meta) {
+    value = String(value || '').trim();
+    if (!value || value.length < 3 || !DB || typeof DB.set !== 'function') return;
+    meta = meta || {};
+    var id = _postalHistoryId(value);
+    if (!id) return;
+    var payload = {
+      postalCode: value,
+      source: String(meta.source || 'manual').trim(),
+      city: String(meta.city || '').trim(),
+      province: String(meta.province || '').trim(),
+      country: String(meta.country || '').trim(),
+      neighborhood: String(meta.neighborhood || '').trim(),
+      lastUsedAt: _nowIso()
+    };
+    var idx = (_postalHistory || []).findIndex(function (item) { return String(item.id || '') === id || String(item.postalCode || '').trim() === value; });
+    if (idx >= 0) _postalHistory[idx] = Object.assign({}, _postalHistory[idx], payload, { id: id });
+    else _postalHistory.push(Object.assign({}, payload, { id: id }));
+    DB.set('postal_history', id, payload).catch(function () {});
+  }
+
+  function _manualOrderPostalDatalistHTML(id) {
+    var map = {};
+    function add(value) {
+      value = String(value || '').trim();
+      if (value) map[value] = true;
+    }
+    (_postalHistory || []).forEach(function (item) {
+      add(_postalCodeValue(item));
+    });
+    (_customers || []).forEach(function (customer) {
+      add(_postalCodeValue(customer));
+      _manualOrderCustomerAddresses(customer).forEach(function (addr) {
+        add(_postalCodeValue(addr));
+      });
+    });
+    (_orders || []).forEach(function (order) {
+      add(_postalCodeValue(order));
+      if (order && typeof order.deliveryAddress === 'object') add(_postalCodeValue(order.deliveryAddress));
+    });
+    (_zones || []).forEach(function (zone) {
+      add(_postalCodeValue(zone));
+      var list = Array.isArray(zone && zone.postalCodes) ? zone.postalCodes : [];
+      list.forEach(add);
+    });
+    var values = Object.keys(map).sort().slice(0, 80);
+    return '<datalist id="' + _esc(id || 'mo-postal-suggestions') + '">' + values.map(function (value) {
+      return '<option value="' + _esc(value) + '"></option>';
+    }).join('') + '</datalist>';
+  }
+
   function _fmtDate(o) {
     var ts = _dateTs(o);
     return ts ? UI.fmtDate(new Date(ts)) : '-';
@@ -8358,7 +9033,7 @@ Modules.Pedidos = (function () {
   function _ordersForClient(c) {
     var id = _customerRecordId(c);
     var name = _clean(c && c.name || '');
-    var phone = _phoneMatchKey(c && (c.phone || c.whatsapp) || '');
+    var phone = _phoneMatchKey(_customerPhoneValue(c));
     var email = _clean(c && c.email || '');
     var uniquePhone = phone && _customerPhoneMatchIsUnique(phone, id);
     return (_orders || []).filter(function (o) {
@@ -9763,8 +10438,60 @@ Modules.Pedidos = (function () {
   }
 
   function _paymentStatusFinanceStatus(value) {
+    if (_paymentStatusIsPaid(value)) return 'efetivado';
     if (_paymentStatusIsPartial(value)) return 'parcial';
     return 'previsto';
+  }
+
+  function _dateOnly(value) {
+    var raw = _firstText(value, '');
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+    var d = new Date(raw);
+    return d && !isNaN(d.getTime()) ? _localDateKey(d) : '';
+  }
+
+  function _orderFinanceDatePlan(order, paymentStatus) {
+    order = order || {};
+    var orderDate = _dateOnly(_firstText(order.orderDate, order.dataPedido, order.createdDate, order.saleDate, order.date, order.createdAt, order.created_at, '')) || _localDateKey();
+    var serviceDate = _dateOnly(_firstText(
+      order.deliveryDate,
+      order.pickupDate,
+      order.scheduleDate,
+      order.deliveryDateISO,
+      order.deliveredAt,
+      order.completedAt,
+      order.fulfilledAt,
+      ''
+    )) || orderDate;
+    if (_paymentStatusIsPaid(paymentStatus)) {
+      return {
+        financeDate: orderDate,
+        orderDate: orderDate,
+        dueDate: orderDate,
+        receivedDate: orderDate,
+        paymentDate: orderDate,
+        balanceDueDate: ''
+      };
+    }
+    if (_paymentStatusIsPartial(paymentStatus)) {
+      return {
+        financeDate: orderDate,
+        orderDate: orderDate,
+        dueDate: serviceDate,
+        receivedDate: orderDate,
+        paymentDate: orderDate,
+        balanceDueDate: serviceDate
+      };
+    }
+    return {
+      financeDate: serviceDate,
+      orderDate: orderDate,
+      dueDate: serviceDate,
+      receivedDate: '',
+      paymentDate: '',
+      balanceDueDate: serviceDate
+    };
   }
 
   function _orderChannelFinancialPatch(order, grossTotal) {
@@ -9933,6 +10660,41 @@ Modules.Pedidos = (function () {
     var orderStatus = String(order.status || order.orderStatus || '');
     var existingFinanceStatus = _fold(_firstText(order.financeMovementStatus, order.financeStatus, order.financialStatus, ''));
     var currentPaymentState = _fold(_firstText(order.paymentStatus, order.paymentState, order.statusPayment, order.payStatus, ''));
+    function persistOrderFinancialPatch(extra) {
+      var patch = Object.assign({}, extra || {}, {
+        financeMovementSyncedAt: _nowIso()
+      });
+      Object.assign(order, patch);
+      return DB.update('orders', orderId, patch).then(function () { return true; }).catch(function () { return true; });
+    }
+    function clearPendingFinanceLink(movementId) {
+      var pendingPatch = {
+        financeMovementId: '',
+        financeMovementStatus: 'nao_enviado_pendente',
+        financeStatus: 'nao_enviado_pendente',
+        financialStatus: 'nao_enviado_pendente',
+        financeReviewPending: false,
+        requiresFinanceConfirmation: false
+      };
+      if (!movementId) return persistOrderFinancialPatch(pendingPatch);
+      return DB.update('movimentacoes', movementId, {
+        status: 'cancelada',
+        cancelada: true,
+        estornada: true,
+        valorRecebido: 0,
+        valor_recebido_total: 0,
+        saldoRestante: 0,
+        saldo_restante: 0,
+        reversalReason: 'pedido_pendente_nao_enviado_financeiro',
+        motivoCancelamento: 'Pedido voltou para Pendente',
+        cancelledAt: _nowIso(),
+        updatedAt: new Date().toISOString()
+      }).then(function () {
+        return persistOrderFinancialPatch(pendingPatch);
+      }).catch(function () {
+        return persistOrderFinancialPatch(pendingPatch);
+      });
+    }
     if (order.importFinanceBlocked || order.importSubtotalMismatch) {
       var blockedPatch = Object.assign({}, importReviewPatch || {}, {
         financeMovementId: '',
@@ -9947,6 +10709,19 @@ Modules.Pedidos = (function () {
       });
       return DB.update('orders', orderId, blockedPatch).then(function () { return false; }).catch(function () { return false; });
     }
+    if (_statusIsPendingOrder(orderStatus)) {
+      if (order.financeMovementId) return clearPendingFinanceLink(order.financeMovementId).then(function () { return false; });
+      return DB.getAll('movimentacoes').then(function (list) {
+        var found = (list || []).find(function (m) {
+          var st = _fold(m && m.status || '');
+          var inactive = st === 'estornada' || st === 'estornado' || st === 'cancelada' || st === 'cancelado';
+          return !inactive && String(m.pedidoId || m.orderId || m.origemPedidoId || '') === orderId;
+        });
+        return clearPendingFinanceLink(found && found.id ? found.id : '').then(function () { return false; });
+      }).catch(function () {
+        return clearPendingFinanceLink('').then(function () { return false; });
+      });
+    }
     if (currentPaymentState === 'estornado' || currentPaymentState === 'estornada' || currentPaymentState === 'canceled' || currentPaymentState === 'cancelado') {
       return Promise.resolve(false);
     }
@@ -9956,6 +10731,8 @@ Modules.Pedidos = (function () {
     var grossTotal = _orderFinanceTotal(order);
     var channelFinancial = _orderChannelFinancialPatch(order, grossTotal);
     Object.assign(order, channelFinancial);
+    var orderImportSource = String(_firstText(order.importSource, order.importedFrom, order.marketplace, order.marketplaceName, '') || '').trim();
+    var needsFinanceReview = !!(order.importFinanceBlocked || order.importSubtotalMismatch || orderImportSource);
     var total = _num(channelFinancial.netReceivable != null ? channelFinancial.netReceivable : grossTotal);
     var paymentStatus = _orderPaymentStatus(order);
     var grossPaidAmount = _normalizeMoneyAgainstExpected(order.paidAmount != null ? order.paidAmount : order.amountPaid != null ? order.amountPaid : order.valuePaid != null ? order.valuePaid : 0, grossTotal);
@@ -9963,20 +10740,15 @@ Modules.Pedidos = (function () {
     if (_paymentStatusIsPaid(paymentStatus)) paidAmount = total;
     if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : 0;
     var finStatus = _paymentStatusFinanceStatus(paymentStatus);
-    if (!_paymentStatusIsPartial(paymentStatus)) paidAmount = 0;
-    var orderDate = _firstText(order.orderDate, order.dataPedido, order.createdDate, order.saleDate, order.date, order.createdAt, order.created_at, _localDateKey());
-    var financeDate = orderDate && String(orderDate).slice(0, 10) ? String(orderDate).slice(0, 10) : _localDateKey();
-    var paymentDate = _firstText(order.paymentDate, order.dataPagamento, order.paidAt, order.paymentAt, order.paymentUpdatedAt, '');
+    var datePlan = _orderFinanceDatePlan(order, paymentStatus);
+    var financeDate = datePlan.financeDate;
     var financeAccountId = _orderFinanceAccountId(order);
     var channelMeta = _orderChannelMeta(order);
     var incomeCategory = _orderIncomeCategoryMeta(order);
-    function persistOrderFinancialPatch(extra) {
-      var patch = Object.assign({}, channelFinancial, importReviewPatch || {}, extra || {}, {
-        financeMovementSyncedAt: _nowIso()
-      });
-      Object.assign(order, patch);
-      return DB.update('orders', orderId, patch).then(function () { return true; }).catch(function () { return true; });
-    }
+    var basePersistOrderFinancialPatch = persistOrderFinancialPatch;
+    persistOrderFinancialPatch = function (extra) {
+      return basePersistOrderFinancialPatch(Object.assign({}, channelFinancial, importReviewPatch || {}, extra || {}));
+    };
     if (isCancelled) {
       var cancelledOrderPaymentPatch = {
         paymentStatus: 'estornado',
@@ -10022,14 +10794,17 @@ Modules.Pedidos = (function () {
       tipo: 'entrada',
       descricao: 'Pedido ' + (_orderDisplayId(order) || orderId),
       data: financeDate,
-      data_prevista: financeDate,
-      dataPrevista: financeDate,
-      orderDate: financeDate,
-      dataPedido: financeDate,
-      paymentDate: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
-      dataPagamentoPedido: paymentDate && String(paymentDate).slice(0, 10) ? String(paymentDate).slice(0, 10) : '',
-      data_recebimento: '',
-      dataRecebimento: '',
+      data_prevista: datePlan.dueDate,
+      dataPrevista: datePlan.dueDate,
+      orderDate: datePlan.orderDate,
+      dataPedido: datePlan.orderDate,
+      paymentDate: datePlan.paymentDate,
+      dataPagamentoPedido: datePlan.paymentDate,
+      data_recebimento: datePlan.receivedDate,
+      dataRecebimento: datePlan.receivedDate,
+      balanceDueDate: datePlan.balanceDueDate,
+      saldoRestanteDataPrevista: datePlan.balanceDueDate,
+      dataSaldoRestante: datePlan.balanceDueDate,
       status: finStatus,
       valor: total,
       valorTotalOriginal: total,
@@ -10066,8 +10841,8 @@ Modules.Pedidos = (function () {
       pessoaNome: String(order.customerName || order.clientName || order.name || ''),
       customerName: String(order.customerName || order.clientName || order.name || ''),
       phone: String(order.customerPhone || order.phone || order.whatsapp || ''),
-      financeReviewPending: true,
-      requiresFinanceConfirmation: true,
+      financeReviewPending: needsFinanceReview,
+      requiresFinanceConfirmation: needsFinanceReview,
       updatedAt: new Date().toISOString()
     };
     if (financeAccountId) {
@@ -10090,8 +10865,8 @@ Modules.Pedidos = (function () {
     }
     var syncedPatch = {
       financeMovementStatus: finStatus,
-      financeReviewPending: true,
-      requiresFinanceConfirmation: true,
+      financeReviewPending: needsFinanceReview,
+      requiresFinanceConfirmation: needsFinanceReview,
       paymentReversed: false,
       paymentReversedAt: '',
       paymentReversalDate: '',
@@ -10178,7 +10953,7 @@ Modules.Pedidos = (function () {
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
-    _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail, _forceOrderStockReversal: _forceOrderStockReversal,
+    _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _detailSearchProducts: _detailSearchProducts, _detailAddProduct: _detailAddProduct, _openDetailAddChoicesModal: _openDetailAddChoicesModal, _saveDetailAddChoices: _saveDetailAddChoices, _closeDetailAddChoicesModal: _closeDetailAddChoicesModal, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail, _forceOrderStockReversal: _forceOrderStockReversal,
     _saveOrderCustomer: _saveOrderCustomer, _openOrderCustomerModal: _openOrderCustomerModal,
     _closeCustomerModal: _closeCustomerModal, _closeDetailModal: _closeDetailModal,
     _showDetailWhatsappPrompt: _showDetailWhatsappPrompt, _hideDetailWhatsappPrompt: _hideDetailWhatsappPrompt,
@@ -10207,9 +10982,12 @@ Modules.Pedidos = (function () {
     _manualOrderSetProductFilter: _manualOrderSetProductFilter,
     _manualOrderSetCategoryFilter: _manualOrderSetCategoryFilter,
     _manualOrderSelectCustomer: _manualOrderSelectCustomer,
-    _manualOrderAddProduct: _manualOrderAddProduct,
-    _manualOrderSyncChoiceGroup: _manualOrderSyncChoiceGroup,
-    _saveManualOrderChoices: _saveManualOrderChoices,
+	    _manualOrderAddProduct: _manualOrderAddProduct,
+	    _manualOrderSyncChoiceGroup: _manualOrderSyncChoiceGroup,
+	    _manualOrderChoiceQty: _manualOrderChoiceQty,
+	    _manualOrderSetChoiceQty: _manualOrderSetChoiceQty,
+	    _manualOrderStepChoiceQty: _manualOrderStepChoiceQty,
+	    _saveManualOrderChoices: _saveManualOrderChoices,
     _closeManualOrderChoicesModal: _closeManualOrderChoicesModal,
     _manualOrderChangeQty: _manualOrderChangeQty,
     _manualOrderRemoveProduct: _manualOrderRemoveProduct,

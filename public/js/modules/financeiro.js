@@ -19,7 +19,7 @@ Modules.Financeiro = (function () {
   var _cpSelecionadas = [];
   var _cpVisiveis = [];
   var _bulkCPProcessando = false;
-  var _visaoFiltro = { periodo: 'todos', inicio: '', fim: '', conta: 'todas' };
+  var _visaoFiltro = { periodo: 'mes_atual', inicio: '', fim: '', conta: 'todas' };
 
   var TABS = [
     { key: 'visao-geral',       label: 'Visão Geral' },
@@ -121,8 +121,12 @@ Modules.Financeiro = (function () {
     var gross = _parseNum(m.valorBrutoPedido != null ? m.valorBrutoPedido : (m.grossOrderTotal != null ? m.grossOrderTotal : breakdown.grossTotal));
     var fees = _parseNum(m.channelFeeTotal != null ? m.channelFeeTotal : (m.channelFeesTotal != null ? m.channelFeesTotal : (breakdown.importedFeeTotal != null ? breakdown.importedFeeTotal : breakdown.totalFees)));
     var net = _parseNum(m.valorLiquidoReceber != null ? m.valorLiquidoReceber : (m.netReceivable != null ? m.netReceivable : (m.liquidReceivable != null ? m.liquidReceivable : m.valor)));
-    var isMarketplace = !!(source || gross > 0 && fees > 0 || m.requiresFinanceConfirmation || m.financeReviewPending);
+    var importReviewFlag = !!(m.importFinanceBlocked || m.importSubtotalMismatch);
+    var isMarketplace = !!(source || gross > 0 && fees > 0 || importReviewFlag);
     if (!isMarketplace) return null;
+    var status = String(m.status || m.situacao || '').toLowerCase();
+    var settled = status === 'efetivado' || status === 'recebido' || status === 'pago';
+    var pendingImportReview = !!((source || importReviewFlag) && !settled && (m.requiresFinanceConfirmation || m.financeReviewPending));
     return {
       source: source || m.salesChannel || m.canalVenda || m.channel || 'Canal de venda',
       gross: gross,
@@ -132,7 +136,7 @@ Modules.Financeiro = (function () {
       commissionTax: _parseNum(m.channelCommissionTaxAmount != null ? m.channelCommissionTaxAmount : breakdown.tax),
       fixedFee: _parseNum(m.channelFixedFeeAmount != null ? m.channelFixedFeeAmount : breakdown.fixedFee),
       payout: _parseNum(breakdown.payoutAmount),
-      review: !!(m.requiresFinanceConfirmation || m.financeReviewPending)
+      review: pendingImportReview
     };
   }
   function _marketplaceFinanceLine(m) {
@@ -691,7 +695,7 @@ Modules.Financeiro = (function () {
   }
 
   function _visaoPeriodRange() {
-    var periodo = _visaoFiltro.periodo || 'todos';
+    var periodo = _visaoFiltro.periodo || 'mes_atual';
     var inicio = _visaoFiltro.inicio || '';
     var fim = _visaoFiltro.fim || '';
     var hoje = _today();
@@ -786,22 +790,49 @@ Modules.Financeiro = (function () {
     return contas.reduce(function (s, c) { return s + _visaoSaldoConta(c); }, 0);
   }
 
+  function _visaoDateInRange(date, range) {
+    date = String(date || '').slice(0, 10);
+    if (range.start && (!date || date < range.start)) return false;
+    if (range.end && (!date || date > range.end)) return false;
+    return true;
+  }
+
+  function _movBalanceDueDate(m) {
+    return String(m && (m.balanceDueDate || m.saldoRestanteDataPrevista || m.dataSaldoRestante || m.data_prevista || m.dataPrevista || m.data) || '').slice(0, 10);
+  }
+
+  function _movReceivedDate(m) {
+    return String(m && (m.data_recebimento || m.dataRecebimento || m.paymentDate || m.dataPagamentoPedido || m.data) || '').slice(0, 10);
+  }
+
   function _visaoResumoFinanceiro() {
-    var movs = _visaoMovContaData();
+    var range = _visaoPeriodRange();
+    var movs = (_movimentacoes || []).filter(function (m) {
+      if (_isTransferMov(m)) return _visaoFiltro.conta === 'todas' || _transferTouchesAccount(m, _visaoFiltro.conta);
+      return _visaoContaMatches(m.conta_id || m.contaBancariaId);
+    });
     var entradasEf = 0, saidasEf = 0, entradasPrev = 0, saidasPrev = 0;
     movs.forEach(function (m) {
       var info = _movValorInfo(m);
       if (m.status === 'previsto') {
+        if (!_visaoDateInRange(_movBalanceDueDate(m), range)) return;
         if (m.tipo === 'entrada') entradasPrev += info.valorRow;
         else if (m.tipo === 'saida') saidasPrev += info.valorRow;
         return;
       }
       if (m.status === 'parcial') {
-        if (m.tipo === 'entrada') entradasEf += info.valorRecebido;
-        else if (m.tipo === 'saida') saidasEf += info.valorPago;
+        if (_visaoDateInRange(_movReceivedDate(m), range)) {
+          if (m.tipo === 'entrada') entradasEf += info.valorRecebido;
+          else if (m.tipo === 'saida') saidasEf += info.valorPago;
+        }
+        if (_visaoDateInRange(_movBalanceDueDate(m), range)) {
+          if (m.tipo === 'entrada') entradasPrev += info.saldoRestante;
+          else if (m.tipo === 'saida') saidasPrev += info.saldoRestante;
+        }
         return;
       }
       if (m.status === 'efetivado') {
+        if (!_visaoDateInRange(_movReceivedDate(m), range)) return;
         if (m.tipo === 'entrada') entradasEf += info.valorRow;
         else if (m.tipo === 'saida') saidasEf += info.valorRow;
       }
@@ -883,7 +914,7 @@ Modules.Financeiro = (function () {
   }
 
   function _limparVisaoFiltros() {
-    _visaoFiltro = { periodo: 'todos', inicio: '', fim: '', conta: 'todas' };
+    _visaoFiltro = { periodo: 'mes_atual', inicio: '', fim: '', conta: 'todas' };
     _paintVisaoGeral();
   }
 
@@ -938,7 +969,7 @@ Modules.Financeiro = (function () {
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">'+
         '<div style="min-width:0;flex:1 1 420px;">'+
           '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.15;">Visão Geral</h2>'+
-          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Veja o saldo, o desempenho do período e os principais sinais do financeiro.</p>'+
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Veja o saldo, o desempenho do mês atual e os principais sinais do financeiro.</p>'+
         '</div>'+
       '</div>'+
       '<section style="'+cardStyle+'">'+
@@ -954,20 +985,20 @@ Modules.Financeiro = (function () {
       '<section style="display:flex;flex-direction:column;gap:12px;">'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">'+
         heroMetric('Saldo total', _fmtVal(resumo.saldoAtual), 'Saldo disponível nas contas selecionadas.', 'account_balance_wallet', resumo.saldoAtual>=0?'#1F6F43':'#B42318', metricBadge(contaSel?contaSel.nome:'Todas as contas','#fff','#6F6860'))+
-        heroMetric('Saldo projetado', _fmtVal(resumo.saldoProjetado), 'Considera entradas previstas e contas a pagar.', 'timeline', resumo.saldoProjetado>=0?'#6C8777':'#B42318', resumo.saldoProjetado<0?metricBadge('Atenção: saldo negativo','#FFF0EE','#B42318'):metricBadge('Projeção saudável','#EDFAF3','#1F6F43'))+
-        heroMetric('A pagar', _fmtVal(resumo.totalAPagar), 'Total pendente de pagamento.', 'receipt_long', resumo.vencidas.length>0?'#B42318':'#B45309', resumo.vencidas.length?metricBadge(resumo.vencidas.length+' vencida(s)','#FFF0EE','#B42318'):metricBadge('Sem vencidas','#EDFAF3','#1F6F43'))+
+        heroMetric('Saldo projetado', _fmtVal(resumo.saldoProjetado), 'Considera entradas previstas e contas a pagar do mês.', 'timeline', resumo.saldoProjetado>=0?'#6C8777':'#B42318', resumo.saldoProjetado<0?metricBadge('Atenção: saldo negativo','#FFF0EE','#B42318'):metricBadge('Projeção saudável','#EDFAF3','#1F6F43'))+
+        heroMetric('A pagar', _fmtVal(resumo.totalAPagar), 'Total pendente de pagamento neste mês.', 'receipt_long', resumo.vencidas.length>0?'#B42318':'#B45309', resumo.vencidas.length?metricBadge(resumo.vencidas.length+' vencida(s)','#FFF0EE','#B42318'):metricBadge('Sem vencidas','#EDFAF3','#1F6F43'))+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">'+
-        supportMetric('Resultado do período', _fmtVal(resumo.resultadoPeriodo), 'Entradas menos saídas efetivadas.', 'balance', resumo.resultadoPeriodo>=0?'#1F6F43':'#B42318')+
-        supportMetric('Entradas do período', _fmtVal(resumo.entradasEf), 'Receitas efetivadas no período.', 'south_west', '#1F6F43', '<button onclick="Modules.Financeiro._switchSub(\'movimentacoes\')" style="width:max-content;margin-top:4px;padding:0;border:none;background:none;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Ver entradas</button>')+
-        supportMetric('Saídas do período', _fmtVal(resumo.saidasEf), 'Despesas efetivadas no período.', 'north_east', '#B42318', '<button onclick="Modules.Financeiro._switchSub(\'contas-pagar\')" style="width:max-content;margin-top:4px;padding:0;border:none;background:none;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Ver saídas</button>')+
+        supportMetric('Resultado do mês', _fmtVal(resumo.resultadoPeriodo), 'Entradas menos saídas efetivadas no mês.', 'balance', resumo.resultadoPeriodo>=0?'#1F6F43':'#B42318')+
+        supportMetric('Entradas do mês', _fmtVal(resumo.entradasEf), 'Receitas efetivadas no mês atual.', 'south_west', '#1F6F43', '<button onclick="Modules.Financeiro._switchSub(\'movimentacoes\')" style="width:max-content;margin-top:4px;padding:0;border:none;background:none;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Ver entradas</button>')+
+        supportMetric('Saídas do mês', _fmtVal(resumo.saidasEf), 'Despesas efetivadas no mês atual.', 'north_east', '#B42318', '<button onclick="Modules.Financeiro._switchSub(\'contas-pagar\')" style="width:max-content;margin-top:4px;padding:0;border:none;background:none;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Ver saídas</button>')+
         supportMetric('Vencido em atraso', _fmtVal(resumo.valorVencido), resumo.vencidas.length ? resumo.vencidas.length+' conta(s) vencida(s)' : 'Sem contas vencidas.', 'priority_high', resumo.vencidas.length?'#B42318':'#6C8777', '<button onclick="Modules.Financeiro._openContasVencidas()" style="width:max-content;margin-top:4px;padding:0;border:none;background:none;color:#B42318;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Ver vencidas</button>')+
       '</div>'+
       '</section>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px;align-items:start;">'+
         '<section style="'+cardStyle+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;">'+
-            sectionTitle('Movimentações recentes', 'Movimentos do período e da conta selecionada.', 'receipt_long')+
+            sectionTitle('Movimentações recentes', 'Movimentos do mês atual e da conta selecionada.', 'receipt_long')+
             '<button onclick="Modules.Financeiro._switchSub(\'fluxo-caixa\')" style="font-size:12px;color:#B42318;background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit;">Ver todas</button>'+
           '</div>'+
           (recentes.length===0
@@ -4172,10 +4203,12 @@ function _openContaModal(id) {
     }
     if(!tOpts) tOpts='<option value="corrente" selected>Conta corrente</option>';
     var cardStyle=_modalCardStyle();
-    var fieldStyle=_modalFieldStyle();
-    var selectStyle=_modalSelectStyle();
-    var moneyField=_modalFieldStyle('max-width:170px;');
-    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
+	    var fieldStyle=_modalFieldStyle();
+	    var selectStyle=_modalSelectStyle();
+	    var moneyField=_modalFieldStyle('max-width:170px;');
+	    var editingExisting = !!id;
+	    var initialBalanceHint = editingExisting ? '<div style="font-size:11px;color:#8A7E7C;line-height:1.35;margin-top:5px;">O saldo inicial fica bloqueado depois que a conta é criada. Ajustes de saldo devem ser feitos por movimentação.</div>' : '';
+	    var cleanCheckboxStyle='display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#1F1F1F;cursor:pointer;min-height:32px;';
     var body=
       '<div style="display:flex;flex-direction:column;gap:14px;">'+
         '<div style="'+cardStyle+'">'+
@@ -4191,7 +4224,7 @@ function _openContaModal(id) {
         '<div style="'+cardStyle+'">'+
           _modalIconTitle('tune','Uso no financeiro','Defina o saldo inicial e se esta conta aparece disponível nos lançamentos.')+
           '<div style="display:flex;align-items:end;gap:18px;flex-wrap:wrap;">'+
-            '<div style="flex:0 0 170px;max-width:170px;"><label style="'+_lbl()+'">Saldo inicial</label><input id="cb-saldo" type="text" value="'+_esc(c.saldo_inicial!=null?c.saldo_inicial:'')+'" placeholder="€ 0,00" style="'+moneyField+'"></div>'+
+	            '<div style="flex:0 0 220px;max-width:260px;"><label style="'+_lbl()+'">Saldo inicial</label><input id="cb-saldo" type="text" value="'+_esc(c.saldo_inicial!=null?c.saldo_inicial:'')+'" placeholder="€ 0,00" '+(editingExisting?'disabled readonly ':'')+'style="'+moneyField+(editingExisting?'background:#F4EFEA;color:#8A7E7C;cursor:not-allowed;':'')+'">'+initialBalanceHint+'</div>'+
             '<label style="'+cleanCheckboxStyle+'"><input type="checkbox" id="cb-ativo"'+(c.ativo!==false?' checked':'')+' style="width:16px;height:16px;cursor:pointer;accent-color:#B42318;"> <span>Conta ativa</span></label>'+
           '</div>'+
         '</div>'+
@@ -4215,19 +4248,21 @@ function _openContaModal(id) {
     var selectedOption = tipoSel.selectedOptions && tipoSel.selectedOptions[0] ? tipoSel.selectedOptions[0] : null;
     var tipoId = (tipoSel.value || '').trim();
     var globalTipo = _globalTypeResolve('bank', tipoId, true) || (selectedOption ? _globalTypeResolve('bank', selectedOption.dataset.slug || selectedOption.dataset.name || selectedOption.textContent || '', true) : null);
-    var obj={
-      nome:nome,
-      banco:(document.getElementById('cb-banco')||{}).value||'',
-      tipo: globalTipo ? (globalTipo.name || globalTipo.nome || tipoId) : tipoId,
-      tipoGlobalId: globalTipo ? globalTipo.id : (tipoId || ''),
-      tipoGlobalSlug: globalTipo ? globalTipo.slug : (selectedOption ? (selectedOption.dataset.slug || '') : ''),
-      tipoGlobalNome: globalTipo ? globalTipo.name : (selectedOption ? (selectedOption.dataset.name || tipoId) : tipoId),
-      tipoGlobalCountry: globalTipo ? globalTipo.countryFiscal : (selectedOption ? (selectedOption.dataset.country || 'ambos') : 'ambos'),
-      saldo_inicial:_parseNum((document.getElementById('cb-saldo')||{}).value),
-      ativo:!!(document.getElementById('cb-ativo')||{}).checked,
-      updatedAt:new Date().toISOString()
-    };
-    if(!_editingId) obj.createdAt=new Date().toISOString();
+	    var obj={
+	      nome:nome,
+	      banco:(document.getElementById('cb-banco')||{}).value||'',
+	      tipo: globalTipo ? (globalTipo.name || globalTipo.nome || tipoId) : tipoId,
+	      tipoGlobalId: globalTipo ? globalTipo.id : (tipoId || ''),
+	      tipoGlobalSlug: globalTipo ? globalTipo.slug : (selectedOption ? (selectedOption.dataset.slug || '') : ''),
+	      tipoGlobalNome: globalTipo ? globalTipo.name : (selectedOption ? (selectedOption.dataset.name || tipoId) : tipoId),
+	      tipoGlobalCountry: globalTipo ? globalTipo.countryFiscal : (selectedOption ? (selectedOption.dataset.country || 'ambos') : 'ambos'),
+	      ativo:!!(document.getElementById('cb-ativo')||{}).checked,
+	      updatedAt:new Date().toISOString()
+	    };
+	    if(!_editingId) {
+	      obj.saldo_inicial=_parseNum((document.getElementById('cb-saldo')||{}).value);
+	      obj.createdAt=new Date().toISOString();
+	    }
     (_editingId?DB.update('contas_bancarias',_editingId,obj):DB.add('contas_bancarias',obj)).then(function(){
       UI.toast('Conta bancária salva!','success');
       if(window._contaModal) window._contaModal.close();

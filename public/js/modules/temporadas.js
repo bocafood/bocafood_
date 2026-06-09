@@ -16,6 +16,7 @@ Modules.Temporadas = (function () {
     activeTab: 'overview',
     businessMaturity: null,
     businessMaturityLoading: false,
+    businessMaturityLoaded: false,
     businessMaturityError: null,
     businessMaturityEvents: [],
     businessMaturitySnapshots: [],
@@ -139,6 +140,10 @@ Modules.Temporadas = (function () {
   function _loadSeasons() {
     _loading = true;
     _error = null;
+    if (_state.pageMode === 'maturity' && !_state.businessMaturityLoaded && !_state.businessMaturity) {
+      _state.businessMaturityLoading = true;
+      _state.businessMaturityError = null;
+    }
     _paint();
 
     if (!_tenantId || !window.DB || typeof DB.getAll !== 'function') {
@@ -150,11 +155,12 @@ Modules.Temporadas = (function () {
       _state.scheduledStartConflict = false;
       _state.businessMaturity = _initialMaturity();
       _state.businessMaturityLoading = false;
+      _state.businessMaturityLoaded = true;
       _state.businessMaturityError = null;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], allSalesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [], orders: [], customerSegments: null };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -198,11 +204,12 @@ Modules.Temporadas = (function () {
       _state.scheduledStartConflict = false;
       _state.businessMaturity = _initialMaturity();
       _state.businessMaturityLoading = false;
+      _state.businessMaturityLoaded = true;
       _state.businessMaturityError = err;
       _state.businessMaturityEvents = [];
       _state.businessMaturitySnapshots = [];
       _state.businessHistory = null;
-      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [] };
+      _state.actionContext = { products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], allSalesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [], orders: [], customerSegments: null };
       _state.pendingStoneCelebration = null;
       _state.snapshots = { daily: null, weekly: null };
       _paint();
@@ -211,7 +218,7 @@ Modules.Temporadas = (function () {
 
   function _loadSeasonActionContext() {
     if (!window.DB || typeof DB.getAll !== 'function') {
-      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [] });
+      return Promise.resolve({ products: [], promotions: [], coupons: [], upsells: [], salesChannels: [], allSalesChannels: [], recipes: [], costItems: [], variantGroups: [], businessConfig: {}, pointsConfig: null, pointsMovements: [], customers: [], orders: [], customerSegments: null });
     }
     return Promise.all([
       DB.getAll('products').catch(function () { return []; }),
@@ -230,9 +237,11 @@ Modules.Temporadas = (function () {
       (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'financeiro') : Promise.resolve(null)).catch(function () { return null; }),
       (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'pagamentos') : Promise.resolve(null)).catch(function () { return null; }),
       DB.getAll('points_movements').catch(function () { return []; }),
-      DB.getAll('store_customers').catch(function () { return []; })
+      DB.getAll('store_customers').catch(function () { return []; }),
+      DB.getAll('orders').catch(function () { return []; })
     ]).then(function (res) {
-      return {
+      var allSalesChannels = _normalizeSalesChannelsConfig(res[8] || {});
+      var context = {
         products: res[0] || [],
         promotions: _mergePromotionLists(res[1] || [], res[2] || []),
         coupons: res[3] || [],
@@ -240,12 +249,17 @@ Modules.Temporadas = (function () {
         recipes: res[5] || [],
         costItems: res[6] || [],
         variantGroups: res[7] || [],
-        salesChannels: _normalizeSalesChannelsConfig(res[8] || {}),
+        salesChannels: _seasonOnlyCardapioChannels(allSalesChannels),
+        allSalesChannels: allSalesChannels,
         pointsConfig: res[9] || null,
         businessConfig: _businessConfigForAI(res[10] || {}, res[11] || {}, res[12] || {}, res[13] || {}, res[14] || {}),
         pointsMovements: res[15] || [],
-        customers: res[16] || []
+        customers: res[16] || [],
+        orders: res[17] || []
       };
+      context.customerSegmentsForActions = _customerSegmentIntelligenceForTemporadas(context);
+      context.customerSegments = context.customerSegmentsForActions;
+      return context;
     });
   }
 
@@ -264,6 +278,17 @@ Modules.Temporadas = (function () {
       deliveryEnabled: operacao.deliveryEnabled !== false && template.deliveryEnabled !== false,
       pickupEnabled: operacao.pickupEnabled !== false && template.pickupEnabled !== false,
       onlineStoreEnabled: template.enabled !== false,
+      minimumMarginPct: _number(_firstValue(
+        financeiro.minimumMarginPct,
+        financeiro.minMarginPct,
+        financeiro.margemMinimaPct,
+        financeiro.margemDesejadaPct,
+        financeiro.targetMarginPct,
+        operacao.minimumMarginPct,
+        operacao.minMarginPct,
+        geral.minimumMarginPct,
+        geral.minMarginPct
+      ), 0),
       paymentMethods: methods.slice(0, 8).map(function (method) {
         method = method || {};
         return {
@@ -298,10 +323,55 @@ Modules.Temporadas = (function () {
         fixedFee: _money(channel.fixedFee || channel.taxaFixa || channel.feeFixed || 0),
         taxPct: _number(channel.taxPct || channel.commissionTaxPct || channel.impostoPct, 0),
         minMarginPct: _number(channel.minMarginPct || channel.margemMinimaPct, 0),
+        importModel: _seasonChannelImportModel(channel),
         locked: channel.locked === true
       });
     });
     return out;
+  }
+
+  function _seasonOnlyCardapioChannels(channels) {
+    var cardapio = (channels || []).filter(function (channel) {
+      return _isCardapioChannel(channel && (channel.key || channel.name || ''));
+    })[0] || null;
+    return [Object.assign({ name: 'Cardápio', key: 'cardapio', commissionPct: 0, fixedFee: 0, taxPct: 0, minMarginPct: 0, locked: true }, cardapio || {})];
+  }
+
+  function _seasonForceCardapioAction(action) {
+    action = action || {};
+    if (!action.measurement) action.measurement = {};
+    var source = String(action.source || '');
+    var type = action.measurement.type || _measurementTypeFromSource(source);
+    var product = action.productName || action.measurement.productName || _seasonActionProductLabel(action);
+    if (_seasonActionKind(action) !== 'unlock') {
+      action.channel = 'cardapio';
+      action.channelName = 'Cardápio';
+      action.measurement.channel = 'cardapio';
+    }
+    if (source === 'channels' || type === 'channel' || type === 'timing' || type === 'consistency') {
+      action.source = 'channels';
+      action.measurement.type = 'channel';
+      action.title = _seasonConcreteChannelTitle(product, 'Cardápio', {});
+      action.description = _seasonConcreteChannelDescription(product, 'Cardápio');
+      action.why = action.why || 'A Temporada agora considera apenas o Cardápio como canal de venda para orientar e medir a jogada.';
+    }
+    if (action.commercialPlay || action.commercial) {
+      var play = action.commercialPlay || action.commercial || {};
+      play.channelName = _seasonActionKind(action) === 'baseline' ? (play.channelName || 'Base de leitura') : 'Cardápio';
+      if (source === 'channels' || type === 'channel') {
+        play.title = action.title;
+        play.whatToDo = action.description;
+        play.whereToDo = 'Cardápio';
+      }
+      action.commercialPlay = play;
+    }
+    if (action.salesPlayExecution || action.execution) {
+      var execution = action.salesPlayExecution || action.execution || {};
+      execution.channelName = 'Cardápio';
+      execution.distributionChannel = execution.distributionChannel || 'WhatsApp com link do Cardápio';
+      action.salesPlayExecution = execution;
+    }
+    return action;
   }
 
   function _mergePromotionLists(a, b) {
@@ -420,6 +490,7 @@ Modules.Temporadas = (function () {
       _state.businessHistory = _emptyBusinessHistory();
       _state.businessHistorySnapshots = [];
       _state.businessMaturityLoading = false;
+      _state.businessMaturityLoaded = true;
       return Promise.resolve(_state.businessMaturity);
     }
 
@@ -446,7 +517,8 @@ Modules.Temporadas = (function () {
       DB.getAll('financeiro_saidas').catch(function () { return []; }),
       DB.getAll('financeiro_apagar').catch(function () { return []; }),
       DB.getAll('contas_pagar').catch(function () { return []; }),
-      DB.getAll('business_history_snapshots').catch(function () { return []; })
+      DB.getAll('business_history_snapshots').catch(function () { return []; }),
+      (typeof DB.getDocRoot === 'function' ? DB.getDocRoot('config', 'canais_venda') : Promise.resolve(null)).catch(function () { return null; })
     ]).then(function (r) {
       var events = _normalizeStoneUpgradeEvents(r[5] || []);
       var snapshots = _normalizeMaturitySnapshots(r[6] || []);
@@ -470,7 +542,8 @@ Modules.Temporadas = (function () {
         financeEntries: r[17] || [],
         financeExits: r[18] || [],
         financePayablesLegacy: r[19] || [],
-        payables: r[20] || []
+        payables: r[20] || [],
+        salesChannels: _normalizeSalesChannelsConfig(r[22] || {})
       });
       _state.businessMaturity = maturity;
       _state.businessHistory = maturity.businessHistory || _emptyBusinessHistory();
@@ -478,6 +551,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturitySnapshots = snapshots;
       _state.businessHistorySnapshots = historySnapshots;
       _state.businessMaturityLoading = false;
+      _state.businessMaturityLoaded = true;
       if (opts.persist === false) {
         _paint();
         return maturity;
@@ -506,6 +580,7 @@ Modules.Temporadas = (function () {
       _state.businessMaturity = _initialMaturity();
       _state.businessHistory = _emptyBusinessHistory();
       _state.businessMaturityLoading = false;
+      _state.businessMaturityLoaded = true;
       _state.businessMaturityError = err;
       _state.businessMaturitySnapshots = [];
       _state.businessHistorySnapshots = [];
@@ -590,7 +665,7 @@ Modules.Temporadas = (function () {
     var nextStone = _nextStone(currentStone);
     var seasonStats = _maturitySeasonStats(seasons);
     var orderStats = _maturityOrderStats(orders);
-    var loyaltyStats = _maturityLoyaltyStats(orders, customers);
+    var loyaltyStats = _maturityLoyaltyStats(orders, customers, input);
     var scenario = _maturityScenario(monthScenario, flightPlans, input.monthKey || _maturityMonthKey());
     var dataSignals = _maturityDataSignals(input, orders);
     var businessHistory = _businessHistoryContext(input, orders);
@@ -640,6 +715,11 @@ Modules.Temporadas = (function () {
       maturityScore: hasEnoughData ? Math.round(maturityScore) : 0,
       indexes: indexes,
       dataSignals: dataSignals,
+      loyaltyStats: {
+        uniqueCustomers: loyaltyStats.uniqueCustomers,
+        recurringCustomers: loyaltyStats.recurringCustomers,
+        recurringRate: loyaltyStats.recurringRate
+      },
       businessHistory: businessHistory,
       orderSummary: {
         totalOrders: orderStats.totalOrders,
@@ -684,6 +764,7 @@ Modules.Temporadas = (function () {
       maturityScore: 0,
       indexes: _emptyMaturityIndexes(),
       dataSignals: _emptyMaturityDataSignals(),
+      loyaltyStats: { uniqueCustomers: 0, recurringCustomers: 0, recurringRate: 0 },
       businessHistory: _emptyBusinessHistory(),
       orderSummary: { totalOrders: 0, revenue: 0, activeDays: 0, activeWeeks: 0, averageTicket: 0 },
       strengths: ['Comeco da organizacao do negocio.'],
@@ -734,7 +815,7 @@ Modules.Temporadas = (function () {
     return {
       finance: _maturityFinanceStats(input),
       marketing: _maturityMarketingStats(validOrders || [], input),
-      loyaltyProgram: _maturityPointsStats(validOrders || [], input.pointsMovements || []),
+      loyaltyProgram: _maturityPointsStats(validOrders || [], input.pointsMovements || [], input),
       reviews: _maturityReviewStats(input.reviews || []),
       operations: _maturityOperationsStats(input)
     };
@@ -908,11 +989,15 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _maturityPointsStats(validOrders, movements) {
+  function _maturityPointsStats(validOrders, movements, input) {
     var generated = 0;
     var redeemed = 0;
     var customers = {};
     var redemptionCustomers = {};
+    var actionContext = {
+      allSalesChannels: input && input.salesChannels || [],
+      salesChannels: input && input.salesChannels || []
+    };
     (movements || []).forEach(function (item) {
       item = item || {};
       var points = Math.abs(_number(item.points != null ? item.points : item.amount != null ? item.amount : item.pontos, 0));
@@ -929,6 +1014,7 @@ Modules.Temporadas = (function () {
     var redemptionValue = 0;
     var orderCustomerCounts = {};
     (validOrders || []).forEach(function (order) {
+      if (!_isReliableCustomerRecurrenceOrder(order, actionContext)) return;
       var key = _customerKey(order);
       if (key) orderCustomerCounts[key] = (orderCustomerCounts[key] || 0) + 1;
     });
@@ -937,7 +1023,7 @@ Modules.Temporadas = (function () {
       if (used) {
         redemptionValue += _money(order.pointsDiscount);
         var key = _customerKey(order);
-        if (key) redemptionCustomers[key] = true;
+        if (key && _isReliableCustomerRecurrenceOrder(order, actionContext)) redemptionCustomers[key] = true;
       }
       return used;
     }).length;
@@ -1007,7 +1093,11 @@ Modules.Temporadas = (function () {
     var completedProductions = productionOrders.filter(function (item) {
       return _normalizeText(item && item.status) === 'concluida' || _normalizeText(item && item.status) === 'completed';
     }).length;
-    var stockMovements = input.stockMovements || [];
+    var allStockMovements = input.stockMovements || [];
+    var stockRegularizationMovements = allStockMovements.filter(_isStockRegularizationMovement);
+    var stockMovements = allStockMovements.filter(function (item) {
+      return !_isStockRegularizationMovement(item);
+    });
     var stockEntries = stockMovements.filter(function (item) {
       var type = _normalizeText(item && (item.type || item.tipo || item.kind || ''));
       return type.indexOf('entrada') >= 0;
@@ -1032,6 +1122,7 @@ Modules.Temporadas = (function () {
     return {
       hasData: hasData,
       stockMovements: stockMovements.length,
+      stockRegularizationMovements: stockRegularizationMovements.length,
       stockEntries: stockEntries,
       stockExits: stockExits,
       productionOrders: productionOrders.length,
@@ -1043,6 +1134,19 @@ Modules.Temporadas = (function () {
       limiterScore: Math.round(_clamp(limiterScore, 0, 20)),
       confidence: confidence
     };
+  }
+
+  function _isStockRegularizationMovement(item) {
+    item = item || {};
+    var type = _normalizeText(item.type || item.tipo || item.kind || '');
+    var group = _normalizeText(item.movementGroup || item.group || item.grupo || '');
+    var origin = _normalizeText(item.regularizationOrigin || item.regularizationReason || item.origemRegularizacao || '');
+    var source = _normalizeText(item.stockSource || item.source || item.origem || '');
+    if (type === 'entrada_regularizacao' || type === 'regularizacao' || type.indexOf('regularizacao') >= 0) return true;
+    if (group === 'stock_regularization' || group === 'stock_regularization_chain' || group.indexOf('regularization') >= 0 || group.indexOf('regularizacao') >= 0) return true;
+    if (origin || item.regularizationEntry || item.regularizationParentMovementId || item.regularizationSourceMovementId || item.regularizationMovementId) return true;
+    if (source === 'regularization' || source === 'regularization_chain' || source.indexOf('regularizacao') >= 0) return true;
+    return false;
   }
 
   function _maturityActiveRecord(item) {
@@ -1105,10 +1209,12 @@ Modules.Temporadas = (function () {
   function _businessHistoryPeriods(now) {
     var end = _dayEnd(now);
     var start30 = _addDays(_dayStart(now), -29);
+    var start60 = _addDays(_dayStart(now), -59);
     var prev30End = _addDays(start30, -1);
     var prev30Start = _addDays(prev30End, -29);
     return {
       rolling_30: { start: start30, end: end },
+      rolling_60: { start: start60, end: end },
       previous_30: { start: prev30Start, end: _dayEnd(prev30End) },
       rolling_90: { start: _addDays(_dayStart(now), -89), end: end },
       rolling_180: { start: _addDays(_dayStart(now), -179), end: end },
@@ -1168,6 +1274,7 @@ Modules.Temporadas = (function () {
     });
     var recurringCustomers = Object.keys(customers).filter(function (key) { return customers[key] >= 2; }).length;
     var stockMovements = (input.stockMovements || []).filter(function (item) {
+      if (_isStockRegularizationMovement(item)) return false;
       var d = _toDate(item.movementDate || item.createdAt || item.date || item.data);
       return d && d >= start && d <= end;
     }).length;
@@ -1731,9 +1838,14 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _maturityLoyaltyStats(orders, customers) {
+  function _maturityLoyaltyStats(orders, customers, input) {
     var map = {};
+    var actionContext = {
+      allSalesChannels: input && input.salesChannels || [],
+      salesChannels: input && input.salesChannels || []
+    };
     (orders || []).forEach(function (order) {
+      if (!_isReliableCustomerRecurrenceOrder(order, actionContext)) return;
       var key = String(order.customerId || order.clientId || order.customerPhone || order.phone || order.customerEmail || order.email || order.customerName || order.name || '').trim().toLowerCase();
       if (!key) key = 'order:' + (order.id || Math.random());
       map[key] = (map[key] || 0) + 1;
@@ -1741,7 +1853,7 @@ Modules.Temporadas = (function () {
     (customers || []).forEach(function (customer) {
       var key = String(customer.id || customer.phone || customer.email || customer.name || '').trim().toLowerCase();
       if (!key || map[key]) return;
-      map[key] = _number(customer.ordersCount, _number(customer.totalOrders, 0));
+      map[key] = _number(customer.ordersCount, _number(customer.totalOrders, 0)) > 0 ? 1 : 0;
     });
     var keys = Object.keys(map);
     var recurring = keys.filter(function (key) { return map[key] >= 2; }).length;
@@ -2081,7 +2193,7 @@ Modules.Temporadas = (function () {
     if (ctx.seasonStats && ctx.seasonStats.totalVictories) parts.push('Vitórias totais em temporadas fortaleceram a execução.');
     else if (ctx.seasonStats && ctx.seasonStats.partialVictories) parts.push('Vitórias parciais mostraram avanço operacional.');
     if (ctx.seasonStats && ctx.seasonStats.avgRiskScore <= 60) parts.push('Risco médio permaneceu controlado.');
-    if (completed) parts.push(completed + ' marco(s) do Caminho da Pedra foram detectados automaticamente.');
+    if (completed) parts.push(completed + ' marco(s) do Caminho das Pedras foram detectados automaticamente.');
     return parts.join(' ');
   }
 
@@ -2137,12 +2249,6 @@ Modules.Temporadas = (function () {
       return factories[id] ? factories[id](seasonStats, orderStats, loyaltyStats, indexes, scenario) : null;
     }).filter(Boolean);
 
-    if (seasonStats.abandoned > 0 && !items.some(function (item) { return item.id === 'avoid_abandonment'; })) {
-      items.push(factories.avoid_abandonment(seasonStats, orderStats, loyaltyStats, indexes, scenario));
-    }
-    if (seasonStats.avgRiskScore >= 70 && !items.some(function (item) { return item.id === 'reduce_operation_risk'; })) {
-      items.push(factories.reduce_operation_risk(seasonStats, orderStats, loyaltyStats, indexes, scenario));
-    }
     return items;
   }
 
@@ -2642,7 +2748,7 @@ Modules.Temporadas = (function () {
 
   function _checklistIdsForTransition(transition) {
     var map = {
-      'Pedra Bruta->Quartzo': ['sell_more_days', 'finish_season', 'reduce_initial_instability', 'minimum_order_base'],
+      'Pedra Bruta->Quartzo': ['sell_more_days', 'finish_season', 'minimum_order_base'],
       'Quartzo->Ametista': ['stable_weeks', 'reduce_oscillation', 'improve_average_score', 'reduce_recurring_risk', 'season_partial_win'],
       'Ametista->Safira': ['improve_recurrence', 'increase_stability', 'grow_with_control', 'balanced_seasons'],
       'Safira->Esmeralda': ['improve_loyalty', 'reduce_promotion_dependency', 'healthy_growth', 'reduce_average_risk'],
@@ -2952,7 +3058,7 @@ Modules.Temporadas = (function () {
   }
 
   function _maturityCard(maturity, loading, error) {
-    if (loading) return _maturityLoadingCard();
+    if (loading || (!maturity && !error && !_state.businessMaturityLoaded)) return _maturityLoadingCard();
     maturity = maturity || _initialMaturity();
     var progress = _clamp(_number(maturity.stoneProgressPercent, 0), 0, 100);
     var current = maturity.currentStone || 'Pedra Bruta';
@@ -3107,11 +3213,14 @@ Modules.Temporadas = (function () {
     var points = signals.loyaltyProgram || {};
     var reviews = signals.reviews || {};
     var operations = signals.operations || {};
+    var loyaltyStats = maturity.loyaltyStats || {};
     var orders = maturity.orderSummary || {};
     var hasRealOrders = _number(orders.totalOrders, 0) > 0;
     var healthyScore = _number(indexes.healthyGrowth && indexes.healthyGrowth.score, 0);
     var consistencyScore = _number(indexes.consistency && indexes.consistency.score, 0);
-    var loyaltyScore = _number(indexes.loyalty && indexes.loyalty.score, 0);
+    var recurringCustomers = Math.round(_number(loyaltyStats.recurringCustomers, 0));
+    var uniqueCustomers = Math.round(_number(loyaltyStats.uniqueCustomers, 0));
+    var hasRecurringCustomers = recurringCustomers > 0;
     var actionOrders = _number(marketing.actionOrders, _number(marketing.couponOrders, 0) + _number(marketing.promotionOrders, 0) + _number(marketing.upsellOrders, 0));
     var seasonVictories = _number(seasons.successfulSeasons, 0) || (_number(seasons.totalVictories, 0) + _number(seasons.partialVictories, 0));
     var seasonUnstable = _number(seasons.unstable, 0);
@@ -3143,10 +3252,12 @@ Modules.Temporadas = (function () {
         meta: actionOrders ? actionOrders + ' pedido(s) com ação · ' + _fmtMoney(marketing.netRevenue) + ' depois dos descontos' : _number(marketing.configuredActions, _number(marketing.activePromotions, 0) + _number(marketing.activeCoupons, 0) + _number(marketing.activeUpsells, 0)) + ' ação(ões) prontas, ainda sem venda'
       },
       {
-        level: loyaltyScore || points.redemptionOrders ? 'medium' : (points.hasData ? 'light' : 'empty'),
+        level: hasRecurringCustomers || points.redemptionOrders ? 'medium' : ((points.hasData || uniqueCustomers) ? 'light' : 'empty'),
         title: 'Clientes e pontos',
-        text: _maturityLoyaltySignalText(loyaltyScore, points),
-        meta: points.hasData ? _number(points.customers, 0) + ' cliente(s) com pontos · ' + _number(points.redemptionOrders, 0) + ' pedido(s) usando pontos' : 'Relação com clientes em formação'
+        text: _maturityLoyaltySignalText(loyaltyStats, points),
+        meta: hasRecurringCustomers
+          ? recurringCustomers + ' cliente(s) recorrente(s) · ' + uniqueCustomers + ' cliente(s) identificado(s)'
+          : (points.hasData ? _number(points.customers, 0) + ' cliente(s) com pontos · ' + _number(points.redemptionOrders, 0) + ' pedido(s) usando pontos' : 'Sem recompra confirmada ainda')
       },
       {
         level: reviews.approved ? (reviews.trustStatus === 'attention' ? 'light' : 'medium') : 'empty',
@@ -3217,11 +3328,13 @@ Modules.Temporadas = (function () {
     return 'Promoções, cupons ou upsell já apareceram em pedidos. Isso mostra que a ação saiu da ideia e virou movimento.';
   }
 
-  function _maturityLoyaltySignalText(loyaltyScore, points) {
+  function _maturityLoyaltySignalText(loyaltyStats, points) {
+    loyaltyStats = loyaltyStats || {};
     points = points || {};
-    if (loyaltyScore) return 'Clientes voltando a comprar mostram que existe relação com o negócio, não apenas venda avulsa.';
+    if (_number(loyaltyStats.recurringCustomers, 0) > 0) return 'Clientes voltando a comprar mostram que existe relação com o negócio, não apenas venda avulsa.';
     if (points.redemptionOrders > 0) return 'Clientes já voltaram para comprar usando pontos. Isso mostra que o programa começou a puxar recompra.';
     if (points.hasData) return 'Clientes estão juntando pontos. Esse sinal fica mais forte quando eles voltam para usar e comprar de novo.';
+    if (_number(loyaltyStats.uniqueCustomers, 0) > 0) return 'Já existem clientes identificados, mas ainda não apareceu recompra suficiente para chamar de recorrência.';
     return 'Ainda falta cliente voltando para comprar de novo. Quando a recompra aparecer, a fidelização ganha força.';
   }
 
@@ -3249,7 +3362,16 @@ Modules.Temporadas = (function () {
   }
 
   function _maturityLoadingCard() {
-    return '<section class="stones-card stones-card-loading stone-theme-pedra-bruta" aria-label="Carregando maturidade"><div class="stones-card-main"><div class="stones-symbol">' + _stoneGraphic('Pedra Bruta', 'large') + '</div><div class="stones-copy"><span class="seasons-section-label">Maturidade do Negócio</span><h2>Pedra Bruta</h2><p>Calculando leitura inicial de evolução do negócio.</p></div></div></section>';
+    return '<section class="stones-card stones-card-loading stone-theme-pedra-bruta" aria-label="Carregando tela de maturidade">' +
+      '<div class="maturity-loading-state">' +
+        '<div class="maturity-loading-icon"><span class="mi">diamond</span></div>' +
+        '<div>' +
+          '<span class="seasons-section-label">Maturidade do Negócio</span>' +
+          '<h2>Carregando tela</h2>' +
+          '<p>Organizando os dados do negócio para mostrar a leitura de maturidade.</p>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
   }
 
   function _maturityStatusChips(maturity, current, next, progress) {
@@ -3314,9 +3436,9 @@ Modules.Temporadas = (function () {
       return (weight[a.status] || 1) - (weight[b.status] || 1);
     });
     if (!checklist.length) checklist = _initialChecklist();
-    return '<div class="stones-checklist" aria-label="Caminho da Pedra">' +
+    return '<div class="stones-checklist" aria-label="Caminho das Pedras">' +
       '<div class="stones-checklist-head">' +
-        '<div><span class="seasons-section-label">Caminho da Pedra</span><h3>Marcos do negócio</h3></div>' +
+        '<div><span class="seasons-section-label">Marcos do negócio</span><h3>Caminho das Pedras</h3></div>' +
       '</div>' +
       '<div class="stones-checklist-list">' +
         checklist.map(_maturityChecklistItem).join('') +
@@ -3546,8 +3668,7 @@ Modules.Temporadas = (function () {
 
   function _seasonTabs(season, activeTab) {
     var tabs = [
-      { key: 'overview', label: 'Visão Geral', icon: 'dashboard' },
-      { key: 'next', label: 'Próxima Jogada', icon: 'assistant_direction' }
+      { key: 'overview', label: 'Visão Geral', icon: 'dashboard' }
     ];
     if (season.status === 'finished') tabs.push({ key: 'final', label: 'Resultado Final', icon: 'flag_check' });
     return '<nav class="seasons-inner-tabs" aria-label="Navegação da temporada">' + tabs.map(function (tab) {
@@ -3556,7 +3677,6 @@ Modules.Temporadas = (function () {
   }
 
   function _seasonTabContent(tab, season, metrics, snapshots, recommendation) {
-    if (tab === 'next') return _nextMoveTab(season, metrics, recommendation);
     if (tab === 'analysis') return _analysisTab(season, snapshots);
     if (tab === 'final') return _finalResultInline(season);
     return _overviewTab(season, metrics, snapshots, recommendation);
@@ -3564,30 +3684,33 @@ Modules.Temporadas = (function () {
 
   function _overviewTab(season, metrics, snapshots, recommendation) {
     var progress = _number(season.progressPercent, 0);
-    var primaryLabels = _primaryMetricLabels(season.objective);
-    var expected = _number(metrics.expectedProgress, 0);
-    var score = Math.round(_number(season.currentScore, 0));
     var scoreBreakdown = _scoreBreakdownForDisplay(season, metrics);
     var seasonReading = _seasonReadingForDisplay(season, metrics, scoreBreakdown);
+    var salesPlanHtml = _seasonSalesPlanSummaryHtml(season, metrics);
     return '' +
       '<div class="seasons-active-reading">' +
         '<section class="seasons-reading-hero seasons-reading-hero-' + _esc(_seasonSituationTone(season, metrics, progress)) + '">' +
-          '<div>' +
+          '<div class="seasons-reading-hero-copy">' +
             '<span class="seasons-section-label">Resumo da temporada</span>' +
             '<h3>' + _esc(seasonReading.headline) + '</h3>' +
             '<p>' + _esc(_seasonSituationText(season, metrics, progress)) + '</p>' +
+            salesPlanHtml +
           '</div>' +
-          '<strong>' + Math.round(progress) + '%</strong>' +
+          '<aside class="seasons-reading-hero-side">' +
+            '<div class="seasons-reading-hero-score">' +
+              '<strong>' + Math.round(progress) + '%</strong>' +
+              '<span>Avanço da meta</span>' +
+            '</div>' +
+          '</aside>' +
         '</section>' +
-        _seasonSalesPlanChart(season, metrics) +
         '<div class="seasons-reading-grid">' +
-          _readingCard('Meta e progresso', 'flag', [
-            _readingFact('Meta', _formatMetricValue(metrics.targetValue, season.objective)),
+          _readingCard('Avanço da temporada', 'trending_up', [
             _readingFact('Atual', _formatMetricValue(metrics.currentValue, season.objective)),
-            _readingFact('Esperado para hoje', expected > 0 ? Math.round(expected) + '%' : 'Em início')
+            _readingFact('Meta', _formatMetricValue(metrics.targetValue, season.objective)),
+            _readingFact('Avanço', Math.round(progress) + '%')
           ], _progressBalloonText(season, metrics, progress)) +
           _readingCard('Score da temporada', 'speed', [
-            _readingFact('Score', score + '/100'),
+            _readingFact('Score', Math.round(_number(season.currentScore, 0)) + '/100'),
             _readingFact('Leitura', _scoreSimpleReading(scoreBreakdown, season, metrics))
           ], _scoreBalloonText(season, metrics, scoreBreakdown)) +
           _readingCard('Chance de falha', 'warning', [
@@ -3608,32 +3731,29 @@ Modules.Temporadas = (function () {
       _quickAlerts(snapshots);
   }
 
-  function _seasonSalesPlanChart(season, metrics) {
+  function _seasonSalesPlanSummaryHtml(season, metrics) {
     var plan = season && season.planConnection || {};
     var planned = _number(plan.routeTarget, 0);
     var realized = _number(metrics && metrics.revenue, 0);
     if (planned <= 0 && season && season.objective === 'sell_more') planned = _number(metrics && metrics.targetValue, 0);
     if (planned <= 0) return '';
     var pct = planned > 0 ? _clamp((realized / planned) * 100, 0, 140) : 0;
-    var barPct = Math.min(100, pct);
     var remaining = Math.max(0, planned - realized);
     var label = pct >= 100 ? 'Venda do período alcançada' : 'Faltam ' + _fmtMoney(remaining) + ' para a venda planejada do período';
     return '' +
-      '<section class="seasons-sales-plan-card" aria-label="Venda planejada e realizada">' +
-        '<div class="seasons-sales-plan-head">' +
-          '<div>' +
-            '<span class="seasons-section-label">Venda do período</span>' +
-            '<h3>Planejado x realizado</h3>' +
-            '<p>' + _esc(label) + '</p>' +
-          '</div>' +
-          '<strong>' + Math.round(pct) + '%</strong>' +
+      '<div class="seasons-sales-plan-inline" aria-label="Venda do período">' +
+        '<span class="seasons-section-label">Venda do período</span>' +
+        '<div class="seasons-sales-plan-inline-head">' +
+          '<strong>Planejado x realizado</strong>' +
+          '<b>' + Math.round(pct) + '%</b>' +
         '</div>' +
+        '<p>' + _esc(label) + '</p>' +
         '<div class="seasons-sales-plan-values">' +
           '<span><small>Planejado</small><strong>' + _esc(_fmtMoney(planned)) + '</strong></span>' +
           '<span><small>Realizado</small><strong>' + _esc(_fmtMoney(realized)) + '</strong></span>' +
         '</div>' +
-        '<div class="seasons-sales-plan-bar"><i style="width:' + barPct + '%"></i></div>' +
-      '</section>';
+        '<div class="seasons-sales-plan-bar"><i style="width:' + Math.min(100, pct) + '%"></i></div>' +
+      '</div>';
   }
 
   function _seasonSituationTone(season, metrics, progress) {
@@ -3720,11 +3840,11 @@ Modules.Temporadas = (function () {
     var executionPlan = _executionPlanForDisplay(season, metrics, seasonReading);
     var actions = executionPlan.actions || [];
     var primaryAction = actions[0] || null;
-    var title = recommendation && (recommendation.title || recommendation.headline) ? (recommendation.title || recommendation.headline) : 'Próxima melhor ação';
+    var title = recommendation && (recommendation.title || recommendation.headline) ? (recommendation.title || recommendation.headline) : 'Leitura da temporada';
     var text = recommendation && (recommendation.description || recommendation.nextAction) ? (recommendation.description || recommendation.nextAction) : ((seasonReading && seasonReading.nextAction) || (primaryAction && primaryAction.description) || _seasonDefaultNextAction(season, metrics));
     return '' +
       '<section class="seasons-reading-next">' +
-        '<div class="seasons-reading-card-head"><span>' + _icon('assistant_direction') + '</span><strong>Próxima melhor ação</strong></div>' +
+        '<div class="seasons-reading-card-head"><span>' + _icon('assistant_direction') + '</span><strong>Leitura da temporada</strong></div>' +
         '<h4>' + _esc(title) + '</h4>' +
         '<p>' + _esc(text) + '</p>' +
         (actions.length ? _executionPlanList(executionPlan) : '') +
@@ -3799,14 +3919,12 @@ Modules.Temporadas = (function () {
 
   function _seasonDefaultNextAction(season, metrics) {
     var topProduct = (metrics.topProducts || [])[0];
-    var topChannel = (metrics.channelBreakdown || [])[0];
-    var parts = [];
-    if (topProduct && topProduct.name) parts.push('crie uma ação concreta para ' + topProduct.name);
-    if (topChannel && topChannel.channel) parts.push('no canal ' + _channelLabel(topChannel.channel));
-    if (season.objective === 'increase_ticket') parts.push('e teste um adicional, combo ou upsell simples');
-    if (season.objective === 'retain_customers') parts.push('e chame clientes que já compraram antes');
-    if (!parts.length) return 'Escolha uma ação simples para hoje: produto forte, canal principal, cupom, promoção, upsell ou chamada para clientes.';
-    return parts.join(' ') + '.';
+    var productName = topProduct && topProduct.name ? topProduct.name : 'o produto principal';
+    if (season && season.objective === 'increase_ticket') return 'Use ' + productName + ' como produto gatilho para oferecer um complemento no Cardápio.';
+    if (season && season.objective === 'retain_customers') return 'Use ' + productName + ' como motivo de recompra para clientes que já conhecem o produto.';
+    if (season && season.objective === 'improve_consistency') return 'Envie o link do Cardápio para clientes que compraram ' + productName + '.';
+    if (topProduct && topProduct.name) return 'Envie o link do Cardápio para clientes que compraram ' + productName + '.';
+    return 'Complete produto e pagamento nos próximos pedidos do Cardápio.';
   }
 
   function _objectiveWeightSummary(objective) {
@@ -3901,16 +4019,13 @@ Modules.Temporadas = (function () {
     var action = executionPlan && executionPlan.actions && executionPlan.actions[0];
     if (action && action.description) return action.description;
     var product = validatedImpactSignals && validatedImpactSignals.products && validatedImpactSignals.products.topProduct;
-    var channel = validatedImpactSignals && validatedImpactSignals.channels && validatedImpactSignals.channels.topChannel;
     var topProduct = product && product.name ? product : (currentMetrics.topProducts || [])[0];
-    var parts = [];
-    if (topProduct && topProduct.name) parts.push('crie uma ação concreta para ' + topProduct.name);
-    if (channel && channel.channel) parts.push('no canal ' + _channelLabel(channel.channel));
-    if (season && season.objective === 'increase_ticket') parts.push('e teste adicional, combo ou upsell simples');
-    if (season && season.objective === 'retain_customers') parts.push('e chame clientes que já compraram antes');
-    if (season && season.objective === 'improve_consistency') parts.push('para recuperar os dias mais fracos');
-    if (!parts.length) return _seasonDefaultNextAction(season, currentMetrics);
-    return parts.join(' ') + '.';
+    var productName = topProduct && topProduct.name ? topProduct.name : '';
+    if (season && season.objective === 'increase_ticket') return 'Use ' + (productName || 'o produto com melhor resposta') + ' como produto gatilho para oferecer um complemento no Cardápio.';
+    if (season && season.objective === 'retain_customers') return 'Use ' + (productName || 'o produto com melhor resposta') + ' como motivo de recompra para clientes que já conhecem o produto.';
+    if (season && season.objective === 'improve_consistency') return 'Envie o link do Cardápio para clientes que compraram ' + (productName || 'o produto com melhor resposta') + '.';
+    if (productName) return 'Envie o link do Cardápio para clientes que compraram ' + productName + '.';
+    return _seasonDefaultNextAction(season, currentMetrics);
   }
 
   function _buildActionOpportunities(metrics, validatedImpactSignals, actionContext, season) {
@@ -3966,24 +4081,22 @@ Modules.Temporadas = (function () {
       var evidence = productName + ' vendeu ' + quantity + ' unidade(s) e gerou ' + _fmtMoney(revenue) + ' nesta temporada.';
       var scoreBase = 70 - (index * 4) + Math.min(18, quantity * 2) + Math.min(18, revenue / 10);
       var productActionTitle = 'Dar protagonismo para ' + productName;
-      var productActionDescription = channelLabel
-        ? 'Crie uma ação concreta para ' + productName + ' no canal ' + channelLabel + ': cupom, promoção, combo, upsell ou chamada para clientes, conforme o que já estiver cadastrado.'
-        : 'Crie uma ação concreta para ' + productName + ': cupom, promoção, combo, upsell ou chamada para clientes, conforme o que já estiver cadastrado.';
+      var productActionDescription = 'Envie o link do Cardápio para clientes que compraram ' + productName + ' e puxe o pedido para o canal direto.';
       var productActionChecklist = [
         'Produto da jogada: ' + productName + '.',
-        channelLabel ? 'Canal para começar: ' + channelLabel + '.' : 'Canal para começar: canal principal da operação.',
+        'Canal para começar: Cardápio.',
         economics.hasPriceAndCost ? 'Sobra atual aproximada: ' + Math.round(_number(economics.marginPct, 0)) + '%.' : 'Use sem desconto por enquanto para proteger o resultado da venda.',
-        'Escolha uma ação que fique registrada no pedido ou no cadastro: cupom, promoção, upsell, combo ou cliente chamado.'
+        'Ação da jogada: use o produto e canal definidos para criar leitura confiável.'
       ];
       if (season && season.objective === 'increase_ticket') {
         if (upsell && upsell.name && canUseUpsellChannel) {
           productActionTitle = 'Usar ' + upsell.name + ' com ' + productName;
-          productActionDescription = 'No Cardápio, ofereça ' + upsell.name + ' quando a cliente escolher ' + productName + '. Essa é a jogada concreta para subir o valor do pedido sem baixar preço.';
+          productActionDescription = 'No Cardápio, ofereça ' + upsell.name + ' quando a cliente escolher ' + productName + ' para subir o valor do pedido sem baixar preço.';
           productActionChecklist = [
             'Produto que inicia a jogada: ' + productName + '.',
             'Upsell para oferecer: ' + upsell.name + '.',
             'Canal da jogada: Cardápio.',
-            'Use antes de finalizar o pedido no Cardápio.',
+            'Ofereça antes de finalizar o pedido no Cardápio.',
             'Não aplique cupom forte nesta jogada; o objetivo é aumentar o pedido com oferta extra.'
           ];
         } else if (complementName) {
@@ -3992,13 +4105,13 @@ Modules.Temporadas = (function () {
           productActionChecklist = [
             'Produto que inicia a jogada: ' + productName + '.',
             'Complemento sugerido: ' + complementName + '.',
-            'Ação concreta: criar upsell ou combo no Cardápio com esses dois produtos.',
+            'Ação da jogada: cadastrar upsell no Cardápio com esses dois produtos.',
             complement.economics && complement.economics.hasPriceAndCost ? 'Sobra aproximada do complemento: ' + Math.round(_number(complement.economics.marginPct, 0)) + '%.' : 'Use o complemento sem desconto até completar preço e custo.',
             'Vai valer a pena se os pedidos começarem a levar os dois itens juntos.'
           ];
         } else {
           productActionTitle = 'Preparar um complemento para ' + productName;
-          productActionDescription = productName + ' está aparecendo como produto de entrada, mas ainda não encontrei upsell, combo ou complemento pronto para indicar. A jogada concreta agora é cadastrar uma oferta extra para esse produto.';
+          productActionDescription = productName + ' está aparecendo como produto de entrada, mas ainda não encontrei complemento pronto. Cadastre um upsell no Cardápio para esse produto.';
           productActionChecklist = [
             'Produto que inicia a jogada: ' + productName + '.',
             'Crie um upsell no Cardápio ligado a ' + productName + '.',
@@ -4137,31 +4250,15 @@ Modules.Temporadas = (function () {
 
     if (topChannel && topChannel.channel) {
       var channelProductName = products && products[0] && products[0].name ? products[0].name : '';
-      var isCardapioAction = channelLabel && _isCardapioChannel(topChannel && topChannel.channel);
-      var channelActionTitle = isCardapioAction && channelProductName
-        ? 'Criar ação no Cardápio para ' + channelProductName
-        : channelLabel && channelProductName
-          ? 'Criar ação para ' + channelProductName + ' no canal ' + channelLabel
-          : channelLabel
-            ? 'Criar ação concreta no canal ' + channelLabel
-            : 'Criar ação concreta no canal principal';
-      var channelActionDescription = isCardapioAction
-        ? 'No Cardápio, transforme ' + (channelProductName || 'o produto com melhor saída') + ' em uma ação mensurável: promoção, cupom, upsell, combo ou ordem de destaque no cadastro.'
-        : channelLabel
-          ? 'No canal ' + channelLabel + ', trabalhe ' + (channelProductName || 'o produto com melhor saída') + ' com uma ação objetiva que possa aparecer no pedido: cupom, promoção, combo, upsell ou cliente chamado.'
-          : 'Use o canal principal com uma ação objetiva que possa aparecer no pedido.';
-      var channelChecklist = isCardapioAction
-        ? [
-            'No Cardápio, escolha uma ação para ' + (channelProductName || 'o produto com melhor saída') + '.',
-            'Use promoção, cupom, upsell, combo ou ordem de destaque no cadastro.',
+      var channelActionTitle = channelProductName
+        ? 'Envie o link do Cardápio para clientes que compraram ' + channelProductName
+        : 'Use o Cardápio como canal da jogada';
+      var channelActionDescription = 'Envie o link do Cardápio pelo WhatsApp para clientes que já compraram ' + (channelProductName || 'o produto com melhor saída') + '. Use uma mensagem curta e mantenha o foco nesse produto até o prazo da jogada.';
+      var channelChecklist = [
+            'Produto da jogada: ' + (channelProductName || 'produto com melhor saída') + '.',
+            'Canal da jogada: Cardápio.',
             'Mantenha a mesma regra até o prazo da jogada para o resultado ficar legível.',
             'Quando divulgar fora do BocaFood, envie o link do Cardápio direto para a cliente comprar por lá.'
-          ]
-        : [
-            channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: canal com melhor resposta.',
-            channelProductName ? 'Produto para oferecer: ' + channelProductName + '.' : 'Produto para oferecer: produto com melhor saída.',
-            'Defina uma ação concreta: cupom, promoção, combo, upsell ou chamada para clientes.',
-            'Mantenha a oferta simples para entender se esse canal continua respondendo.'
           ];
       ranked.push(_rankedAction(
         76,
@@ -4223,7 +4320,7 @@ Modules.Temporadas = (function () {
           [
             products && products[0] && products[0].name ? 'Produto da jogada: ' + products[0].name + '.' : 'Produto da jogada: produto com melhor resposta.',
             channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: o que mais respondeu.',
-            'Ação concreta: cupom, promoção, combo, upsell ou chamada para clientes.'
+            'Ação da jogada: use o produto e canal definidos para criar leitura confiável.'
           ]
         )
       ));
@@ -4326,18 +4423,18 @@ Modules.Temporadas = (function () {
         success: 'o pedido médio subir ou aparecer item adicional vendido junto.',
         description: 'Use esta jogada para aumentar o valor de cada pedido sem complicar a compra.',
         why: 'O foco é ticket: não basta vender o produto, a jogada precisa adicionar valor ao pedido.',
-        checklist: ['Ofereça complemento, combo ou upsell antes de finalizar o pedido.']
+        checklist: ['Ofereça um upsell antes de finalizar o pedido.']
       },
       'increase_ticket:margin': {
         goal: 'Subir o valor do pedido preservando margem.',
         success: 'entrar pedido maior sem depender de cupom forte.',
         description: 'Use esta jogada para vender melhor cada pedido, com adicional ou produto de boa sobra.',
         why: 'Como a prioridade é melhor sobra, upsell e adicional fazem mais sentido que baixar preço.',
-        checklist: ['Priorize adicional, combo ou produto complementar em vez de desconto.']
+        checklist: ['Priorize adicional por upsell em vez de desconto.']
       },
       'increase_ticket:retention': {
         goal: 'Fazer clientes conhecidos comprarem pedidos melhores.',
-        success: 'cliente recorrente comprar com adicional, combo ou ticket maior.',
+        success: 'cliente recorrente comprar com adicional ou ticket maior.',
         description: 'Use esta jogada para oferecer algo complementar a quem já compra da sua operação.',
         why: 'Cliente conhecido tende a aceitar melhor uma sugestão ligada ao que já pediu antes.',
         checklist: ['Use o produto que a cliente já conhece como entrada para a oferta.']
@@ -4536,6 +4633,127 @@ Modules.Temporadas = (function () {
     return selected.slice(0, maxActions);
   }
 
+  function _composeStrategicSeasonActions(actions, profile, season, metrics) {
+    var max = profile && profile.maxActions || 2;
+    var selected = [];
+    (actions || []).forEach(function (action) {
+      if (!action) return;
+      if (_seasonActionIsNonStandaloneSubtask(action)) return;
+      var parentIndex = _seasonFindCampaignParentIndex(selected, action);
+      if (parentIndex >= 0) return;
+      var subtaskIndex = _seasonFindCampaignSubtaskIndex(selected, action);
+      if (subtaskIndex >= 0) selected.splice(subtaskIndex, 1);
+      if (selected.length >= max) return;
+      var mechanism = _seasonActionMechanism(action);
+      var product = action.productKey || _slugKey(action.productName || action.measurement && action.measurement.productName || _seasonActionProductLabel(action));
+      var isDiscount = mechanism === 'discount';
+      if (isDiscount && selected.some(function (item) { return _seasonActionMechanism(item) === 'discount'; })) return;
+      if (selected.length && mechanism && selected.some(function (item) { return _seasonActionMechanism(item) === mechanism; })) return;
+      if (selected.length && product && selected.some(function (item) { return _seasonActionProductKey(item) === product; })) {
+        if (!(mechanism === 'upsell' || mechanism === 'retention')) return;
+      }
+      if (_seasonIsWeakStrategyFiller(action, selected)) return;
+      selected.push(action);
+    });
+    if (!selected.length && actions && actions.length) {
+      var fallback = (actions || []).filter(function (action) { return !_seasonActionIsNonStandaloneSubtask(action); })[0];
+      if (fallback) selected.push(fallback);
+    }
+    return selected.slice(0, max);
+  }
+
+  function _seasonActionProductKey(action) {
+    return String(action && action.productKey || action && action.measurement && action.measurement.productKey || '').trim() || _slugKey(action && (action.productName || action.measurement && action.measurement.productName) || _seasonActionProductLabel(action || {}));
+  }
+
+  function _seasonActionChannelKey(action) {
+    action = action || {};
+    return _normalizeChannel(action.channel || action.measurement && action.measurement.channel || '');
+  }
+
+  function _seasonActionAudienceKey(action) {
+    action = action || {};
+    var group = action.customerGroup || action.measurement && (action.measurement.customerSegmentId || action.measurement.customerGroup) || '';
+    return _slugKey(group || '');
+  }
+
+  function _seasonActionIsCampaignParent(action) {
+    var source = String(action && action.source || '');
+    var type = _seasonActionCommercialType(action || {});
+    return source === 'coupons' || source === 'promotions' || type === 'Cupom' || type === 'Promoção';
+  }
+
+  function _seasonActionIsCampaignSubtask(action) {
+    var source = String(action && action.source || '');
+    var type = _seasonActionCommercialType(action || {});
+    if (source === 'healthy_discount' || type === 'Ajuste de preço') return true;
+    if (source === 'channels' || type === 'Canal de venda') {
+      var text = _foldText([action && action.title, action && action.description].join(' '));
+      return /envie o link|link do cardapio|whatsapp|divulgue/.test(text);
+    }
+    return false;
+  }
+
+  function _seasonActionIsNonStandaloneSubtask(action) {
+    var source = String(action && action.source || '');
+    var type = _seasonActionCommercialType(action || {});
+    if (source === 'healthy_discount' || type === 'Ajuste de preço') {
+      var text = _foldText([action && action.title, action && action.description, action && action.why].join(' '));
+      return !/promocao existente|promoção existente|cupom existente|reduza o desconto|corrigir desconto|desconto alto/.test(text);
+    }
+    return false;
+  }
+
+  function _seasonSameCommercialStrategy(a, b) {
+    var productA = _seasonActionProductKey(a);
+    var productB = _seasonActionProductKey(b);
+    if (productA && productB && productA !== productB) return false;
+    var channelA = _seasonActionChannelKey(a);
+    var channelB = _seasonActionChannelKey(b);
+    if (channelA && channelB && channelA !== 'desconhecido' && channelB !== 'desconhecido' && channelA !== channelB) return false;
+    var audienceA = _seasonActionAudienceKey(a);
+    var audienceB = _seasonActionAudienceKey(b);
+    if (audienceA && audienceB && audienceA !== audienceB) return false;
+    return !!(productA || productB || audienceA || audienceB);
+  }
+
+  function _seasonFindCampaignParentIndex(selected, action) {
+    if (!_seasonActionIsCampaignSubtask(action)) return -1;
+    for (var i = 0; i < selected.length; i += 1) {
+      if (_seasonActionIsCampaignParent(selected[i]) && _seasonSameCommercialStrategy(selected[i], action)) return i;
+    }
+    return -1;
+  }
+
+  function _seasonFindCampaignSubtaskIndex(selected, action) {
+    if (!_seasonActionIsCampaignParent(action)) return -1;
+    for (var i = 0; i < selected.length; i += 1) {
+      if (_seasonActionIsCampaignSubtask(selected[i]) && _seasonSameCommercialStrategy(action, selected[i])) return i;
+    }
+    return -1;
+  }
+
+  function _seasonIsWeakStrategyFiller(action, selected) {
+    if (!selected || !selected.length) return false;
+    if (!_seasonActionIsCampaignSubtask(action)) return false;
+    return selected.some(function (item) {
+      return _seasonSameCommercialStrategy(item, action);
+    });
+  }
+
+  function _seasonActionMechanism(action) {
+    var source = String(action && action.source || '');
+    if (source === 'products' || source === 'sales_actions') return 'product';
+    var type = _seasonActionCommercialType(action || {});
+    if (source === 'coupons' || source === 'promotions' || source === 'healthy_discount' || type === 'Cupom' || type === 'Promoção' || type === 'Ajuste de preço') return 'discount';
+    if (source === 'upsell' || type === 'Upsell') return 'upsell';
+    if (source === 'retention' || source === 'points' || type === 'Pontos/Reativação') return 'retention';
+    if (source === 'channels' || source === 'timing' || source === 'consistency' || type === 'Canal de venda') return 'channel';
+    if (source === 'baseline' || type === 'Criar base de leitura') return 'baseline';
+    if (type === 'Combo/Menu') return 'combo';
+    return source || type || 'general';
+  }
+
   function _rankedActionProductSignature(item) {
     var explicit = String(item && item.productKey || item && item.action && item.action.productKey || '').trim();
     if (explicit) return explicit;
@@ -4638,11 +4856,11 @@ Modules.Temporadas = (function () {
       return {
         type: 'no_discount_margin',
         title: 'Destacar ' + productName + ' sem desconto',
-        description: 'Não recomendo desconto em ' + productName + ' agora. A margem estimada já está curta; use destaque, combo ou upsell.',
+        description: 'Não recomendo desconto em ' + productName + ' agora. A margem estimada já está curta; cadastre um upsell no Cardápio.',
         why: 'Preço ' + _fmtMoney(economics.price) + ', custo ' + _fmtMoney(economics.cost) + ' e margem atual de ' + Math.round(economics.marginPct) + '%.',
         checklist: [
           'Coloque ' + productName + ' em destaque sem reduzir preço.',
-          'Ofereça adicional, combo ou upsell junto.',
+          'Ofereça um adicional por upsell junto.',
           'Com essa margem, desconto agora reduziria demais o resultado do produto.'
         ]
       };
@@ -4650,11 +4868,11 @@ Modules.Temporadas = (function () {
     return {
       type: 'missing_cost',
       title: 'Destacar ' + productName + ' sem desconto',
-      description: 'Use ' + productName + ' como destaque, mas não recomendo cupom ou promoção até existir preço e custo completos para calcular margem.',
+      description: 'Use ' + productName + ' como destaque, mas não recomendo desconto até existir preço e custo completos para calcular margem.',
       why: 'O produto vende, mas falta dado suficiente de custo/preço para indicar desconto saudável.',
       checklist: [
         'Destaque ' + productName + ' no cardápio ou no canal mais forte.',
-        'Use upsell ou combo sem mexer no preço se houver opção.',
+        'Use upsell sem mexer no preço se houver complemento pronto.',
         'Complete custo e preço do produto para o BocaFood calcular desconto ideal.'
       ]
     };
@@ -5288,6 +5506,7 @@ Modules.Temporadas = (function () {
     var actions = [];
     var hasCurrentOrders = _number(metrics.orders, 0) > 0;
     var topProduct = signals.products && signals.products.topProduct && signals.products.topProduct.name ? signals.products.topProduct : (metrics.topProducts || [])[0];
+    var productName = topProduct && topProduct.name ? topProduct.name : '';
     var topChannel = signals.channels && signals.channels.topChannel;
     var channelLabel = topChannel && topChannel.channel ? _channelLabel(topChannel.channel) : '';
     var opportunities = metrics.actionOpportunities || {};
@@ -5311,7 +5530,7 @@ Modules.Temporadas = (function () {
         [
           'Abra a operação do dia.',
           'Registre os pedidos reais assim que eles entrarem.',
-          'Confira se cada pedido ficou com produto, canal de venda e forma de pagamento corretos.',
+          'Preencha produto, canal de venda e forma de pagamento em cada pedido.',
           'Depois dos primeiros pedidos, a próxima jogada passa a usar o que realmente aconteceu nesta temporada.'
         ]
       ));
@@ -5328,14 +5547,14 @@ Modules.Temporadas = (function () {
     }
 
     if (rankedActions.length) {
-      actions = rankedActions;
+      actions = _composeStrategicSeasonActions(rankedActions, profile, season, metrics);
       if (actions.length < profile.maxActions) {
         actions = _completeSeasonActions(actions, profile, season, metrics, signals, opportunities, topProduct, topChannel);
       }
       return {
         difficulty: season && season.difficulty || 'balanced',
         difficultyProfile: profile,
-        actions: actions.slice(0, profile.maxActions),
+        actions: _composeStrategicSeasonActions(actions, profile, season, metrics).slice(0, profile.maxActions),
         alertThresholds: {
           progressRatioAttention: profile.progressRatioAttention,
           progressRatioCritical: profile.progressRatioCritical
@@ -5348,7 +5567,7 @@ Modules.Temporadas = (function () {
       var productChecklist = [
         productEvidence || ('Produto da jogada: ' + topProduct.name + '.'),
         channelEvidence || (channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: ainda não há canal dominante, então mantenha o canal principal da operação.'),
-        'Ação concreta: cupom, promoção, upsell, combo, ajuste de preço ou chamada para clientes.'
+        'Ação da jogada: use o produto e canal definidos para criar leitura confiável.'
       ];
       if (recommendedAction && recommendedAction.checklist && recommendedAction.checklist.length) {
         productChecklist = productChecklist.concat(recommendedAction.checklist.slice(0, 2));
@@ -5360,7 +5579,7 @@ Modules.Temporadas = (function () {
       actions.push(_seasonAction(
         'produto-forte',
         'Vender mais ' + topProduct.name,
-        recommendedAction && recommendedAction.description ? recommendedAction.description : ('Hoje, transforme ' + topProduct.name + ' em uma ação concreta' + (channelLabel ? ' no canal ' + channelLabel : '') + ': cupom, promoção, upsell, combo, ajuste de preço ou chamada para clientes.'),
+        recommendedAction && recommendedAction.description ? recommendedAction.description : 'Envie o link do Cardápio para clientes que compraram ' + topProduct.name + '.',
         recommendedAction && recommendedAction.why ? recommendedAction.why : ((productEvidence || 'Esse produto aparece como uma das melhores respostas da temporada') + (marginText ? ' e tem ' + marginText + '.' : '.')),
         'products',
         'high',
@@ -5482,17 +5701,17 @@ Modules.Temporadas = (function () {
     }
 
     if (topProduct && topProduct.name && !_number(coupon.usedOrders, 0) && !_number(promotion.usedOrders, 0) && profile.maxActions > actions.length && !actions.some(function (action) { return action.source === 'sales_actions' || action.source === 'products'; })) {
-      var salesActionDescription = recommendedAction && recommendedAction.description ? recommendedAction.description : ('Teste uma ação de venda simples para ' + topProduct.name + ', usando destaque no cardápio ou upsell sem mexer no preço.');
+      var salesActionDescription = recommendedAction && recommendedAction.description ? recommendedAction.description : ('Cadastre um upsell no Cardápio para ' + topProduct.name + '; se não houver complemento pronto, registre mais pedidos antes de criar desconto.');
       var salesActionChecklist = recommendedAction && recommendedAction.checklist && recommendedAction.checklist.length ? recommendedAction.checklist : [
-        'Use destaque no cardápio para ' + topProduct.name + '.',
-        'Se houver upsell compatível, ofereça junto do produto.',
-        'Use essa jogada porque ela preserva preço e aproveita o produto que já está puxando pedidos.'
+        'Ação principal: cadastrar upsell no Cardápio para ' + topProduct.name + '.',
+        'Se não houver complemento pronto, registre mais pedidos antes de criar desconto.',
+        'Use essa jogada porque ela aproveita o produto que já está puxando pedidos.'
       ];
       actions.push(_seasonAction(
         'acao-venda-produto',
-        'Criar uma ação para ' + topProduct.name,
-        salesActionDescription,
-        recommendedAction && recommendedAction.why ? recommendedAction.why : 'O produto já mostrou resposta, mas ainda não há cupom ou promoção validada para ele nesta temporada.',
+        'Cadastre um upsell para ' + topProduct.name,
+        productName ? 'Cadastre um upsell no Cardápio ligado a ' + topProduct.name + '.' : salesActionDescription,
+        recommendedAction && recommendedAction.why ? recommendedAction.why : 'O produto já mostrou resposta, mas ainda falta uma ação validada para ele nesta temporada.',
         'sales_actions',
         'medium',
         salesActionChecklist
@@ -5522,7 +5741,7 @@ Modules.Temporadas = (function () {
     return {
       difficulty: season && season.difficulty || 'balanced',
       difficultyProfile: profile,
-      actions: actions.slice(0, profile.maxActions),
+        actions: _composeStrategicSeasonActions(actions, profile, season, metrics).slice(0, profile.maxActions),
       alertThresholds: {
         progressRatioAttention: profile.progressRatioAttention,
         progressRatioCritical: profile.progressRatioCritical
@@ -5544,9 +5763,22 @@ Modules.Temporadas = (function () {
     function has(id) {
       return out.some(function (action) { return action.id === id; });
     }
+    function hasMechanism(mechanism) {
+      return out.some(function (action) { return _seasonActionMechanism(action) === mechanism; });
+    }
 
     function add(action) {
-      if (!action || out.length >= profile.maxActions || has(action.id)) return;
+      if (!action || has(action.id)) return;
+      if (_seasonActionIsNonStandaloneSubtask(action)) return;
+      var parentIndex = _seasonFindCampaignParentIndex(out, action);
+      if (parentIndex >= 0) return;
+      var subtaskIndex = _seasonFindCampaignSubtaskIndex(out, action);
+      if (subtaskIndex >= 0) out.splice(subtaskIndex, 1);
+      if (out.length >= profile.maxActions) return;
+      var mechanism = _seasonActionMechanism(action);
+      if (mechanism === 'discount' && hasMechanism('discount')) return;
+      if (mechanism && out.length && hasMechanism(mechanism)) return;
+      if (_seasonIsWeakStrategyFiller(action, out)) return;
       out.push(action);
     }
 
@@ -5567,7 +5799,7 @@ Modules.Temporadas = (function () {
       ));
     }
 
-    if (availableCoupon && availableCoupon.canUse && productName) {
+    if (availableCoupon && availableCoupon.canUse && productName && !hasMechanism('discount') && _seasonDiscountStrategyAllowed(season, metrics, { source: 'coupons', productName: productName, customerGroup: 'clientes que já compraram', measurement: { productName: productName, customerGroup: 'clientes que já compraram' } })) {
       add(_seasonAction(
         'cupom-disponivel',
         'Usar cupom ' + availableCoupon.code,
@@ -5587,22 +5819,22 @@ Modules.Temporadas = (function () {
       var isCardapioAction = channelLabel && topChannel && _isCardapioChannel(topChannel.channel);
       add(_seasonAction(
         'canal-concreto',
-        isCardapioAction && productName ? 'Criar ação no Cardápio para ' + productName : (productName ? 'Criar ação para ' + productName + ' no canal ' + channelLabel : 'Criar ação concreta no canal ' + channelLabel),
+        isCardapioAction && productName ? 'Envie o link do Cardápio para clientes que compraram ' + productName : (productName ? 'Registre no BocaFood os pedidos de ' + productName + ' que vierem por ' + channelLabel : 'Registre no BocaFood os pedidos que vierem por ' + channelLabel),
         isCardapioAction
-          ? 'No Cardápio, transforme ' + (productName || 'o produto com melhor saída') + ' em ação mensurável: promoção, cupom, upsell, combo ou ordem de destaque no cadastro.'
-          : 'No canal ' + channelLabel + ', trabalhe ' + (productName || 'o produto com melhor saída') + ' com uma ação que apareça no pedido: cupom, promoção, combo, upsell ou chamada para clientes.',
+          ? 'Envie o link do Cardápio pelo WhatsApp para clientes que já compraram ' + (productName || 'o produto com melhor saída') + '. Use uma mensagem curta e mantenha o foco nesse produto até o prazo da jogada.'
+          : 'Registre no BocaFood os pedidos de ' + (productName || 'produto com melhor saída') + ' que entrarem por ' + channelLabel + ' para validar resposta.',
         [channelLabel ? channelLabel + ' trouxe ' + Math.round(_number(topChannel.orders, 0)) + ' pedido(s) e ' + _fmtMoney(_number(topChannel.revenue, 0)) : ''].filter(Boolean).join('. ') + '.',
         'channels',
         'medium',
         isCardapioAction ? [
-          'No Cardápio, escolha uma ação para ' + (productName || 'o produto com melhor saída') + '.',
-          'Use promoção, cupom, upsell, combo ou ordem de destaque no cadastro.',
+          'Produto da jogada: ' + (productName || 'produto com melhor saída') + '.',
+          'Canal da jogada: Cardápio.',
           'Mantenha a mesma regra até o prazo da jogada para o resultado ficar legível.',
           'Quando divulgar fora do BocaFood, envie o link do Cardápio direto para a cliente comprar por lá.'
         ] : [
           'Canal da jogada: ' + channelLabel + '.',
           productName ? 'Produto para oferecer: ' + productName + '.' : 'Produto para oferecer: produto com melhor saída.',
-          'Defina uma ação concreta: cupom, promoção, combo, upsell ou chamada para clientes.',
+          'Ação da jogada: use o produto e canal definidos para criar leitura confiável.',
           'Mantenha a oferta simples para entender se esse canal continua respondendo.'
         ]
       ));
@@ -5638,21 +5870,21 @@ Modules.Temporadas = (function () {
           [
             productName ? 'Produto da jogada: ' + productName + '.' : 'Produto da jogada: produto com melhor resposta.',
             channelLabel ? 'Canal da jogada: ' + channelLabel + '.' : 'Canal da jogada: o que mais respondeu.',
-            'Ação concreta: cupom, promoção, combo, upsell ou chamada para clientes.'
+            'Ação da jogada: use o produto e canal definidos para criar leitura confiável.'
           ]
       ));
     }
 
-    if (out.length < profile.maxActions && productName && economics.hasPriceAndCost && economics.maxHealthyDiscountPct > 0) {
+    if (out.length < profile.maxActions && productName && economics.hasPriceAndCost && economics.maxHealthyDiscountPct >= 3 && !hasMechanism('discount') && _seasonDiscountStrategyAllowed(season, metrics, { source: 'coupons', productName: productName, customerGroup: 'clientes que já compraram', measurement: { productName: productName, customerGroup: 'clientes que já compraram' } })) {
       add(_seasonAction(
         'desconto-saudavel',
-        'Desconto pequeno para ' + productName,
-        'Se quiser criar uma jogada de desconto, use no máximo ' + economics.maxHealthyDiscountPct + '% em ' + productName + '.',
+        'Proteja a margem de ' + _seasonShortProductName(productName),
+        'Configure o desconto de ' + _seasonSuggestedDiscountPercent(economics) + '% para ' + productName + ' e não passe desse valor nesta jogada.',
         'Com preço ' + _fmtMoney(economics.price) + ' e custo ' + _fmtMoney(economics.cost) + ', esse limite preserva margem mínima estimada.',
         'healthy_discount',
         'low',
         [
-          'Use até ' + economics.maxHealthyDiscountPct + '% de desconto.',
+          'Desconto desta jogada: ' + _seasonSuggestedDiscountPercent(economics) + '%.',
           'Preço atual: ' + _fmtMoney(economics.price) + '.',
           'Custo cadastrado: ' + _fmtMoney(economics.cost) + '.'
         ]
@@ -5662,8 +5894,8 @@ Modules.Temporadas = (function () {
     if (out.length < profile.maxActions && season && season.objective === 'increase_ticket' && productName && complementName) {
       add(_seasonAction(
         'complemento-disponivel',
-        'Vender ' + complementName + ' junto de ' + productName,
-        'Use ' + complementName + ' como complemento de ' + productName + ' no Cardápio. Essa jogada aumenta o pedido com produto concreto, sem depender de desconto.',
+        'Cadastre um upsell de ' + complementName + ' junto de ' + productName,
+        'Cadastre um upsell de ' + complementName + ' junto de ' + productName + ' no Cardápio para aumentar o valor do pedido sem depender de desconto.',
         productName + ' é o produto de entrada e ' + complementName + ' é uma opção disponível para subir o valor do pedido.',
         'upsell',
         'medium',
@@ -5688,7 +5920,7 @@ Modules.Temporadas = (function () {
         [
           productName ? 'Produto fixo para comparação: ' + productName + '.' : 'Produto para comparação: escolha um produto principal para observar.',
           channelLabel ? 'Canal fixo para comparação: ' + channelLabel + '.' : 'Canal para comparação: use o canal onde a venda entrar hoje.',
-          'Ação para comparação: mantenha cupom, promoção, combo, upsell ou chamada escolhida até o prazo da jogada.'
+          'Ação para comparação: mantenha o mesmo produto e canal até o prazo da jogada.'
         ]
       ));
     }
@@ -5744,8 +5976,131 @@ Modules.Temporadas = (function () {
       goalText: action.goalText || '',
       successText: action.successText || '',
       measurable: action.measurable !== false,
+      commercialPlay: action.commercialPlay || action.commercial || _seasonActionCommercialPlayFromMeasurement(action, merged),
+      salesPlayExecution: action.salesPlayExecution || action.execution || null,
       measurement: merged
     };
+  }
+
+  function _seasonActionCommercialPlayFromMeasurement(action, measurement) {
+    action = _seasonForceCardapioAction(action || {});
+    action = action || {};
+    measurement = measurement || {};
+    var type = _seasonActionCommercialType(action);
+    var actionName = _seasonActionCommercialName(action, type);
+    var product = action.productName || measurement.productName || _seasonActionProductLabel(action);
+    var combination = action.combinationName || measurement.combinationName || '';
+    var channel = action.channel || measurement.channel || 'cardapio';
+    var channelName = channel ? _channelLabel(_normalizeChannel(channel)) : '';
+    var customerGroup = action.customerGroup || measurement.customerGroup || '';
+    var expectedResult = action.successText || _seasonCommercialExpectedResult(action, measurement, _state.activeSeason || {});
+    var execution = _seasonSalesPlayExecution(action, type, product, channelName, customerGroup);
+    return {
+      title: _seasonCommercialTitle(type, actionName, product, channelName, customerGroup, action.title),
+      summary: action.description || '',
+      actionKind: _seasonActionKind(action),
+      actionType: type,
+      actionName: actionName,
+      productName: product || '',
+      combinationName: combination,
+      channelName: channelName,
+      customerGroup: customerGroup,
+      whereToDo: _seasonCommercialWhere(type, channelName, customerGroup),
+      whatToDo: action.description || '',
+      whyThis: action.why || '',
+      afterDo: _seasonAfterDoText(action, product, type),
+      expectedResult: expectedResult,
+      howBocaFoodReads: _seasonActionReadText({ measurement: measurement }),
+      ifNoResult: _seasonActionNoResultText(action, product, channelName),
+      salesPlayExecution: execution
+    };
+  }
+
+  function _seasonCommercialExpectedResult(action, measurement, season) {
+    action = action || {};
+    measurement = measurement || {};
+    season = season || _state.activeSeason || {};
+    var source = String(action.source || '');
+    var qty = _seasonExpectedQuantity(action, measurement, season);
+    measurement.expectedQuantity = qty;
+    var pieces = [];
+    if (measurement.productName) pieces.push(measurement.productName);
+    if (measurement.couponCode) pieces.push('cupom ' + measurement.couponCode);
+    if (measurement.promotionName) pieces.push('promoção ' + measurement.promotionName);
+    if (measurement.upsellName) pieces.push('extra ' + measurement.upsellName);
+    if (measurement.channel) pieces.push('canal ' + _channelLabel(_normalizeChannel(measurement.channel)));
+    if (measurement.customerGroup) pieces.push(measurement.customerGroup);
+    if (source === 'baseline') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' com produto, canal e pagamento preenchidos dentro do prazo.';
+    if (source === 'coupons') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' usando o cupom ' + (measurement.couponCode || measurement.suggestedCouponCode || 'da jogada') + ' dentro do prazo.';
+    if (source === 'upsell') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' com o extra aceito no Cardápio dentro do prazo.';
+    if (source === 'retention' || source === 'points') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' de cliente que já comprou dentro do prazo.';
+    if (source === 'consistency') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' no dia ou horário fraco acompanhado pela jogada.';
+    if (pieces.length) return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' com ' + pieces.join(', ') + ' dentro do prazo.';
+    return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' claramente ligado a essa jogada dentro do prazo.';
+  }
+
+  function _seasonExpectedQuantity(action, measurement, season) {
+    action = action || {};
+    measurement = measurement || {};
+    season = season || _state.activeSeason || {};
+    if (_number(measurement.expectedQuantity, 0) > 0) return Math.max(1, Math.round(_number(measurement.expectedQuantity, 1)));
+    if (_number(action.expectedQuantity, 0) > 0) return Math.max(1, Math.round(_number(action.expectedQuantity, 1)));
+    var source = String(action.source || '');
+    var kind = _seasonActionKind(action);
+    if (kind === 'unlock') return 1;
+    var profile = _difficultyExecutionProfile(season.difficulty || season.targetDifficulty || 'balanced');
+    var metrics = season.currentMetrics || {};
+    var history = _state.businessHistory || {};
+    var rolling60 = history.periods && history.periods.rolling_60 || {};
+    var rolling30 = history.periods && history.periods.rolling_30 || {};
+    var recentOrders = Math.round(_number(rolling60.ordersCount, 0) || _number(rolling30.ordersCount, 0) || _number(metrics.orders, 0) || _number(metrics.ordersCount, 0));
+    var maxByDifficulty = profile.maxActions <= 1 ? 2 : (profile.maxActions >= 3 ? 5 : 3);
+    var rate = profile.maxActions <= 1 ? .06 : (profile.maxActions >= 3 ? .12 : .08);
+    var qty = recentOrders > 0 ? Math.ceil(recentOrders * rate) : 1;
+    var targetGap = _seasonTargetOrderGap(season, metrics);
+    if (targetGap > 0) qty = Math.max(qty, Math.ceil(targetGap / Math.max(1, profile.maxActions || 1)));
+    var audienceCount = _seasonMeasurementAudienceCount(measurement, action);
+    if (audienceCount > 0) {
+      var audienceRate = source === 'retention' || source === 'points' || source === 'coupons' ? .15 : .1;
+      qty = Math.min(qty, Math.max(1, Math.ceil(audienceCount * audienceRate)));
+    }
+    if (source === 'baseline') qty = recentOrders < 3 ? 1 : Math.min(qty, 3);
+    if (source === 'upsell') qty = Math.min(qty, maxByDifficulty);
+    return Math.max(1, Math.min(maxByDifficulty, Math.round(qty)));
+  }
+
+  function _seasonTargetOrderGap(season, metrics) {
+    season = season || {};
+    metrics = metrics || {};
+    if (season.objective !== 'sell_more') return 0;
+    var target = _number(metrics.targetValue || season.calculatedTargetValue || season.targetValue, 0);
+    var current = _number(metrics.currentValue, 0);
+    if (!(target > current)) return 0;
+    var ticket = _number(metrics.averageTicket || season.baselineAverageTicket, 0);
+    return ticket > 0 ? Math.ceil((target - current) / ticket) : Math.ceil(target - current);
+  }
+
+  function _seasonMeasurementAudienceCount(measurement, action) {
+    measurement = measurement || {};
+    action = action || {};
+    var id = String(measurement.customerSegmentId || action.customerSegmentId || '').trim();
+    var label = String(measurement.customerGroup || action.customerGroup || '').trim();
+    var customerSegments = _state.actionContext && (_state.actionContext.customerSegmentsForActions || _state.actionContext.customerSegments) || {};
+    var lists = [
+      customerSegments.recommendedAudiences || [],
+      customerSegments.segments || []
+    ];
+    for (var i = 0; i < lists.length; i += 1) {
+      for (var j = 0; j < lists[i].length; j += 1) {
+        var item = lists[i][j] || {};
+        if ((id && item.id === id) || (label && _foldText(item.label || '') === _foldText(label))) return Math.round(_number(item.count, 0));
+      }
+    }
+    return 0;
+  }
+
+  function _seasonOrderWord(qty) {
+    return Math.round(_number(qty, 0)) === 1 ? 'pedido' : 'pedidos';
   }
 
   function _inferSeasonActionMeasurement(action) {
@@ -5902,6 +6257,8 @@ Modules.Temporadas = (function () {
       var status = 'pending';
       if (evidence.found) {
         status = now > resultDueDate ? 'executed_with_result' : 'result_in_progress';
+      } else if (evidence.partial) {
+        status = now > resultDueDate ? 'executed_without_result' : 'result_in_progress';
       } else if (hasExecutionEvidence && now > resultDueDate) {
         status = 'executed_without_result';
       } else if (!hasExecutionEvidence && now > executeDueDate) {
@@ -5909,7 +6266,7 @@ Modules.Temporadas = (function () {
       } else if (old.status === 'manually_done') {
         status = 'manually_done';
       }
-      if ((old.status === 'executed_with_result' || old.status === 'result_in_progress') && !evidence.found && old.evidence) {
+      if ((old.status === 'executed_with_result' || old.status === 'result_in_progress') && !evidence.found && !evidence.partial && old.evidence && old.evidence.found === true) {
         evidence = old.evidence;
         status = now > resultDueDate ? 'executed_with_result' : 'result_in_progress';
       }
@@ -5927,7 +6284,7 @@ Modules.Temporadas = (function () {
         resultAnchorAt: resultAnchorAt,
         resultDueAt: resultDueAt,
         completedAt: status === 'executed_with_result' ? (old.completedAt || evidence.completedAt || now.toISOString()) : null,
-        evidence: evidence.found ? evidence : (old.evidence && (old.status === 'executed_with_result' || old.status === 'result_in_progress') ? old.evidence : null),
+        evidence: (evidence.found || evidence.partial) ? evidence : (old.evidence && (old.status === 'executed_with_result' || old.status === 'result_in_progress') ? old.evidence : null),
         expectedActionType: old.expectedActionType || '',
         expectedActionId: old.expectedActionId || '',
         expectedActionCollection: old.expectedActionCollection || '',
@@ -5988,11 +6345,11 @@ Modules.Temporadas = (function () {
   function _seasonActionTaskStatusLabel(status) {
     return ({
       pending: 'Em andamento',
-      result_in_progress: 'Resultado em leitura',
-      executed_with_result: 'Executada com resultado',
-      executed_without_result: 'Executada sem resultado',
+      result_in_progress: 'Pedido apareceu',
+      executed_with_result: 'Com resultado',
+      executed_without_result: 'Sem resposta',
       manually_done: 'Marcada como feita',
-      not_executed: 'Prazo vencido'
+      not_executed: 'Vencida'
     })[status] || 'Em andamento';
   }
 
@@ -6053,7 +6410,7 @@ Modules.Temporadas = (function () {
         var channel = _foldText(_channelLabel(order.channel));
         return channel && text.indexOf(channel) >= 0;
       })[0] || null;
-      if (match) return _actionEvidence('channel', match, 'A venda entrou no canal indicado.');
+      if (match) return _actionEvidence('channel', match, 'A venda entrou pelo Cardápio.');
     }
 
     if (source === 'retention') {
@@ -6075,65 +6432,67 @@ Modules.Temporadas = (function () {
   function _detectSeasonActionStructuredEvidence(action, allValidOrders, validOrders, from) {
     var measurement = action && action.measurement || {};
     var type = measurement.type || _measurementTypeFromSource(action && action.source);
-    var match = null;
+    var expectedQuantity = Math.max(1, Math.round(_number(measurement.expectedQuantity || action && action.expectedQuantity, 1)));
+    var matches = [];
     if (type === 'baseline') {
-      match = (validOrders || []).filter(_orderHasBasicSeasonReadingData)[0] || null;
-      if (match) return _actionEvidence('baseline', match, 'Os primeiros pedidos entraram com produto e canal para iniciar a leitura da temporada.');
+      matches = (validOrders || []).filter(_orderHasBasicSeasonReadingData);
+      if (matches.length) return _actionEvidenceFromMatches('baseline', matches, expectedQuantity, 'pedido(s) entraram com produto e canal para iniciar a leitura da temporada.');
       return null;
     }
     if (type === 'coupon') {
-      match = (validOrders || []).filter(function (order) {
-        if (measurement.couponCode && _foldText(order.couponCode || '') === _foldText(measurement.couponCode)) return true;
-        return !measurement.couponCode && (!!order.couponCode || _number(order.couponDiscount, 0) > 0);
-      })[0] || null;
-      if (match) return _actionEvidence('coupon', match, measurement.couponCode ? 'O cupom ' + measurement.couponCode + ' apareceu em uma venda.' : 'Um cupom apareceu em uma venda.');
+      var expectedCoupon = measurement.couponCode || measurement.suggestedCouponCode || '';
+      matches = (validOrders || []).filter(function (order) {
+        if (expectedCoupon && _foldText(order.couponCode || '') === _foldText(expectedCoupon)) return true;
+        return !expectedCoupon && (!!order.couponCode || _number(order.couponDiscount, 0) > 0);
+      });
+      if (matches.length) return _actionEvidenceFromMatches('coupon', matches, expectedQuantity, expectedCoupon ? 'pedido(s) usaram o cupom ' + expectedCoupon + '.' : 'pedido(s) usaram cupom.');
       return null;
     }
     if (type === 'promotion') {
-      match = (validOrders || []).filter(function (order) {
+      matches = (validOrders || []).filter(function (order) {
         if (measurement.promotionName && _foldText(order.promotionName || '').indexOf(_foldText(measurement.promotionName)) >= 0) return true;
         return (order.items || []).some(function (item) {
           if (measurement.promotionName && _foldText(item.promotionName || '').indexOf(_foldText(measurement.promotionName)) >= 0) return true;
           return !measurement.promotionName && _number(item.promotionDiscount, 0) > 0;
         }) || (!measurement.promotionName && _number(order.promotionDiscount, 0) > 0);
-      })[0] || null;
-      if (match) return _actionEvidence('promotion', match, measurement.promotionName ? measurement.promotionName + ' apareceu em uma venda.' : 'A promoção apareceu em uma venda.');
+      });
+      if (matches.length) return _actionEvidenceFromMatches('promotion', matches, expectedQuantity, measurement.promotionName ? 'pedido(s) usaram a promoção ' + measurement.promotionName + '.' : 'pedido(s) usaram promoção.');
       return null;
     }
     if (type === 'upsell') {
-      match = (validOrders || []).filter(function (order) {
+      matches = (validOrders || []).filter(function (order) {
         if (!_isCardapioChannel(order.channel) && action && action.source === 'upsell') return false;
         if (measurement.upsellName && !_orderHasProductName(order, measurement.upsellName)) return false;
         return !!order.upsellAccepted || _number(order.upsellAddedRevenue, 0) > 0 || (measurement.upsellName && _orderHasProductName(order, measurement.upsellName));
-      })[0] || null;
-      if (match) return _actionEvidence('upsell', match, measurement.upsellName ? measurement.upsellName + ' apareceu no pedido da jogada.' : 'A oferta extra já foi aceita e aumentou o pedido.');
+      });
+      if (matches.length) return _actionEvidenceFromMatches('upsell', matches, expectedQuantity, measurement.upsellName ? 'pedido(s) aceitaram o upsell ' + measurement.upsellName + '.' : 'pedido(s) aceitaram a oferta extra.');
       return null;
     }
     if (type === 'channel' || type === 'timing' || type === 'consistency') {
-      match = (validOrders || []).filter(function (order) {
+      matches = (validOrders || []).filter(function (order) {
         var channelOk = measurement.channel ? _normalizeChannel(order.channel) === _normalizeChannel(measurement.channel) || _foldText(_channelLabel(order.channel)).indexOf(_foldText(measurement.channel)) >= 0 : false;
         var productOk = measurement.productName ? _orderHasProductName(order, measurement.productName) : true;
         return productOk && (channelOk || !measurement.channel);
-      })[0] || null;
-      if (match) return _actionEvidence(type === 'timing' ? 'channel' : type, match, type === 'consistency' ? 'A venda entrou no foco de consistência da jogada.' : 'A venda entrou no canal indicado.');
+      });
+      if (matches.length) return _actionEvidenceFromMatches(type === 'timing' ? 'channel' : type, matches, expectedQuantity, type === 'consistency' ? 'pedido(s) entraram no foco de consistência da jogada.' : 'pedido(s) entraram pelo Cardápio.');
       return null;
     }
     if (type === 'retention') {
-      match = _findRecurringOrderAfter(allValidOrders || [], from);
-      if (match) return _actionEvidence('retention', match, 'Uma cliente voltou a comprar depois da jogada.');
+      matches = _findRecurringOrdersAfter(allValidOrders || [], from);
+      if (matches.length) return _actionEvidenceFromMatches('retention', matches, expectedQuantity, 'pedido(s) vieram de clientes recorrentes depois da jogada.');
       return null;
     }
     if (measurement.productName || measurement.productKey) {
-      match = (validOrders || []).filter(function (order) {
+      matches = (validOrders || []).filter(function (order) {
         return measurement.productName ? _orderHasProductName(order, measurement.productName) : _orderHasProductKey(order, measurement.productKey);
-      })[0] || null;
-      if (match) return _actionEvidence('product', match, measurement.productName ? measurement.productName + ' apareceu em uma venda.' : 'O produto indicado apareceu em uma venda.');
+      });
+      if (matches.length) return _actionEvidenceFromMatches('product', matches, expectedQuantity, measurement.productName ? 'pedido(s) tiveram ' + measurement.productName + '.' : 'pedido(s) tiveram o produto indicado.');
     }
     return null;
   }
 
   function _orderHasBasicSeasonReadingData(order) {
-    return !!(order && order.createdAt && _normalizeChannel(order.channel || '') && (order.items || []).length);
+    return !!(order && order.createdAt && _isCardapioChannel(order.channel) && (order.items || []).length);
   }
 
   function _orderHasProductName(order, productName) {
@@ -6153,14 +6512,37 @@ Modules.Temporadas = (function () {
   }
 
   function _findRecurringOrderAfter(orders, from) {
+    return _findRecurringOrdersAfter(orders, from)[0] || null;
+  }
+
+  function _findRecurringOrdersAfter(orders, from) {
     var seen = {};
+    var matches = [];
     for (var i = 0; i < orders.length; i++) {
       var key = orders[i].customerKey;
       if (!key) continue;
-      if (seen[key] && orders[i].createdAt && orders[i].createdAt >= from) return orders[i];
+      if (seen[key] && orders[i].createdAt && orders[i].createdAt >= from) matches.push(orders[i]);
       seen[key] = true;
     }
-    return null;
+    return matches;
+  }
+
+  function _actionEvidenceFromMatches(type, matches, expectedQuantity, messageTail) {
+    matches = matches || [];
+    expectedQuantity = Math.max(1, Math.round(_number(expectedQuantity, 1)));
+    var count = matches.length;
+    var first = matches[0] || null;
+    var found = count >= expectedQuantity;
+    var message = found
+      ? count + ' de ' + expectedQuantity + ' ' + (messageTail || 'pedido(s) esperados foram encontrados.')
+      : count + ' de ' + expectedQuantity + ' ' + (messageTail || 'pedido(s) esperados foram encontrados até agora.');
+    var evidence = _actionEvidence(type, first, message);
+    evidence.found = found;
+    evidence.partial = !found && count > 0;
+    evidence.matchedCount = count;
+    evidence.expectedQuantity = expectedQuantity;
+    evidence.orderIds = matches.slice(0, 12).map(function (order) { return order && order.id || ''; }).filter(Boolean);
+    return evidence;
   }
 
   function _actionEvidence(type, order, message) {
@@ -6451,7 +6833,7 @@ Modules.Temporadas = (function () {
 
   function _validSeasonTab(season, tab) {
     if (tab === 'final' && season.status !== 'finished') return 'overview';
-    return ({ overview: true, next: true, final: true })[tab] ? tab : 'overview';
+    return ({ overview: true, final: true })[tab] ? tab : 'overview';
   }
 
   function _setSeasonTab(tab) {
@@ -6469,6 +6851,9 @@ Modules.Temporadas = (function () {
 
   function _nextMoveBlock(season, metrics, recommendation) {
     recommendation = recommendation || _fallbackRecommendationForUI();
+    if (recommendation.simplePlay) {
+      return _simpleNextMoveBlock(season || {}, metrics || {}, recommendation);
+    }
     var reading = _seasonReadingForDisplay(season || {}, metrics || {}, _scoreBreakdownForDisplay(season || {}, metrics || {}));
     var executionPlan = _executionPlanForDisplay(season, metrics, reading);
     if (!executionPlan.actions || !executionPlan.actions.length) {
@@ -6479,7 +6864,10 @@ Modules.Temporadas = (function () {
       var freshPlan = _buildSeasonExecutionPlan(season || {}, metrics || {}, metrics && metrics.validatedImpactSignals || {}, metrics && metrics.riskContext || {});
       if ((freshPlan.actions || []).length > (executionPlan.actions || []).length) executionPlan = freshPlan;
     }
-    var actions = (executionPlan.actions || []).slice(0, profile.maxActions || 2);
+    var actions = (executionPlan.actions || []).slice(0, profile.maxActions || 2).map(function (action) {
+      return _seasonDisplayAction(action, season, metrics);
+    });
+    actions = _seasonFilterDisplayActions(actions, season, metrics, profile.maxActions || 2);
     var taskMap = _seasonActionTaskMap(season, executionPlan, metrics);
     var history = _seasonActionTaskHistoryForDisplay(season, executionPlan, metrics);
     if (actions.length) {
@@ -6487,21 +6875,19 @@ Modules.Temporadas = (function () {
         _seasonWeeklyReadingHtml(season, metrics, executionPlan, actions) +
         '<div class="seasons-next-move seasons-next-move-operational">' +
           '<div class="seasons-next-move-head">' +
-            '<span class="seasons-section-label">Próxima Jogada</span>' +
+            '<span class="seasons-section-label">Leitura da temporada</span>' +
             '<strong>' + _esc(actions.length > 1 ? 'Jogadas ativas' : 'Jogada ativa') + '</strong>' +
           '</div>' +
           '<p>' + _esc(actions.length > 1 ? 'Faça uma jogada por vez, cada uma com um objetivo claro para ajudar sua operação a avançar melhor.' : 'Esta é a jogada que faz mais sentido para o momento atual da sua operação.') + '</p>' +
           '<div class="seasons-next-checklist">' +
             '<div class="seasons-next-checklist-head"><strong>' + _esc(profile.label ? 'Ritmo ' + profile.label : 'Ritmo da temporada') + '</strong><span>' + _esc(profile.cadence || 'Ações práticas') + '</span></div>' +
             actions.map(function (action, index) {
-              var steps = (action.checklist || []).slice(0, 4);
               var task = taskMap[action.id] || {};
+              var play = _seasonCommercialPlay(action, task, season);
               return '<article>' +
-                '<header><span>' + (index + 1) + '</span><div><strong>' + _esc(action.title || 'Ação') + '</strong><p>' + _esc(action.description || '') + '</p></div></header>' +
-                _seasonActionGoalHtml(action, task, season) +
-                '<div class="seasons-next-reason seasons-next-action-reason"><span>Por que fazer</span><strong>' + _esc(action.why || 'Essa jogada aproveita o que já apareceu melhor nas vendas da sua operação.') + '</strong></div>' +
-                _seasonActionTaskStatusHtml(task) +
-                (steps.length ? '<ul>' + steps.map(function (step) { return '<li>' + _esc(step) + '</li>'; }).join('') + '</ul>' : '') +
+                '<header><span>' + (index + 1) + '</span><div><strong>' + _esc(play.title || action.title || 'Jogada') + '</strong><p>' + _esc(play.summary || action.description || '') + '</p></div></header>' +
+                _seasonCommercialPlayHtml(play) +
+                _seasonActionTaskStatusHtml(task, action) +
                 _seasonActionResultHtml(task) +
                 _seasonActionButtonsHtml(action, task, season) +
               '</article>';
@@ -6511,7 +6897,7 @@ Modules.Temporadas = (function () {
           _seasonActionOutcomeSummaryHtml(actions, taskMap, history) +
           _seasonActionHistoryHtml(history) +
           _seasonActionLearningHtml(season, metrics, actions, taskMap, history) +
-          '<small>Quando uma jogada entra nas vendas ou passa do prazo, ela sai da rodada atual e vira aprendizado para a próxima decisão.</small>' +
+          '<small>Quando o prazo fechar, a próxima orientação muda conforme o que vendeu ou não vendeu.</small>' +
         '</div>';
     }
 
@@ -6524,18 +6910,18 @@ Modules.Temporadas = (function () {
       return '' +
         '<div class="seasons-next-move">' +
           '<div class="seasons-next-move-head">' +
-            '<span class="seasons-section-label">Próxima Jogada</span>' +
+            '<span class="seasons-section-label">Leitura da temporada</span>' +
             '<strong>' + _esc(recommendation.headline || 'Acompanhar a temporada') + '</strong>' +
           '</div>' +
-          '<p>' + _esc(recommendation.nextAction || 'Escolha uma ação concreta para o produto ou canal com melhor resposta da temporada.') + '</p>' +
-          '<small>Leitura gerada com dados calculados pelo BocaFood. A IA não calcula score, meta, risco ou progresso.</small>' +
+          '<p>' + _esc(_seasonSingleActionText(recommendation.nextAction) || _seasonBaseReadingAction({ id: 'base-recomendacao' }).description) + '</p>' +
+          '<small>Orientação criada a partir dos pedidos e cadastros da loja.</small>' +
         '</div>';
     }
 
     return '' +
       '<div class="seasons-next-move">' +
         '<div class="seasons-next-move-head">' +
-          '<span class="seasons-section-label">Próxima Jogada</span>' +
+          '<span class="seasons-section-label">Leitura da temporada</span>' +
           '<strong>' + _esc(main.title || 'Acompanhar a temporada por mais alguns dias') + '</strong>' +
         '</div>' +
         '<p>' + _esc(main.description || 'Ainda há poucos dados para uma ação mais específica.') + '</p>' +
@@ -6549,8 +6935,195 @@ Modules.Temporadas = (function () {
         (secondary.length ? '<div class="seasons-secondary-actions">' + secondary.map(function (item) {
           return '<article><strong>' + _esc(item.title || 'Ação secundária') + '</strong><p>' + _esc(item.description || item.why || '') + '</p></article>';
         }).join('') + '</div>' : '') +
-        '<small>Recomendação gerada com base nos dados disponíveis da temporada.</small>' +
+        '<small>Orientação criada a partir dos pedidos e cadastros da loja.</small>' +
         '</div>';
+  }
+
+  function _simpleNextMoveBlock(season, metrics, recommendation) {
+    var play = recommendation.simplePlay || {};
+    var steps = Array.isArray(play.steps) ? play.steps.slice(0, 4) : [];
+    return '' +
+      _simpleNextMoveReadingHtml(season, metrics, play) +
+      '<div class="seasons-next-move seasons-next-move-operational">' +
+        '<div class="seasons-next-move-head">' +
+          '<span class="seasons-section-label">Leitura da temporada</span>' +
+          '<strong>' + _esc(play.title || recommendation.headline || 'Jogada simples') + '</strong>' +
+        '</div>' +
+        '<p>' + _esc(play.summary || recommendation.nextAction || 'Execute uma ação simples e acompanhe a resposta pelos pedidos.') + '</p>' +
+        '<div class="seasons-next-checklist">' +
+          '<article>' +
+            '<header><span>1</span><div><strong>' + _esc(play.actionLabel || play.title || 'Ação de venda') + '</strong><p>' + _esc(play.why || 'Escolhida pelas regras da temporada e pelos dados disponíveis.') + '</p></div></header>' +
+            '<div class="seasons-commercial-play">' +
+              _commercialPlayRow('Produto', play.productName || 'Sem produto definido') +
+              _commercialPlayRow('Onde fazer', play.whereToDo || 'BocaFood') +
+              _commercialPlayRow('Público', play.customerGroup || 'Clientes do Cardápio') +
+              (play.combinationName ? _commercialPlayRow('Complemento', play.combinationName) : '') +
+              _commercialPlayRow('Resultado esperado', play.expectedResult || 'Ver se a ação trouxe pedido real.') +
+            '</div>' +
+            (steps.length ? '<ol>' + steps.map(function (step) { return '<li>' + _esc(step) + '</li>'; }).join('') + '</ol>' : '') +
+          '</article>' +
+        '</div>' +
+        '<div class="seasons-next-meta">' +
+          '<span>Métrica: <strong>' + _esc(play.metricToWatch || 'Pedidos da jogada') + '</strong></span>' +
+          '<span>Revisar em: <strong>' + Math.round(_number(play.reviewInDays, 7)) + ' dias</strong></span>' +
+        '</div>' +
+        '<small>Jogada escolhida por regra simples: objetivo, estratégia, dificuldade, produto e bloqueios ativos.</small>' +
+      '</div>';
+  }
+
+  function _simpleNextMoveReadingHtml(season, metrics, play) {
+    var scoreBreakdown = _scoreBreakdownForDisplay(season || {}, metrics || {});
+    var seasonReading = _seasonReadingForDisplay(season || {}, metrics || {}, scoreBreakdown);
+    var summary = _seasonWeeklySignalSummary(seasonReading);
+    return '' +
+      '<section class="seasons-weekly-reading">' +
+        '<div>' +
+          '<span class="seasons-section-label">Leitura da semana</span>' +
+          '<h4>' + _esc(summary.title) + '</h4>' +
+          '<p>' + _esc(summary.text) + '</p>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function _seasonWeeklySignalSummary(seasonReading) {
+    var helping = _uniqueTextItems((seasonReading && seasonReading.helpingSignals) || []);
+    var blocking = _uniqueTextItems((seasonReading && seasonReading.blockingSignals) || []);
+    var topHelp = helping[0] || '';
+    var topBlock = blocking[0] || '';
+    if (topHelp && topBlock) {
+      return {
+        title: 'O que mais pesou nesta semana',
+        text: 'O principal apoio veio de ' + topHelp + ', enquanto o maior travamento foi ' + topBlock + '.'
+      };
+    }
+    if (topHelp) {
+      return {
+        title: 'O que mais ajudou nesta semana',
+        text: 'O sinal mais forte da semana foi ' + topHelp + '.'
+      };
+    }
+    if (topBlock) {
+      return {
+        title: 'O que mais travou nesta semana',
+        text: 'O principal ponto de atenção da semana foi ' + topBlock + '.'
+      };
+    }
+    return {
+      title: 'Leitura da semana em construção',
+      text: 'Ainda há poucos sinais para destacar com segurança. Conforme a temporada acumula dados, a leitura fica mais precisa.'
+    };
+  }
+
+  function _commercialPlayRow(label, value) {
+    if (!value) return '';
+    return '<div><span>' + _esc(label) + '</span><strong>' + _esc(value) + '</strong></div>';
+  }
+
+  function _seasonFilterDisplayActions(actions, season, metrics, maxActions) {
+    actions = (actions || []).filter(Boolean);
+    var hasRecentOrders = _seasonHasRecentCardapioOrders(metrics);
+    if (hasRecentOrders) {
+      actions = actions.filter(function (action) {
+        return _seasonActionKind(action) !== 'baseline' && String(action.source || '') !== 'baseline';
+      });
+    }
+    var primaryByKey = {};
+    actions.forEach(function (action) {
+      var mechanism = _seasonDisplayMechanism(action);
+      if (mechanism !== 'coupon' && mechanism !== 'promotion') return;
+      primaryByKey[_seasonDisplayCampaignKey(action)] = action;
+    });
+    var kept = [];
+    actions.forEach(function (action) {
+      var mechanism = _seasonDisplayMechanism(action);
+      var key = _seasonDisplayCampaignKey(action);
+      var outcomeKey = _seasonDisplayOutcomeKey(action);
+      var hasPrimary = !!primaryByKey[key];
+      if (hasPrimary && action !== primaryByKey[key] && _seasonLooksLikeCampaignStep(action, mechanism)) return;
+      if (_seasonDuplicatesExistingDisplayAction(kept, action, mechanism, key, outcomeKey)) return;
+      kept.push(action);
+    });
+    return kept.slice(0, Math.max(1, Math.round(_number(maxActions, 2))));
+  }
+
+  function _seasonDisplayMechanism(action) {
+    action = action || {};
+    var play = action.commercialPlay || action.commercial || {};
+    var execution = play.salesPlayExecution || action.salesPlayExecution || {};
+    var type = _foldText(execution.actionType || play.actionType || _seasonActionCommercialType(action) || '');
+    var source = _foldText(action.source || '');
+    var text = _foldText([action.title, action.description, action.why, play.title, play.whatToDo].join(' '));
+    if (type.indexOf('cupom') >= 0 || source === 'coupons' || /\bcupom\b/.test(text)) return 'coupon';
+    if (type.indexOf('promoc') >= 0 || source === 'promotions' || /\bpromoc/.test(text)) return 'promotion';
+    if (type.indexOf('upsell') >= 0 || source === 'upsell') return 'upsell';
+    if (type.indexOf('combo') >= 0) return 'combo';
+    if (type.indexOf('reativ') >= 0 || type.indexOf('ponto') >= 0 || source === 'retention' || source === 'points') return 'retention';
+    if (type.indexOf('canal') >= 0 || source === 'channels') return 'channel';
+    if (source === 'baseline') return 'baseline';
+    return source || type || 'other';
+  }
+
+  function _seasonDisplayCampaignKey(action) {
+    action = action || {};
+    var play = action.commercialPlay || action.commercial || {};
+    var execution = play.salesPlayExecution || action.salesPlayExecution || {};
+    var measurement = action.measurement || {};
+    var product = action.productName || play.productName || execution.productName || measurement.productName || _seasonActionProductLabel(action) || '';
+    var audience = action.customerGroup || play.customerGroup || execution.audience || measurement.customerGroup || '';
+    return _productNameKey(product || 'sem-produto') + '|' + _seasonAudienceGroupKey(audience, product);
+  }
+
+  function _seasonDisplayOutcomeKey(action) {
+    action = action || {};
+    var play = action.commercialPlay || action.commercial || {};
+    var execution = play.salesPlayExecution || action.salesPlayExecution || {};
+    var measurement = action.measurement || {};
+    var product = action.productName || play.productName || execution.productName || measurement.productName || _seasonActionProductLabel(action) || '';
+    var channel = _normalizeChannel(action.channel || play.channelName || execution.channelName || measurement.channel || 'cardapio');
+    var audience = action.customerGroup || play.customerGroup || execution.audience || measurement.customerGroup || '';
+    var metric = measurement.successMetric || measurement.type || _seasonDisplayMechanism(action);
+    return [
+      _productNameKey(product || 'sem-produto'),
+      _seasonAudienceGroupKey(audience, product),
+      channel || 'cardapio',
+      _foldText(metric || '')
+    ].join('|');
+  }
+
+  function _seasonAudienceGroupKey(audience, product) {
+    var text = _foldText(audience || '');
+    var productKey = _productNameKey(product || '');
+    if (!text) return 'sem-publico';
+    if (/clientes que ja compraram|clientes recorrentes|recorrente|recompra|ja compraram|já compraram/.test(text)) return productKey ? 'recompra-' + productKey : 'recompra';
+    if (/inativo|sem compra|reativ/.test(text)) return 'reativacao';
+    if (/ponto/.test(text)) return 'pontos';
+    if (/vip/.test(text)) return 'vip';
+    if (/whatsapp/.test(text)) return 'whatsapp';
+    if (/cardapio/.test(text)) return 'cardapio';
+    return text;
+  }
+
+  function _seasonLooksLikeCampaignStep(action, mechanism) {
+    var text = _foldText([action && action.title, action && action.description, action && action.why].join(' '));
+    if (mechanism === 'channel') return /envie o link|enviar pelo whatsapp|link do cardapio|canal direto|puxe pedidos/.test(text);
+    if (mechanism === 'retention') return /chame clientes|traga clientes|clientes que ja compraram|recompra|voltar/.test(text);
+    if (mechanism === 'baseline') return true;
+    return false;
+  }
+
+  function _seasonDuplicatesExistingDisplayAction(kept, action, mechanism, key, outcomeKey) {
+    return (kept || []).some(function (existing) {
+      var existingMechanism = _seasonDisplayMechanism(existing);
+      var existingKey = _seasonDisplayCampaignKey(existing);
+      var existingOutcomeKey = _seasonDisplayOutcomeKey(existing);
+      if (existingOutcomeKey === outcomeKey) return true;
+      if (existingKey !== key) return false;
+      if (existingMechanism === mechanism) return true;
+      if ((existingMechanism === 'retention' && mechanism === 'channel') || (existingMechanism === 'channel' && mechanism === 'retention')) return true;
+      if ((existingMechanism === 'coupon' || existingMechanism === 'promotion') && (mechanism === 'retention' || mechanism === 'channel')) return true;
+      if ((mechanism === 'coupon' || mechanism === 'promotion') && (existingMechanism === 'retention' || existingMechanism === 'channel')) return true;
+      return false;
+    });
   }
 
   function _nextMoveTimingCard(action, task, season) {
@@ -6560,15 +7133,15 @@ Modules.Temporadas = (function () {
     var deadline = _formatDate(deadlineValue) || 'o fim desta rodada';
     return '' +
       '<section class="seasons-next-reason seasons-next-timing-card">' +
-        '<span>Quando vem a próxima jogada</span>' +
-        '<strong>Esta jogada vai até ' + _esc(deadline) + '.</strong>' +
-        '<p>Até lá, siga a ação proposta e continue registrando tudo que acontece na sua operação.</p>' +
+        '<div class="seasons-next-timing-head">' +
+          '<span>Quando vem a próxima jogada</span>' +
+          '<strong>Depois de ' + _esc(deadline) + '</strong>' +
+        '</div>' +
         '<div class="seasons-next-timing-observe">' +
-          '<small>O que o BocaFood vai observar</small>' +
+          '<small>Foco até a próxima jogada</small>' +
           '<p>' + _esc(_nextMoveObservationText(action)) + '</p>' +
         '</div>' +
-        '<p>Depois dessa data, o BocaFood lê o que aconteceu e cria a próxima jogada.</p>' +
-        '<p>Se ainda estiver cedo para tirar uma conclusão, a próxima ação será mais simples: organizar melhor os primeiros pedidos para entender o que está respondendo na sua operação.</p>' +
+        '<p>Até lá, mantenha a jogada atual e não mude produto, público ou benefício no meio do caminho.</p>' +
       '</section>';
   }
 
@@ -6591,7 +7164,7 @@ Modules.Temporadas = (function () {
     if (type === 'channel' || type === 'timing') {
       if (product && channelLabel) return 'Se ' + product + ' apareceu nos pedidos de ' + channelLabel + ' e ajudou a venda a crescer.';
       if (channelLabel) return 'Se ' + channelLabel + ' trouxe pedidos suficientes para continuar recebendo atenção.';
-      return 'Se o canal escolhido trouxe pedidos suficientes para continuar recebendo atenção.';
+      return 'Se o Cardápio trouxe pedidos suficientes para continuar recebendo atenção.';
     }
     if (type === 'consistency') return 'Se o dia trabalhado recebeu pedidos suficientes para merecer mais atenção.';
     if (product) return 'Se ' + product + ' apareceu nos pedidos e ajudou a venda a crescer.';
@@ -6612,21 +7185,18 @@ Modules.Temporadas = (function () {
   }
 
   function _seasonWeeklyReadingHtml(season, metrics, executionPlan, actions) {
-    var remaining = _seasonRemainingGoalText(season, metrics);
+    var scoreBreakdown = _scoreBreakdownForDisplay(season || {}, metrics || {});
+    var reading = _seasonReadingForDisplay(season || {}, metrics || {}, scoreBreakdown);
     var profile = executionPlan && executionPlan.difficultyProfile || _difficultyExecutionProfile(season && season.difficulty);
-    var focus = _seasonWeeklyFocusText(season, metrics, actions);
+    var focus = _seasonWeeklyFocusText(season, metrics, reading);
+    var summary = _seasonWeeklySignalSummary(reading);
     return '' +
       '<section class="seasons-weekly-reading">' +
         '<div>' +
           '<span class="seasons-section-label">Leitura da semana</span>' +
-          '<h4>' + _esc(remaining.title) + '</h4>' +
+          '<h4>' + _esc(summary.title) + '</h4>' +
           '<p>' + _esc(focus) + '</p>' +
         '</div>' +
-        '<aside class="seasons-weekly-rhythm seasons-weekly-rhythm-' + _esc(season && season.difficulty || 'balanced') + '">' +
-          '<small>Ritmo escolhido</small>' +
-          '<strong>' + _esc(profile.label || 'Temporada') + '</strong>' +
-          '<span>' + _esc(profile.cadence || 'Ações práticas') + '</span>' +
-        '</aside>' +
       '</section>';
   }
 
@@ -6664,22 +7234,10 @@ Modules.Temporadas = (function () {
     return { title: 'Para esta semana, foque nas jogadas com melhor chance de resposta.' };
   }
 
-  function _seasonWeeklyFocusText(season, metrics, actions) {
-    var first = (actions || [])[0] || {};
-    var product = _seasonActionProductLabel(first);
-    if (season && season.objective === 'increase_ticket') {
-      return product ? 'O foco agora é vender melhor cada pedido, usando ' + product + ' como entrada para adicionais, combo ou upsell.' : 'O foco agora é vender melhor cada pedido, sem depender só de baixar preço.';
-    }
-    if (season && season.objective === 'retain_customers') {
-      return product ? 'O foco agora é trazer clientes de volta usando ' + product + ' como motivo claro para repetir a compra.' : 'O foco agora é trazer clientes de volta com uma oferta simples e fácil de entender.';
-    }
-    if (season && season.objective === 'improve_consistency') {
-      if (_number(metrics && metrics.orders, 0) <= 0) {
-        return 'O foco agora é começar a temporada com pedidos reais. Depois disso, a leitura mostra quais dias, produtos, canais e ações merecem mais atenção.';
-      }
-      return product ? 'O foco agora é usar ' + product + ' para puxar os dias mais fracos.' : 'O foco agora é distribuir melhor as vendas ao longo da semana.';
-    }
-    return product ? 'Para esta semana, use ' + product + ' como produto de força e acompanhe se a jogada vira venda.' : 'Para esta semana, foque nas jogadas abaixo e veja qual responde melhor.';
+  function _seasonWeeklyFocusText(season, metrics, reading) {
+    reading = reading || _seasonReadingForDisplay(season || {}, metrics || {}, _scoreBreakdownForDisplay(season || {}, metrics || {}));
+    var summary = _seasonWeeklySignalSummary(reading);
+    return summary.text;
   }
 
   function _seasonActionProductLabel(action) {
@@ -6695,6 +7253,1654 @@ Modules.Temporadas = (function () {
     return match && match[1] ? String(match[1]).trim() : '';
   }
 
+  function _seasonDisplayAction(action, season, metrics) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    var product = action.productName || measurement.productName || _seasonActionProductLabel(action);
+    if (!product && _seasonHasRecentCardapioOrders(metrics)) product = _seasonBestMetricProductName(metrics);
+    if (_seasonShouldUseBaseReading(action, season, metrics, product)) {
+      return _seasonBaseReadingAction(action);
+    }
+    var normalized = Object.assign({}, action);
+    normalized.measurement = Object.assign({}, measurement);
+    if (product && !normalized.productName) normalized.productName = product;
+    if (product && !normalized.measurement.productName) normalized.measurement.productName = product;
+    var productIssueAction = _seasonProductIssueAction(normalized, season, metrics, product);
+    if (productIssueAction) return productIssueAction;
+    normalized = _seasonChooseSingleAction(normalized, season, metrics);
+    normalized.description = _seasonSingleActionText(normalized.description) || normalized.description;
+    normalized.title = _seasonTitleWithVerb(normalized);
+    normalized.commercialPlay = _seasonCommercialPlayFromDisplayAction(normalized, season);
+    return normalized;
+  }
+
+  function _seasonProductIssueAction(action, season, metrics, productName) {
+    if (!productName) return null;
+    var product = _seasonFindCatalogProduct(action, productName);
+    if (!product) return null;
+    var issue = _seasonProductIssue(product, action, season);
+    if (!issue) return null;
+    var measurement = Object.assign({}, action.measurement || {}, {
+      type: issue.type,
+      productName: productName,
+      productKey: action.productKey || action.measurement && action.measurement.productKey || _productSignalKey(product),
+      successMetric: issue.successMetric
+    });
+    var fixed = Object.assign({}, action, {
+      source: issue.source,
+      title: issue.title,
+      description: issue.description,
+      why: issue.why,
+      productName: productName,
+      productKey: measurement.productKey,
+      measurement: measurement,
+      checklist: issue.checklist,
+      commercialPlay: {
+        title: issue.title,
+        summary: '',
+        actionType: issue.actionType,
+        actionName: '',
+        actionKind: issue.actionKind,
+        productName: productName,
+        combinationName: '',
+        channelName: issue.where,
+        customerGroup: '',
+        whereToDo: issue.where,
+        whatToDo: issue.description,
+        whyThis: issue.why,
+        afterDo: issue.afterDo,
+        expectedResult: issue.expectedResult,
+        howBocaFoodReads: issue.howBocaFoodReads,
+        ifNoResult: issue.ifNoResult,
+        systemActionContext: issue.systemActionContext
+      }
+    });
+    return fixed;
+  }
+
+  function _seasonFindCatalogProduct(action, productName) {
+    var products = _state.actionContext && _state.actionContext.products || [];
+    if (!products.length) return null;
+    var measurement = action && action.measurement || {};
+    var ids = [
+      action && action.productKey,
+      action && action.productId,
+      measurement.productKey,
+      measurement.productId
+    ].map(function (value) { return String(value || '').replace(/^id:/, '').trim(); }).filter(Boolean);
+    var nameKey = _productNameKey(productName);
+    return products.filter(function (product) {
+      if (!product) return false;
+      var productId = String(product.id || product.productId || product.uid || product.ref || product.slug || '').trim();
+      if (productId && ids.indexOf(productId) >= 0) return true;
+      return nameKey && _productNameKey(_productDisplayName(product) || _productActionName(product)) === nameKey;
+    })[0] || null;
+  }
+
+  function _seasonProductIssue(product, action, season) {
+    var name = _productDisplayName(product) || _productActionName(product) || action && action.productName || 'produto';
+    var readiness = _seasonProductReadiness(product);
+    if (_seasonProductHidden(product)) {
+      return {
+        type: 'product_visibility',
+        source: 'product_visibility',
+        actionKind: 'unlock',
+        actionType: 'Revisão de produto parado',
+        where: 'Cardápio → Produtos → ' + name,
+        title: 'Ative ' + name + ' no Cardápio',
+        description: 'Clique em Ativar no Cardápio e deixe ' + name + ' visível para venda. Sem isso, nenhuma jogada de venda com esse produto aparece para a cliente.',
+        why: name + ' apareceu como produto possível para a temporada, mas está oculto ou inativo no Cardápio.',
+        checklist: ['Ative ' + name + ' no cadastro do produto.'],
+        successMetric: 'product_visible',
+        expectedResult: name + ' ficar visível no Cardápio antes da jogada comercial.',
+        afterDo: 'Volte para Temporadas. Com o produto ativo, o BocaFood poderá sugerir uma jogada comercial para vender esse item.',
+        howBocaFoodReads: 'Leitura interna pelo cadastro do produto e status de visibilidade.',
+        ifNoResult: 'Se não puder ativar esse produto agora, escolha outro produto ativo para a próxima jogada.',
+        systemActionContext: _seasonSystemActionContext('unlock', 'not_visible', name, readiness, {
+          moduleName: 'Cardápio',
+          primaryButtonLabel: 'Ativar no Cardápio',
+          secondaryButtonLabel: 'Editar produto',
+          routeTarget: 'catalogo/produtos',
+          availableSystemActions: ['edit_product']
+        })
+      };
+    }
+    if (!_seasonProductHasImage(product)) {
+      return {
+        type: 'product_image',
+        source: 'product_image',
+        actionKind: 'unlock',
+        actionType: 'Revisão de produto parado',
+        where: 'Cardápio → Produtos → ' + name + ' → Foto',
+        title: 'Adicione uma foto em ' + name + ' antes de puxar venda por ele',
+        description: 'Clique em Editar produto e cadastre uma foto de ' + name + '. Sem foto, essa jogada fica fraca para venda no Cardápio.',
+        why: name + ' já apareceu como produto possível para a temporada, mas está sem foto cadastrada.',
+        checklist: ['Adicione uma foto no cadastro de ' + name + '.'],
+        successMetric: 'product_image_added',
+        expectedResult: name + ' ficar com foto cadastrada antes da jogada comercial.',
+        afterDo: 'Volte para Temporadas. Com a foto cadastrada, o BocaFood poderá sugerir uma jogada de venda usando esse produto.',
+        howBocaFoodReads: 'Leitura interna pelo cadastro do produto e campo de imagem.',
+        ifNoResult: 'Se não tiver uma foto agora, use outro produto com foto para uma jogada comercial.',
+        systemActionContext: _seasonSystemActionContext('unlock', 'missing_photo', name, readiness, {
+          moduleName: 'Cardápio',
+          primaryButtonLabel: 'Editar produto',
+          routeTarget: 'catalogo/produtos',
+          availableSystemActions: ['edit_product']
+        })
+      };
+    }
+    if (!_seasonProductHasValidPrice(product)) {
+      return {
+        type: 'product_price',
+        source: 'product_price',
+        actionKind: 'unlock',
+        actionType: 'Ajuste de preço',
+        where: 'Cardápio → Produtos → ' + name + ' → Preço de venda',
+        title: 'Defina o preço de venda de ' + name,
+        description: 'Clique em Editar produto e preencha o preço de venda de ' + name + '. Sem preço, o BocaFood não consegue colocar esse produto em uma jogada de venda.',
+        why: name + ' apareceu como produto possível para a temporada, mas está sem preço de venda válido.',
+        checklist: ['Defina o preço de venda no cadastro de ' + name + '.'],
+        successMetric: 'product_price_fixed',
+        expectedResult: name + ' ficar com preço de venda válido.',
+        afterDo: 'Volte para Temporadas. Com preço preenchido, o BocaFood poderá decidir a próxima jogada comercial com mais segurança.',
+        howBocaFoodReads: 'Leitura interna pelo preço cadastrado no produto.',
+        ifNoResult: 'Se não souber o preço agora, não puxe venda por esse produto; escolha outro produto com preço definido.',
+        systemActionContext: _seasonSystemActionContext('unlock', 'missing_price', name, readiness, {
+          moduleName: 'Cardápio',
+          primaryButtonLabel: 'Editar produto',
+          routeTarget: 'catalogo/produtos',
+          availableSystemActions: ['edit_product']
+        })
+      };
+    }
+    if ((_seasonActionUsesDiscount(action) || season && season.objective === 'sell_more' && _seasonActionCommercialType(action) === 'Cupom') && !_seasonProductHasCostBase(product)) {
+      return {
+        type: 'product_margin',
+        source: 'product_margin',
+        actionKind: 'unlock',
+        actionType: 'Ajuste de preço',
+        where: 'Preços e Margem → ' + name + ' → Editar ficha técnica',
+        title: 'Cadastre a ficha técnica de ' + name + ' para liberar jogadas com desconto',
+        description: 'Clique em Editar ficha técnica e cadastre os ingredientes, embalagem e rendimento de ' + name + '. Sem isso, o BocaFood não consegue calcular se cupom ou promoção deixam lucro.',
+        why: name + ' já apareceu como produto com resposta, mas ainda falta custo/margem para proteger o resultado.',
+        checklist: ['Complete custo ou ficha técnica de ' + name + '.'],
+        successMetric: 'product_cost_completed',
+        expectedResult: name + ' ficar com custo ou ficha técnica suficiente para calcular margem.',
+        afterDo: 'Volte para Temporadas. O BocaFood vai recalcular a margem e poderá sugerir uma jogada de cupom, promoção ou upsell com mais segurança.',
+        howBocaFoodReads: 'Leitura interna por custo, ficha técnica, preço e margem do produto.',
+        ifNoResult: 'Se não conseguir completar a ficha agora, evite desconto nesse produto e use uma jogada sem desconto, como upsell, combo ou chamada para clientes.',
+        systemActionContext: _seasonSystemActionContext('unlock', 'missing_cost', name, readiness, {
+          moduleName: 'Preços e Margem',
+          primaryButtonLabel: 'Editar ficha técnica',
+          secondaryButtonLabel: 'Ver margem',
+          routeTarget: 'dinheiro/precos',
+          availableSystemActions: ['edit_recipe', 'view_margin']
+        })
+      };
+    }
+    return null;
+  }
+
+  function _seasonProductReadiness(product) {
+    return {
+      isVisible: !_seasonProductHidden(product),
+      hasPhoto: _seasonProductHasImage(product),
+      hasPrice: _seasonProductHasValidPrice(product),
+      hasCost: _seasonProductHasCostBase(product),
+      hasRecipe: _seasonProductHasRecipe(product),
+      hasMargin: _seasonProductHasCostBase(product),
+      hasStockBase: !!(product && (product.stockItemId || product.ingredientIds || product.recipeId || product.fichaTecnicaId)),
+      isPublishedInMenu: !_seasonProductHidden(product)
+    };
+  }
+
+  function _seasonProductHasRecipe(product) {
+    if (!product) return false;
+    if (product.recipeId || product.fichaTecnicaId || product.fichaId || product.productionRecipeId) return true;
+    return Array.isArray(product.ingredients) && product.ingredients.length > 0 || Array.isArray(product.ingredientes) && product.ingredientes.length > 0;
+  }
+
+  function _seasonSystemActionContext(kind, problem, productName, readiness, options) {
+    options = options || {};
+    return {
+      actionKind: kind,
+      detectedProblem: problem,
+      moduleName: options.moduleName || '',
+      primaryButtonLabel: options.primaryButtonLabel || '',
+      secondaryButtonLabel: options.secondaryButtonLabel || '',
+      routeTarget: options.routeTarget || '',
+      productReadiness: readiness || {},
+      salesActionAvailability: _seasonSalesActionAvailability(),
+      discountDecision: options.discountDecision || {},
+      availableSystemActions: options.availableSystemActions || []
+    };
+  }
+
+  function _seasonSalesActionAvailability() {
+    var ctx = _state.actionContext || {};
+    var coupons = (ctx.coupons || []).filter(_actionCouponActive);
+    var promotions = (ctx.promotions || []).filter(_actionPromoActive);
+    var upsells = (ctx.upsells || []).filter(_actionUpsellActive);
+    var combos = (ctx.products || []).filter(function (product) {
+      return product && (product.combo === true || product.isCombo === true || product.type === 'combo' || product.tipo === 'combo');
+    });
+    var coupon = coupons[0] || {};
+    var promotion = promotions[0] || {};
+    var upsell = upsells[0] || {};
+    var combo = combos[0] || {};
+    var points = ctx.pointsConfig || {};
+    return {
+      hasCoupons: coupons.length > 0,
+      hasPromotions: promotions.length > 0,
+      hasUpsells: upsells.length > 0,
+      hasCombos: combos.length > 0,
+      hasPointsProgram: points && points.active !== false && (!!points.id || !!points.enabled || !!points.earnPerEuro || !!points.minimumPointsToUse),
+      couponCode: String(coupon.code || coupon.codigo || '').trim(),
+      promotionName: String(promotion.name || promotion.title || promotion.nome || '').trim(),
+      upsellName: String(upsell.name || upsell.title || '').trim(),
+      combinationName: String(combo.name || combo.nome || combo.title || '').trim()
+    };
+  }
+
+  function _seasonProductHidden(product) {
+    if (!product) return false;
+    if (product.publicado === false || product.published === false || product.visible === false || product.menuVisible === false || product.showInMenu === false || product.cardapioVisible === false || product.hidden === true) return true;
+    var status = _foldText(product.status || product.situacao || product.state || '');
+    return ['inativo', 'inativa', 'oculto', 'oculta', 'pausado', 'pausada', 'arquivado', 'arquivada'].indexOf(status) >= 0;
+  }
+
+  function _seasonProductHasImage(product) {
+    var image = _firstValue(product && product.image, product && product.imageUrl, product && product.photo, product && product.photoUrl, product && product.foto, product && product.fotoUrl, product && product.imagem, product && product.imagemUrl, product && product.thumbnail, product && product.cover);
+    if (image) return true;
+    var images = product && (product.images || product.photos || product.gallery || product.galeria);
+    return Array.isArray(images) && images.filter(Boolean).length > 0;
+  }
+
+  function _seasonProductHasValidPrice(product) {
+    return _money(_firstValue(product && product.price, product && product.salePrice, product && product.valor, product && product.preco, product && product.precoVenda)) > 0;
+  }
+
+  function _seasonProductHasCostBase(product) {
+    if (!product) return false;
+    var economics = _productEconomics(product, null, _state.actionContext || {});
+    return economics.hasPriceAndCost || _number(economics.cost, 0) > 0 || _number(product.marginPercent || product.grossMarginPercent || product.margin, 0) > 0;
+  }
+
+  function _seasonMinimumMarginRule(action, product, channelName, economics) {
+    action = action || {};
+    product = product || null;
+    var context = _state.actionContext || {};
+    var business = context.businessConfig || {};
+    var rawChannel = 'cardapio';
+    var channel = _channelConfigFor(rawChannel, context.salesChannels || []);
+    var candidates = [
+      { source: 'produto', value: _firstValue(product && product.minimumMarginPct, product && product.minMarginPct, product && product.margemMinimaPct, product && product.margemDesejadaPct, product && product.targetMarginPct) },
+      { source: 'canal', value: _firstValue(channel && channel.minMarginPct, channel && channel.minimumMarginPct, channel && channel.margemMinimaPct, channel && channel.margemDesejadaPct, channel && channel.targetMarginPct) },
+      { source: 'negocio', value: _firstValue(business.minimumMarginPct, business.minMarginPct, business.margemMinimaPct, business.margemDesejadaPct, business.targetMarginPct) },
+      { source: 'bocafood_default', value: economics && economics.targetMarginPct }
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var pct = _number(candidates[i].value, 0);
+      if (pct > 0 && pct < 95) return { pct: pct, source: candidates[i].source, channel: channel || null };
+    }
+    return { pct: 0, source: '', channel: channel || null };
+  }
+
+  function _seasonMaxDiscountFromMargin(price, cost, marginRule, channel) {
+    price = _money(price);
+    cost = _money(cost);
+    marginRule = marginRule || {};
+    channel = channel || {};
+    var minMarginPct = _number(marginRule.pct, 0);
+    if (!(price > 0) || !(cost > 0) || !(minMarginPct > 0)) return 0;
+    var commissionPct = _number(channel.commissionPct, 0);
+    var taxPct = _number(channel.taxPct, 0);
+    var fixedFee = _money(channel.fixedFee || 0);
+    var channelPct = commissionPct + (commissionPct * taxPct / 100);
+    var denominator = 1 - ((minMarginPct + channelPct) / 100);
+    if (!(denominator > 0)) return 0;
+    var requiredNetRevenue = (cost + fixedFee) / denominator;
+    var maxDiscountPct = (1 - (requiredNetRevenue / price)) * 100;
+    return Math.max(0, Math.floor(maxDiscountPct));
+  }
+
+  function _seasonDiscountDecision(action, productName) {
+    var product = _seasonFindCatalogProduct(action, productName);
+    var economics = product ? _productEconomics(product, null, _state.actionContext || {}) : null;
+    var price = _number(economics && economics.price, 0);
+    var cost = _number(economics && economics.cost, 0);
+    var marginRule = _seasonMinimumMarginRule(action, product, action && (action.channelName || action.channel), economics);
+    var marginLimitedPct = _seasonMaxDiscountFromMargin(price, cost, marginRule, marginRule.channel);
+    var maxPct = Math.min(_number(economics && economics.maxHealthyDiscountPct, 0), marginLimitedPct);
+    var suggested = _seasonSuggestedDiscountPercent({ maxHealthyDiscountPct: maxPct });
+    var finalPrice = price > 0 ? price * (1 - suggested / 100) : 0;
+    var channelFees = finalPrice > 0 ? _channelCostImpact({ revenue: finalPrice, orders: 1 }, marginRule.channel || {}) : { totalFees: 0 };
+    var marginAfter = finalPrice > 0 && cost > 0 ? ((finalPrice - cost - _number(channelFees.totalFees, 0)) / finalPrice) * 100 : 0;
+    var reason = 'safe_margin';
+    if (!product) reason = 'missing_product';
+    else if (!(price > 0)) reason = 'missing_price';
+    else if (!(cost > 0)) reason = _seasonProductHasRecipe(product) ? 'missing_cost' : 'missing_recipe';
+    else if (!(marginRule.pct > 0)) reason = 'missing_min_margin';
+    else if (!(maxPct >= 3) || !(suggested > 0)) reason = 'low_margin';
+    return {
+      canDiscount: reason === 'safe_margin',
+      reason: reason,
+      suggestedDiscountType: reason === 'safe_margin' ? 'percent' : '',
+      suggestedDiscountValue: reason === 'safe_margin' ? suggested : 0,
+      minimumOrderValue: reason === 'safe_margin' ? _seasonMinimumOrderValue(price) : 0,
+      maxSafeDiscountPercent: Math.max(0, Math.floor(maxPct || 0)),
+      marginAfterDiscount: reason === 'safe_margin' ? Math.round(marginAfter) : 0,
+      minimumMarginPct: Math.round(_number(marginRule.pct, 0)),
+      minimumMarginSource: marginRule.source || '',
+      channelCostPct: Math.round(_number(_channelCostImpact({ revenue: price, orders: 1 }, marginRule.channel || {}).channelCostPct, 0)),
+      source: 'bocafood_deterministic_margin',
+      validUntil: _seasonValidUntilSundayText(),
+      usageLimit: 20
+    };
+  }
+
+  function _seasonSuggestedDiscountPercent(economics) {
+    var max = Math.floor(_number(economics && economics.maxHealthyDiscountPct, 0));
+    if (max >= 5) return 5;
+    if (max >= 3) return max;
+    return 0;
+  }
+
+  function _seasonMinimumOrderValue(price) {
+    price = _number(price, 0);
+    var base = Math.max(15, price * 2);
+    return Math.ceil(base / 5) * 5;
+  }
+
+  function _seasonValidUntilSundayText() {
+    var date = new Date();
+    var day = date.getDay();
+    var add = (7 - day) % 7;
+    if (add === 0) add = 7;
+    date.setDate(date.getDate() + add);
+    return 'domingo, ' + _formatDate(date);
+  }
+
+  function _seasonDiscountAlternativeAction(action, season, product, channelLabel, decision) {
+    action = action || {};
+    if (decision && (decision.reason === 'missing_cost' || decision.reason === 'missing_recipe' || decision.reason === 'missing_price')) {
+      var issueAction = _seasonProductIssueAction(Object.assign({}, action, {
+        source: 'coupons',
+        productName: product,
+        measurement: Object.assign({}, action.measurement || {}, { productName: product, type: 'coupon' })
+      }), season, {}, product);
+      if (issueAction) return issueAction;
+    }
+    action.source = 'upsell';
+    action.measurement = Object.assign({}, action.measurement || {}, { type: 'upsell', channel: 'cardapio', productName: product || '' });
+    action.channel = 'cardapio';
+    action.title = product ? 'Cadastre um upsell para ' + product + ' no Cardápio' : 'Cadastre um upsell no Cardápio';
+    action.description = product ? 'Abra Ações de Vendas → Upsell e cadastre uma oferta extra ligada a ' + product + '. Use um complemento já cadastrado no Cardápio para aumentar o pedido sem desconto.' : 'Abra Ações de Vendas → Upsell e cadastre uma oferta extra usando produto já cadastrado no Cardápio.';
+    action.why = action.why || 'O desconto não está liberado pelos dados de margem, então a jogada segura é aumentar pedido sem baixar preço.';
+    return action;
+  }
+
+  function _seasonDiscountStrategyAllowed(season, metrics, action) {
+    var objective = season && season.objective || '';
+    var source = String(action && action.source || '');
+    var text = _foldText([
+      action && action.title,
+      action && action.description,
+      action && action.why,
+      action && action.customerGroup,
+      action && action.measurement && action.measurement.customerGroup
+    ].join(' '));
+    if (source === 'coupons' || source === 'promotions') return true;
+    if (objective === 'retain_customers') return true;
+    if (objective === 'sell_more' && _number(metrics && metrics.recurringCustomers, 0) > 0) return true;
+    if (/recompra|reativ|inativ|primeira compra|migr|cardapio|cardápio|meta/.test(text)) return true;
+    return false;
+  }
+
+  function _seasonRecentlyFailedMechanism(season, source, productName, action) {
+    var sourceKey = String(source || '');
+    var productKey = _productNameKey(productName || action && action.productName || action && action.measurement && action.measurement.productName || '');
+    var actionProductKey = String(action && action.productKey || action && action.measurement && action.measurement.productKey || '').trim();
+    return (season && season.actionTaskHistory || []).slice(0, 8).some(function (task) {
+      if (!task || (task.status !== 'executed_without_result' && task.status !== 'not_executed')) return false;
+      if (sourceKey && String(task.source || '') !== sourceKey) return false;
+      if (actionProductKey && String(task.productKey || '') === actionProductKey) return true;
+      if (!productKey) return true;
+      return _productNameKey(task.title || '').indexOf(productKey) >= 0;
+    });
+  }
+
+  function _seasonActionUsesDiscount(action) {
+    var type = _seasonActionCommercialType(action);
+    var source = String(action && action.source || '');
+    var text = _foldText([action && action.title, action && action.description, action && action.why, (action && action.checklist || []).join(' ')].join(' '));
+    return type === 'Cupom' || type === 'Promoção' || type === 'Ajuste de preço' || source === 'coupons' || source === 'promotions' || source === 'healthy_discount' || /\bcupom\b|\bpromoc|\bdesconto\b/.test(text);
+  }
+
+  function _seasonShouldUseBaseReading(action, season, metrics, product) {
+    metrics = metrics || {};
+    var measurement = action && action.measurement || {};
+    var source = String(action && action.source || '');
+    var hasRecentCardapioOrders = _seasonHasRecentCardapioOrders(metrics);
+    var text = _foldText([action && action.title, action && action.description, action && action.why, (action && action.checklist || []).join(' ')].join(' '));
+    if (source === 'baseline' || measurement.type === 'baseline') return !hasRecentCardapioOrders;
+    if (!hasRecentCardapioOrders) return true;
+    if (!product && _seasonActionNeedsProduct(action)) return false;
+    if (_seasonHasGenericActionList(text) && !product && !measurement.channel && !measurement.customerGroup) return false;
+    return false;
+  }
+
+  function _seasonHasRecentCardapioOrders(metrics) {
+    return _seasonRecentCardapioOrdersCount(metrics, 30) > 0;
+  }
+
+  function _seasonRecentCardapioOrdersCount(metrics, days) {
+    metrics = metrics || {};
+    days = Math.max(1, Math.round(_number(days, 30)));
+    var since = _addDays(_dayStart(new Date()), -days + 1);
+    var orders = _state.actionContext && Array.isArray(_state.actionContext.orders) ? _state.actionContext.orders : [];
+    if (orders.length) {
+      return orders.map(_normalizeSeasonOrder).filter(_isValidSeasonOrder).filter(function (order) {
+        return order.createdAt >= since && _normalizeChannel(order.channel) === 'cardapio';
+      }).length;
+    }
+    var history = _state.businessHistory || {};
+    var rolling30 = history.periods && history.periods.rolling_30 || {};
+    var historyOrders = _number(rolling30.ordersCount, 0);
+    if (historyOrders > 0) return Math.round(historyOrders);
+    var channels = metrics.channelBreakdown || metrics.channels || [];
+    var cardapio = (channels || []).find(function (item) {
+      return _normalizeChannel(item && (item.channel || item.key || item.name || item.label || '')) === 'cardapio';
+    });
+    if (cardapio && _number(cardapio.orders || cardapio.count, 0) > 0) return Math.round(_number(cardapio.orders || cardapio.count, 0));
+    return Math.round(_number(metrics.orders, 0) || _number(metrics.ordersCount, 0));
+  }
+
+  function _seasonBestMetricProductName(metrics) {
+    metrics = metrics || {};
+    var products = metrics.topProducts || metrics.products || [];
+    var first = products && products[0] || {};
+    return String(first.name || first.productName || first.title || '').trim();
+  }
+
+  function _seasonHasCommercialHistory(metrics, product, measurement) {
+    metrics = metrics || {};
+    measurement = measurement || {};
+    var orders = _number(metrics.orders, 0);
+    if (orders < 3) return false;
+    if (product) return true;
+    if (measurement.channel || measurement.customerGroup) return true;
+    var channels = metrics.channelBreakdown || metrics.channels || [];
+    var products = metrics.topProducts || [];
+    return (products && products.length > 0) || (channels && channels.length > 0);
+  }
+
+  function _seasonActionNeedsProduct(action) {
+    var type = _seasonActionCommercialType(action);
+    return ['Cupom', 'Promoção', 'Upsell', 'Combo/Menu', 'Ajuste de preço', 'Revisão de produto parado'].indexOf(type) >= 0;
+  }
+
+  function _seasonHasGenericActionList(text) {
+    text = _foldText(text || '');
+    return /cupom.*promoc.*upsell|promoc.*upsell.*combo|cupom.*promoc.*combo|acao concreta|acao objetiva|acao de venda simples|transforme em acao|crie uma acao|use melhor|destaque o produto|melhore a divulg/.test(text);
+  }
+
+  function _seasonBaseReadingAction(action) {
+    action = action || {};
+    var measurement = {
+      type: 'baseline',
+      source: 'baseline',
+      productName: '',
+      productKey: '',
+      channel: 'cardapio',
+      hour: '',
+      couponCode: '',
+      promotionName: '',
+      upsellName: '',
+      customerGroup: '',
+      successMetric: 'registered_orders_with_product_channel_payment'
+    };
+    return {
+      id: action.id || 'base-leitura',
+      title: 'Complete a leitura do Cardápio',
+      description: 'Nos próximos pedidos do Cardápio, garanta que produto e forma de pagamento estejam preenchidos antes de concluir.',
+      why: 'Ainda não existe histórico suficiente no Cardápio para o BocaFood escolher um produto ou ação de venda com segurança.',
+      source: 'baseline',
+      priority: action.priority || 'high',
+      checklist: [
+        'Registre produto em cada pedido.',
+        'Mantenha a venda passando pelo Cardápio.',
+        'Preencha a forma de pagamento antes de concluir.',
+        'Garanta que o pedido do Cardápio tenha produto e pagamento preenchidos.'
+      ],
+      focusKey: action.focusKey || 'baseline',
+      productKey: '',
+      productName: '',
+      channel: 'cardapio',
+      customerGroup: '',
+      successMetric: measurement.successMetric,
+      goalText: 'Criar base mínima para a próxima decisão ser confiável.',
+      successText: 'Entrar pedidos do Cardápio com produto e pagamento preenchidos dentro do prazo.',
+      measurable: true,
+      measurement: measurement,
+      commercialPlay: {
+        title: 'Complete a leitura do Cardápio',
+        summary: 'Complete produto e pagamento nos próximos pedidos do Cardápio.',
+        actionType: 'Criar base de leitura',
+        actionName: '',
+        productName: '',
+        combinationName: '',
+        channelName: 'Cardápio',
+        customerGroup: '',
+        whatToDo: 'Nos próximos pedidos do Cardápio, garanta que produto e forma de pagamento estejam preenchidos antes de concluir.',
+        whyThis: 'Ainda não existe histórico suficiente no Cardápio para o BocaFood escolher um produto ou ação de venda com segurança.',
+        afterDo: 'Volte para Temporadas depois dos próximos pedidos do Cardápio. Com produto e pagamento preenchidos, o BocaFood poderá escolher uma jogada comercial com mais segurança.',
+        expectedResult: 'Entrar pedidos do Cardápio com produto e pagamento preenchidos dentro do prazo da jogada.',
+        howBocaFoodReads: 'Leitura interna por pedidos do Cardápio com produto e pagamento preenchidos dentro do prazo da jogada.',
+        ifNoResult: 'Antes de criar cupom, promoção ou upsell, complete a base mínima de pedidos para a próxima decisão ser confiável.',
+        systemActionContext: _seasonSystemActionContext('baseline', 'no_sales_base', '', {}, {
+          moduleName: 'Pedidos',
+          primaryButtonLabel: 'Registrar pedido',
+          routeTarget: 'pedidos/lista',
+          availableSystemActions: ['register_order']
+        })
+      }
+    };
+  }
+
+  function _seasonChooseSingleAction(action, season, metrics) {
+    action = _seasonForceCardapioAction(action || {});
+    var type = _seasonActionCommercialType(action);
+    var source = String(action && action.source || '');
+    var measurement = action.measurement || {};
+    var product = action.productName || measurement.productName || _seasonActionProductLabel(action);
+    var channel = 'cardapio';
+    var channelLabel = channel ? _channelLabel(_normalizeChannel(channel)) : '';
+    var text = _foldText([action.title, action.description, action.why, (action.checklist || []).join(' ')].join(' '));
+    var realUpsell = _seasonRealActionName(action, 'Upsell');
+    var realCoupon = _seasonRealActionName(action, 'Cupom');
+    var realPromotion = _seasonRealActionName(action, 'Promoção');
+
+    if (type === 'Upsell' || source === 'upsell' || realUpsell) {
+      action.source = 'upsell';
+      action.measurement.type = 'upsell';
+      action.measurement.channel = 'cardapio';
+      if (realUpsell && !action.measurement.upsellName) action.measurement.upsellName = realUpsell;
+      action.channel = 'cardapio';
+      action.title = realUpsell ? 'Use o upsell ' + realUpsell : 'Aumente o pedido com upsell';
+      action.description = (realUpsell ? 'Use o upsell ' + realUpsell : 'Cadastre um upsell') + (product ? ' junto de ' + product : '') + ' no Cardápio para aumentar o valor do pedido sem baixar preço.';
+      action.why = action.why || 'O objetivo é aumentar o valor do pedido com uma oferta extra mensurável.';
+      return action;
+    }
+
+    if (source === 'promotions' || realPromotion || (type === 'Promoção' && /\bpromoc/.test(text))) {
+      var promoDecision = _seasonDiscountDecision(action, product);
+      if (!realPromotion && _seasonRecentlyFailedMechanism(season, 'promotions', product, action)) return _seasonDiscountAlternativeAction(action, season, product, channelLabel, { reason: 'previous_no_result', canDiscount: false });
+      if (!promoDecision.canDiscount && !realPromotion) return _seasonDiscountAlternativeAction(action, season, product, channelLabel, promoDecision);
+      action.source = 'promotions';
+      action.measurement.type = 'promotion';
+      if (realPromotion && !action.measurement.promotionName) action.measurement.promotionName = realPromotion;
+      action.title = realPromotion ? 'Ative a promoção ' + realPromotion : 'Crie uma promoção no Cardápio';
+      action.description = realPromotion
+        ? 'Use a promoção ' + realPromotion + (product ? ' com ' + product : '') + ' no Cardápio sem alterar benefício, público ou canal durante a janela da jogada.'
+        : 'Crie uma promoção de ' + promoDecision.suggestedDiscountValue + '%' + (product ? ' para ' + product : '') + ' no Cardápio. Configure pedido mínimo ' + _fmtMoney(promoDecision.minimumOrderValue) + ', validade ' + promoDecision.validUntil + ' e limite de ' + promoDecision.usageLimit + ' usos.';
+      return action;
+    }
+
+    if (source === 'coupons' || realCoupon || (type === 'Cupom' && /\bcupom\b/.test(text))) {
+      var couponDecision = _seasonDiscountDecision(action, product);
+      if (!realCoupon && _seasonRecentlyFailedMechanism(season, 'coupons', product, action)) return _seasonDiscountAlternativeAction(action, season, product, channelLabel, { reason: 'previous_no_result', canDiscount: false });
+      if (!couponDecision.canDiscount && !realCoupon) return _seasonDiscountAlternativeAction(action, season, product, channelLabel, couponDecision);
+      action.source = 'coupons';
+      action.measurement.type = 'coupon';
+      if (realCoupon && !action.measurement.couponCode) action.measurement.couponCode = realCoupon;
+      if (!realCoupon) {
+        action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes que já compraram';
+        action.measurement.customerGroup = action.customerGroup;
+        action.measurement.suggestedCouponCode = action.measurement.suggestedCouponCode || _seasonSuggestedCouponCode(product, couponDecision.suggestedDiscountValue, action);
+      }
+      action.title = realCoupon ? 'Use o cupom ' + realCoupon : 'Crie um cupom de recompra';
+      action.description = realCoupon
+        ? 'Use o cupom ' + realCoupon + (product ? ' com ' + product : '') + ' no Cardápio sem alterar benefício, público ou canal durante a janela da jogada.'
+        : 'Crie um cupom de recompra de ' + couponDecision.suggestedDiscountValue + '%' + (product ? ' para ' + product : '') + ' no Cardápio. Configure pedido mínimo ' + _fmtMoney(couponDecision.minimumOrderValue) + ', validade ' + couponDecision.validUntil + ' e limite de ' + couponDecision.usageLimit + ' usos.';
+      action.why = action.why || (product ? product + ' já tem resposta. O cupom entra como recompra limitada, não como desconto automático em produto forte.' : 'O cupom entra com público e limite definidos.');
+      return action;
+    }
+
+    if (!_seasonHasGenericActionList(text) && _seasonStartsWithActionVerb(action.title || action.description) && !_seasonIsWeakChannelText(action.title || action.description)) return action;
+
+    if (source === 'channels' || type === 'Canal de venda') {
+      action.source = 'channels';
+      action.measurement.type = 'channel';
+      if (channel && !action.measurement.channel) action.measurement.channel = channel;
+      action.title = _seasonConcreteChannelTitle(product, channelLabel, season);
+      action.description = _seasonConcreteChannelDescription(product, channelLabel);
+      action.why = action.why || 'O canal aparece como caminho relevante nos dados da temporada.';
+      return action;
+    }
+
+    if (season && season.objective === 'increase_ticket') {
+      action.source = 'upsell';
+      action.measurement.type = 'upsell';
+      action.measurement.channel = 'cardapio';
+      action.channel = 'cardapio';
+      action.title = 'Aumente o pedido com upsell';
+      action.description = product ? 'Cadastre um upsell no Cardápio ligado a ' + product + ' para aumentar o valor do pedido sem baixar preço.' : 'Cadastre um upsell no Cardápio para aumentar o valor do pedido sem baixar preço.';
+      action.why = action.why || 'O objetivo da temporada é aumentar ticket, então a melhor jogada é oferecer algo a mais no pedido.';
+      return action;
+    }
+
+    if (source === 'retention' || source === 'points' || type === 'Pontos/Reativação') {
+      action.source = 'points';
+      action.measurement.type = 'retention';
+      action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes que já compraram';
+      action.measurement.customerGroup = action.customerGroup;
+      action.title = product ? 'Traga clientes de volta com ' + _seasonShortProductName(product) : 'Traga clientes de volta';
+      action.description = product ? 'Chame clientes que já compraram usando ' + product + ' como motivo claro para voltar.' : 'Chame clientes que já compraram antes e registre os pedidos de recompra.';
+      return action;
+    }
+
+    if (type === 'Promoção' && (measurement.promotionName || action.promotionName)) {
+      action.title = 'Use a promoção ' + (measurement.promotionName || action.promotionName) + (product ? ' com ' + product : '') + (channelLabel ? ' no ' + channelLabel : '');
+      action.description = action.title + '.';
+      return action;
+    }
+
+    if (type === 'Cupom' && (measurement.couponCode || action.couponCode)) {
+      action.title = 'Use o cupom ' + (measurement.couponCode || action.couponCode) + (product ? ' com ' + product : '') + (channelLabel ? ' no ' + channelLabel : '');
+      action.description = action.title + '.';
+      return action;
+    }
+
+    if (product) {
+      action = _seasonChooseObjectiveAction(action, season, product, channelLabel, channel, metrics);
+      return action;
+    }
+    if (_seasonHasRecentCardapioOrders(metrics)) {
+      action.source = 'channels';
+      action.measurement.type = 'channel';
+      action.measurement.channel = 'cardapio';
+      action.channel = 'cardapio';
+      action.title = 'Puxe pedidos pelo Cardápio';
+      action.description = 'Use o link do Cardápio em uma divulgação simples e deixe os pedidos entrarem pelo canal direto.';
+      action.why = action.why || 'Já existe histórico recente no Cardápio, então a jogada deve usar esse canal em vez de criar base de leitura.';
+      return action;
+    }
+    return _seasonBaseReadingAction(action);
+  }
+
+  function _seasonChooseObjectiveAction(action, season, product, channelLabel, channel, metrics) {
+    action = action || {};
+    if (!action.measurement) action.measurement = {};
+    var objective = season && season.objective || '';
+    var catalogProduct = _seasonFindCatalogProduct(action, product);
+    var hasCostBase = catalogProduct ? _seasonProductHasCostBase(catalogProduct) : false;
+    var discountDecision = _seasonDiscountDecision(action, product);
+    var recurring = _number(metrics && metrics.recurringCustomers, 0);
+    var repurchaseRate = _number(metrics && metrics.repurchaseRate, 0);
+    if (objective === 'increase_ticket') {
+      action.source = 'upsell';
+      action.measurement.type = 'upsell';
+      action.measurement.channel = 'cardapio';
+      action.channel = 'cardapio';
+      action.title = 'Aumente o pedido com upsell';
+      action.description = 'Cadastre um upsell no Cardápio ligado a ' + product + ' para aumentar o valor do pedido sem baixar preço.';
+      return action;
+    }
+    if (objective === 'retain_customers') {
+      action.source = 'points';
+      action.measurement.type = 'retention';
+      action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes que já compraram';
+      action.measurement.customerGroup = action.customerGroup;
+      action.title = 'Traga clientes de volta com ' + _seasonShortProductName(product);
+      action.description = 'Chame clientes que já compraram usando ' + product + ' como motivo claro para voltar.';
+      return action;
+    }
+    if (objective === 'sell_more') {
+      if (_isMeaningfulRecurrence(recurring, repurchaseRate)) {
+        action.source = 'retention';
+        action.measurement.type = 'retention';
+        action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes que já compraram';
+        action.measurement.customerGroup = action.customerGroup;
+        action.title = 'Traga clientes de volta com ' + _seasonShortProductName(product);
+        action.description = 'Abra Clientes e envie uma mensagem pelo WhatsApp para clientes que já compraram ' + product + '. Use o link do Cardápio para concentrar o pedido no canal direto.';
+        action.why = action.why || product + ' já tem resposta. A jogada usa esse produto como motivo de recompra sem baixar o preço.';
+        return action;
+      }
+      if (hasCostBase && discountDecision.canDiscount && _seasonDiscountStrategyAllowed(season, metrics, action) && !_seasonRecentlyFailedMechanism(season, 'coupons', product, action)) {
+        action.source = 'coupons';
+        action.measurement.type = 'coupon';
+        action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes que já compraram';
+        action.measurement.customerGroup = action.customerGroup;
+        action.measurement.suggestedCouponCode = _seasonSuggestedCouponCode(product, discountDecision.suggestedDiscountValue, action);
+        if (channel && !action.measurement.channel) action.measurement.channel = channel;
+        action.title = 'Crie um cupom de recompra';
+        action.description = 'Abra Ações de Vendas → Cupons e configure desconto ' + discountDecision.suggestedDiscountValue + '%, pedido mínimo ' + _fmtMoney(discountDecision.minimumOrderValue) + ', validade ' + discountDecision.validUntil + ' e limite de ' + discountDecision.usageLimit + ' usos.';
+        action.why = action.why || product + ' já tem resposta. O cupom não é para vender barato: é para trazer recompra pelo Cardápio com desconto limitado, pedido mínimo e limite de uso.';
+        return action;
+      }
+      action.source = 'retention';
+      action.measurement.type = 'retention';
+      action.measurement.channel = 'cardapio';
+      action.channel = 'cardapio';
+      action.customerGroup = action.customerGroup || action.measurement.customerGroup || 'clientes do canal direto';
+      action.measurement.customerGroup = action.customerGroup;
+      action.title = 'Puxe pedidos pelo Cardápio';
+      action.description = 'Envie o link do Cardápio pelo WhatsApp usando ' + product + ' como motivo da chamada. A jogada tenta puxar venda pelo canal direto sem reduzir margem.';
+      action.why = action.why || product + ' já mostrou demanda. Antes de dar desconto em produto forte, a jogada tenta usar esse produto como alavanca de venda no canal direto.';
+      return action;
+    }
+    action.source = 'channels';
+    action.measurement.type = 'channel';
+    if (channel && !action.measurement.channel) action.measurement.channel = channel;
+    action.title = _seasonConcreteChannelTitle(product, channelLabel, season);
+    action.description = _seasonConcreteChannelDescription(product, channelLabel);
+    return action;
+  }
+
+  function _seasonConcreteChannelTitle(product, channelLabel, season) {
+    if (product) return 'Envie o link do Cardápio para clientes que compraram ' + product;
+    return 'Use o Cardápio como canal da jogada';
+  }
+
+  function _seasonConcreteChannelDescription(product, channelLabel) {
+    if (product) return 'Envie o link do Cardápio pelo WhatsApp para clientes que já compraram ' + product + '. Use uma mensagem curta e mantenha o foco nesse produto até o prazo da jogada.';
+    return 'Use o link do Cardápio em uma divulgação simples e mantenha a mesma chamada até o prazo da jogada.';
+  }
+
+  function _seasonIsWeakChannelText(text) {
+    return /^use\s+.+\s+no\s+.+$/i.test(String(text || '').trim()) || /use o canal com melhor resposta/i.test(String(text || ''));
+  }
+
+  function _seasonRealActionName(action, type) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    var commercial = action.commercialPlay || action.commercial || {};
+    var value = '';
+    if (type === 'Cupom') value = measurement.couponCode || action.couponCode || commercial.actionName || '';
+    if (type === 'Promoção') value = measurement.promotionName || action.promotionName || commercial.actionName || '';
+    if (type === 'Upsell') value = measurement.upsellName || action.upsellName || commercial.actionName || '';
+    return _seasonGenericActionName(value, type) ? '' : String(value || '').trim();
+  }
+
+  function _seasonBestDisplayChannel(metrics) {
+    return 'cardapio';
+  }
+
+  function _seasonStartsWithActionVerb(text) {
+    return /^(crie|use|ative|cadastre|monte|chame|ajuste|revise|registre|destaque|publique|envie)\b/i.test(String(text || '').trim());
+  }
+
+  function _seasonSingleActionText(text) {
+    text = String(text || '').trim();
+    if (!text) return '';
+    if (!_seasonHasGenericActionList(text)) return text;
+    return '';
+  }
+
+  function _seasonTitleWithVerb(action) {
+    var title = String(action && action.title || '').trim();
+    var play = action && (action.commercialPlay || action.commercial) || {};
+    var product = action.productName || action.measurement && action.measurement.productName || _seasonActionProductLabel(action);
+    var channel = action.channel || action.measurement && action.measurement.channel || '';
+    var channelLabel = channel ? _channelLabel(_normalizeChannel(channel)) : '';
+    var type = _seasonActionCommercialType(action);
+    var name = _seasonActionCommercialName(action, type);
+    var cta = _seasonPlayCtaTitle(type, product, action);
+    if (cta) return cta;
+    if (play.title && _seasonStartsWithActionVerb(play.title) && !_seasonHasGenericActionList(play.title)) return _seasonShortCtaText(play.title, product);
+    if (_seasonStartsWithActionVerb(title) && !_seasonHasGenericActionList(title)) return _seasonShortCtaText(title, product);
+    if (type === 'Criar base de leitura') return 'Complete a leitura do Cardápio';
+    if (type === 'Cupom') {
+      var couponName = _seasonRealActionName(action, 'Cupom');
+      return couponName ? 'Use o cupom ' + couponName : 'Crie um cupom de recompra';
+    }
+    if (type === 'Promoção') return (_seasonRealActionName(action, 'Promoção') ? 'Ative a promoção ' + _seasonRealActionName(action, 'Promoção') : 'Crie uma promoção') + (product ? ' para ' + product : '') + (channelLabel ? ' no ' + channelLabel : '');
+    if (type === 'Upsell') return (_seasonRealActionName(action, 'Upsell') ? 'Use o upsell ' + _seasonRealActionName(action, 'Upsell') : 'Cadastre um upsell') + (product ? ' junto de ' + product : '') + ' no Cardápio';
+    if (type === 'Combo/Menu') return 'Monte um combo' + (product ? ' com ' + product : '') + (channelLabel ? ' no ' + channelLabel : '');
+    if (type === 'Pontos/Reativação') {
+      var audience = _seasonSegmentAudience(type, product, action) || (product ? 'Clientes recorrentes que já compraram ' + product : 'Clientes recorrentes');
+      return 'Chame ' + _seasonAudienceText(audience);
+    }
+    if (type === 'Ajuste de preço') return product ? 'Ajuste o preço ou desconto de ' + product : 'Ajuste preço ou desconto com base na margem';
+    if (type === 'Revisão de produto parado') return product ? 'Revise ' + product + ' antes de criar desconto' : 'Revise o produto parado antes de criar desconto';
+    return product ? _seasonConcreteChannelTitle(product, channelLabel, {}) : (title || 'Complete a leitura do Cardápio');
+  }
+
+  function _seasonPlayCtaTitle(actionType, productName, action) {
+    var productShort = _seasonShortProductName(productName);
+    if (actionType === 'Criar base de leitura') return 'Complete a leitura do Cardápio';
+    if (actionType === 'Cupom') {
+      var couponName = _seasonRealActionName(action, 'Cupom');
+      if (couponName) return 'Use o cupom ' + couponName;
+      return 'Crie um cupom de recompra';
+    }
+    if (actionType === 'Promoção') {
+      var promoName = _seasonRealActionName(action, 'Promoção');
+      if (promoName) return 'Ative a promoção ' + promoName;
+      return 'Crie uma promoção no Cardápio';
+    }
+    if (actionType === 'Upsell') return productShort ? 'Aumente o pedido com upsell' : 'Cadastre um upsell';
+    if (actionType === 'Combo/Menu') return productShort ? 'Monte um combo com ' + productShort : 'Monte um combo';
+    if (actionType === 'Pontos/Reativação') return productShort ? 'Traga clientes de volta com ' + productShort : 'Traga clientes de volta';
+    if (actionType === 'Canal de venda') return productShort ? 'Puxe pedidos pelo Cardápio' : 'Use o Cardápio nesta jogada';
+    if (actionType === 'Ajuste de preço') return productShort ? 'Proteja a margem de ' + productShort : 'Proteja a margem';
+    if (actionType === 'Revisão de produto parado') return productShort ? 'Revise ' + productShort : 'Revise o produto parado';
+    return productShort ? 'Venda mais ' + productShort : '';
+  }
+
+  function _seasonShortProductName(name) {
+    name = String(name || '').trim();
+    if (!name) return '';
+    var cleaned = name.replace(/\b(de|da|do|das|dos)\b/gi, function (part) { return part.toLowerCase(); });
+    var words = cleaned.split(/\s+/).filter(Boolean);
+    if (words.length <= 3) return cleaned;
+    return words.slice(0, 3).join(' ');
+  }
+
+  function _seasonShortCtaText(text, productName) {
+    text = String(text || '').trim();
+    if (!text) return '';
+    var productShort = _seasonShortProductName(productName);
+    if (/^chame clientes que ja compraram|^chame clientes que já compraram/i.test(text)) return productShort ? 'Traga clientes de volta com ' + productShort : 'Traga clientes de volta';
+    if (/^cadastre um upsell/i.test(text)) return 'Aumente o pedido com upsell';
+    if (/^crie um cupom/i.test(text)) return 'Crie um cupom de recompra';
+    if (/^registre os proximos pedidos|^registre os próximos pedidos/i.test(text)) return 'Complete a leitura do Cardápio';
+    return text.length > 58 ? text.slice(0, 57).replace(/\s+\S*$/, '') : text;
+  }
+
+  function _seasonCommercialPlayFromDisplayAction(action, season) {
+    action = _seasonForceCardapioAction(action || {});
+    var existing = action.commercialPlay || action.commercial || {};
+    var measurement = action.measurement || {};
+    var type = _seasonActionCommercialType(action);
+    var name = _seasonActionCommercialName(action, type);
+    var product = action.productName || measurement.productName || _seasonActionProductLabel(action) || '';
+    var combination = existing.combinationName || action.combinationName || measurement.combinationName || '';
+    var channel = action.channel || measurement.channel || '';
+    var channelName = existing.channelName || (channel ? _channelLabel(_normalizeChannel(channel)) : '');
+    var customerGroup = existing.customerGroup || action.customerGroup || measurement.customerGroup || '';
+    var title = _seasonTitleWithVerb(action);
+    var execution = _seasonDeterministicSalesPlayExecution(action, type, product, channelName, customerGroup, existing.salesPlayExecution || action.salesPlayExecution);
+    var visibleCustomerGroup = execution && execution.audience || customerGroup;
+    var where = _seasonCommercialWhere(type, channelName, visibleCustomerGroup);
+    var whatToDo = _seasonDisplayWhatToDo(action, type, title, product, visibleCustomerGroup);
+    return {
+      title: title,
+      summary: '',
+      actionKind: _seasonActionKind(action),
+      actionType: type,
+      actionName: _seasonGenericActionName(name, type) ? '' : name,
+      productName: product,
+      combinationName: combination,
+      channelName: channelName,
+      customerGroup: visibleCustomerGroup,
+      whereToDo: where,
+      whatToDo: whatToDo,
+      whyThis: _seasonStrategicWhy(action, type, product, existing.whyThis || action.why),
+      afterDo: existing.afterDo || _seasonAfterDoText(action, product, type),
+      expectedResult: existing.expectedResult || _seasonCommercialExpectedResult(action, measurement, season),
+      howBocaFoodReads: existing.howBocaFoodReads || _seasonActionReadText(action),
+      ifNoResult: existing.ifNoResult || _seasonActionNoResultText(action, product, channelName),
+      systemActionContext: existing.systemActionContext || action.systemActionContext || _seasonCommercialSystemActionContext(action, type, product),
+      salesPlayExecution: execution,
+      deadline: ''
+    };
+  }
+
+  function _seasonDeterministicSalesPlayExecution(action, actionType, productName, channelName, customerGroup, incoming) {
+    var local = _seasonSalesPlayExecution(action, actionType, productName, channelName, customerGroup);
+    if (!incoming || typeof incoming !== 'object' || !local) return local || incoming || null;
+    if (actionType === 'Cupom' || actionType === 'Promoção') return local;
+    var merged = Object.assign({}, local, incoming);
+    merged.actionType = local.actionType;
+    merged.actionStatus = local.actionStatus;
+    merged.productName = local.productName;
+    merged.channelName = local.channelName;
+    merged.audience = local.audience;
+    merged.primaryButtonLabel = local.primaryButtonLabel;
+    merged.secondaryButtonLabel = local.secondaryButtonLabel;
+    merged.discountDecision = local.discountDecision;
+    if (!Array.isArray(incoming.setupSteps) || !incoming.setupSteps.length) merged.setupSteps = local.setupSteps;
+    if (!Array.isArray(incoming.distributionSteps) || !incoming.distributionSteps.length) merged.distributionSteps = local.distributionSteps;
+    if (!Array.isArray(incoming.guardrails) || !incoming.guardrails.length) merged.guardrails = local.guardrails;
+    return merged;
+  }
+
+  function _seasonSalesPlayExecution(action, actionType, productName, channelName, customerGroup) {
+    action = action || {};
+    if (_seasonActionKind(action) !== 'commercial') return null;
+    actionType = actionType || _seasonActionCommercialType(action);
+    var measurement = action.measurement || {};
+    productName = productName || action.productName || measurement.productName || _seasonActionProductLabel(action) || '';
+    channelName = channelName || (action.channel || measurement.channel ? _channelLabel(_normalizeChannel(action.channel || measurement.channel)) : 'Cardápio');
+    var realName = _seasonRealActionName(action, actionType);
+    var suggestedCode = actionType === 'Cupom' && !realName ? (measurement.suggestedCouponCode || _seasonSuggestedCouponCode(productName, _number(_seasonDiscountDecision(action, productName).suggestedDiscountValue, 5), action)) : '';
+    if (actionType === 'Cupom' && !realName && suggestedCode) measurement.suggestedCouponCode = suggestedCode;
+    var status = realName ? 'existing' : 'needs_creation';
+    var discountDecision = _seasonDiscountDecision(action, productName);
+    var expectedQuantity = _seasonExpectedQuantity(action, measurement, _state.activeSeason || {});
+    var audienceRec = _seasonRecommendedAudienceForAction(actionType, productName, action);
+    var audience = _seasonExecutionAudience(actionType, productName, customerGroup, action, audienceRec);
+    if (audienceRec && audienceRec.id) {
+      measurement.customerSegmentId = audienceRec.id;
+      measurement.customerGroup = audienceRec.label || audience;
+      action.customerGroup = audienceRec.label || audience;
+    }
+    var distribution = _seasonExecutionDistribution(actionType, channelName);
+    var message = _seasonSuggestedMessage(actionType, productName, realName, channelName, discountDecision, suggestedCode);
+    var base = {
+      actionType: actionType,
+      actionStatus: status,
+      productName: productName,
+      channelName: channelName,
+      audience: audience,
+      benefitType: '',
+      benefitValue: '',
+      minimumOrderValue: 0,
+      usageLimit: 0,
+      validUntil: '',
+      distributionChannel: distribution,
+      suggestedMessage: message,
+      suggestedCode: suggestedCode,
+      expectedQuantity: expectedQuantity,
+      setupSteps: [],
+      distributionSteps: [],
+      guardrails: [],
+      afterAction: _seasonAfterDoText(action, productName, actionType),
+      primaryButtonLabel: _seasonPrimaryButtonLabel(actionType, status),
+      secondaryButtonLabel: _seasonSecondaryButtonLabel(actionType),
+      discountDecision: discountDecision
+    };
+    if (actionType === 'Cupom' || actionType === 'Promoção') {
+      if (!discountDecision.canDiscount && !realName) return base;
+      base.benefitType = realName ? 'ação existente' : 'percentual';
+      base.benefitValue = realName ? realName : discountDecision.suggestedDiscountValue + '%';
+      base.minimumOrderValue = discountDecision.minimumOrderValue;
+      base.usageLimit = discountDecision.usageLimit;
+      base.validUntil = discountDecision.validUntil;
+      base.setupSteps = [
+        !realName && suggestedCode ? 'Código sugerido: ' + suggestedCode : '',
+        'Produto foco: ' + (productName || 'produto da jogada'),
+        'Canal: ' + (channelName || 'Cardápio'),
+        realName ? 'Código: ' + realName : '',
+        realName ? 'Ação existente: ' + realName : 'Desconto: ' + discountDecision.suggestedDiscountValue + '%',
+        realName ? '' : 'Pedido mínimo: ' + _fmtMoney(discountDecision.minimumOrderValue),
+        realName ? '' : 'Validade: até ' + discountDecision.validUntil,
+        realName ? '' : 'Limite de uso: ' + discountDecision.usageLimit
+      ].filter(Boolean);
+      base.distributionSteps = [
+        'Enviar pelo WhatsApp para ' + _seasonAudienceText(audience),
+        'Usar o link do Cardápio na mensagem',
+        'Manter o mesmo público até o fim da jogada'
+      ];
+      base.guardrails = realName ? [
+        'Não altere benefício, público ou canal dessa ação durante a janela da jogada'
+      ] : [
+        'Não passar de ' + discountDecision.suggestedDiscountValue + '% nesta jogada',
+        'Não divulgar para todos os clientes se o público escolhido é recompra',
+        'Não criar outro cupom para o mesmo produto antes de ler o resultado'
+      ];
+      base.afterAction = 'Volte para Temporadas. A temporada vai mostrar se ' + (realName || 'essa ação') + ' trouxe pedidos com ' + (productName || 'o produto da jogada') + '.';
+      return base;
+    }
+    if (actionType === 'Upsell') {
+      var complement = realName || _seasonComplementNameForProduct(action, productName);
+      base.benefitType = 'complemento';
+      base.benefitValue = complement;
+      base.setupSteps = [
+        'Produto gatilho: ' + (productName || 'produto da jogada'),
+        complement ? 'Produto sugerido: ' + complement : 'Produto sugerido: escolha um produto complementar já cadastrado no Cardápio',
+        'Local: Cardápio',
+        'Mensagem do upsell: "Quer completar com uma bebida, sobremesa ou adicional?"',
+        'Período: até o fim da jogada'
+      ];
+      base.afterAction = 'A temporada vai observar se os pedidos de ' + (productName || 'produto da jogada') + ' entram com o complemento.';
+      return base;
+    }
+    if (actionType === 'Pontos/Reativação') {
+      base.setupSteps = [
+        'Grupo: ' + audience,
+        'Produto motivo: ' + (productName || 'produto com melhor resposta'),
+        'Canal de contato: WhatsApp',
+        'Link: envie o link do Cardápio'
+      ];
+      base.afterAction = 'A temporada vai observar se entram novos pedidos desses clientes.';
+      return base;
+    }
+    if (actionType === 'Combo/Menu') {
+      var comboComplement = _seasonComplementNameForProduct(action, productName);
+      base.setupSteps = [
+        'Produto principal: ' + (productName || 'produto da jogada'),
+        comboComplement ? 'Complemento: ' + comboComplement : 'Complemento: use outro produto real do Cardápio',
+        'Canal: Cardápio',
+        'Período: até o fim da jogada'
+      ];
+      return base;
+    }
+    return base;
+  }
+
+  function _seasonDisplayWhatToDo(action, actionType, title, productName, audience) {
+    var description = _seasonCleanUserFacingText(action && action.description || '');
+    var folded = _foldText(description);
+    if ((actionType === 'Pontos/Reativação' || actionType === 'Cupom' || actionType === 'Promoção') && audience && /clientes que ja compraram|clientes conhecidos|clientes recorrentes/.test(folded)) {
+      if (actionType === 'Pontos/Reativação') return 'Abra Clientes e chame ' + _seasonAudienceText(audience) + ' pelo WhatsApp usando ' + (productName || 'o produto da jogada') + ' como motivo.';
+      if (actionType === 'Cupom') return title + '. Divulgue para ' + _seasonAudienceText(audience) + '.';
+      if (actionType === 'Promoção') return title + '. Divulgue para ' + _seasonAudienceText(audience) + '.';
+    }
+    if (_seasonStartsWithActionVerb(description) && !_seasonHasGenericActionList(description)) return description;
+    return title + '.';
+  }
+
+  function _seasonExecutionAudience(actionType, productName, customerGroup, action, audienceRec) {
+    if (audienceRec && audienceRec.label) return audienceRec.label;
+    var segmentAudience = _seasonSegmentAudience(actionType, productName, action);
+    if (customerGroup && !_seasonGenericCustomerGroup(customerGroup)) return customerGroup;
+    if (segmentAudience) return segmentAudience;
+    if (customerGroup) return customerGroup;
+    if (actionType === 'Pontos/Reativação') return productName ? 'Clientes recorrentes que já compraram ' + productName : 'Clientes recorrentes';
+    if (actionType === 'Cupom' || actionType === 'Promoção') return productName ? 'Clientes recorrentes que já compraram ' + productName : 'Clientes recorrentes';
+    if (actionType === 'Upsell' || actionType === 'Combo/Menu') return productName ? 'Clientes recorrentes ou VIP que escolherem ' + productName + ' no Cardápio' : 'Clientes recorrentes ou VIP que comprarem pelo Cardápio';
+    return productName ? 'Clientes recorrentes que já compraram ' + productName : 'Clientes recorrentes';
+  }
+
+  function _seasonRecommendedAudienceForAction(actionType, productName, action) {
+    var segments = _state.actionContext && (_state.actionContext.customerSegmentsForActions || _state.actionContext.customerSegments) || null;
+    var audiences = segments && segments.recommendedAudiences || [];
+    if (!audiences.length) return null;
+    var season = _state.activeSeason || {};
+    var objective = season.objective || '';
+    var source = String(action && action.source || '');
+    var productKey = _slugKey(productName || action && (action.productName || action.measurement && action.measurement.productName) || '');
+    var actionKey = _seasonAudienceActionKey(actionType, source);
+    var text = _foldText([action && action.title, action && action.description, action && action.customerGroup].join(' '));
+    var best = null;
+    var bestScore = -999;
+    (audiences || []).forEach(function (audience) {
+      if (!audience || _number(audience.count, 0) <= 0) return;
+      var compatible = audience.compatibleActionTypes || [];
+      if (compatible.length && compatible.indexOf(actionKey) < 0 && compatible.indexOf(source) < 0) return;
+      var score = _number(audience.score, 0) || 50;
+      if (objective && (audience.bestForObjective || []).indexOf(objective) >= 0) score += 18;
+      if (productKey && audience.productKey && audience.productKey === productKey) score += 24;
+      if (productKey && !audience.productKey && /upsell|combo|coupon|retention/.test(actionKey)) score += 3;
+      if (/reativ|inativ|sem compra|sem recompra/.test(text) && /inactive|inativo/.test(String(audience.id || '') + ' ' + String(audience.label || ''))) score += 30;
+      if (/segunda compra|primeira compra|novo/.test(text) && /no_second|new|novo/.test(String(audience.id || '') + ' ' + String(audience.label || ''))) score += 28;
+      if (actionType === 'Pontos/Reativação' && /points|pontos/.test(String(audience.id || '') + ' ' + String(audience.label || ''))) score += 26;
+      if ((actionType === 'Upsell' || actionType === 'Combo/Menu') && /vip|recorrente/i.test(String(audience.label || ''))) score += 16;
+      if (source === 'channels' && audience.channelKey && !_isCardapioChannel(audience.channelKey)) score += 20;
+      if (_number(audience.count, 0) <= 2) score -= 8;
+      if (score > bestScore) {
+        bestScore = score;
+        best = audience;
+      }
+    });
+    return best;
+  }
+
+  function _seasonAudienceActionKey(actionType, source) {
+    if (source === 'coupons' || actionType === 'Cupom') return 'coupon';
+    if (source === 'promotions' || actionType === 'Promoção') return 'promotion';
+    if (source === 'upsell' || actionType === 'Upsell') return 'upsell';
+    if (actionType === 'Combo/Menu') return 'combo';
+    if (source === 'points' || actionType === 'Pontos/Reativação') return 'retention';
+    if (source === 'channels' || actionType === 'Canal de venda') return 'channel';
+    return source || 'retention';
+  }
+
+  function _seasonGenericCustomerGroup(value) {
+    var text = _foldText(value || '');
+    return !text || text === 'clientes que ja compraram' || text === 'clientes que ja compraram antes' || text === 'clientes recorrentes' || text === 'clientes conhecidos' || text === 'clientes dos primeiros pedidos registrados';
+  }
+
+  function _seasonSegmentAudience(actionType, productName, action) {
+    var segments = _state.actionContext && _state.actionContext.customerSegments || null;
+    if (!segments || !segments.total) return '';
+    var text = _foldText([action && action.title, action && action.description, action && action.customerGroup].join(' '));
+    var productKey = _slugKey(productName || '');
+    var productCounts = productKey && segments.productSegments && segments.productSegments[productKey] ? segments.productSegments[productKey].counts || {} : null;
+    var counts = productCounts || segments.counts || {};
+    function has(segment) { return _number(counts && counts[segment], 0) > 0; }
+    function productLabel(segmentLabel) {
+      return productName ? segmentLabel + ' que já compraram ' + productName : segmentLabel;
+    }
+    if (actionType === 'Pontos/Reativação' && _number(segments.customersReadyToRedeem, 0) > 0) return 'Clientes com pontos suficientes para resgate';
+    if (/reativ|inativ|sem compra|sem recompra/.test(text) && has('inativo')) return productLabel('Clientes inativos há mais de 60 dias');
+    if (actionType === 'Upsell' || actionType === 'Combo/Menu') {
+      if (has('vip')) return productLabel('Clientes VIP');
+      if (has('recorrente')) return productLabel('Clientes recorrentes');
+      if (has('novo')) return productName ? 'Clientes novos que comprarem ' + productName + ' no Cardápio' : 'Clientes novos que comprarem pelo Cardápio';
+      return '';
+    }
+    if (actionType === 'Cupom' || actionType === 'Promoção') {
+      if (/primeira compra|novo/.test(text) && has('novo')) return productLabel('Clientes novos');
+      if (has('recorrente')) return productLabel('Clientes recorrentes');
+      if (has('vip')) return productLabel('Clientes VIP');
+      if (has('inativo')) return productLabel('Clientes inativos há mais de 60 dias');
+      return '';
+    }
+    if (actionType === 'Pontos/Reativação') {
+      if (has('inativo')) return productLabel('Clientes inativos há mais de 60 dias');
+      if (has('recorrente')) return productLabel('Clientes recorrentes');
+      if (has('vip')) return productLabel('Clientes VIP');
+    }
+    if (has('recorrente')) return productLabel('Clientes recorrentes');
+    if (has('vip')) return productLabel('Clientes VIP');
+    return '';
+  }
+
+  function _seasonAudienceText(audience) {
+    audience = String(audience || '').trim();
+    if (!audience) return 'clientes recorrentes';
+    return audience.charAt(0).toLowerCase() + audience.slice(1);
+  }
+
+  function _seasonExecutionDistribution(actionType, channelName) {
+    if (actionType === 'Upsell' || actionType === 'Combo/Menu') return 'Cardápio';
+    if (actionType === 'Pontos/Reativação') return 'WhatsApp com link do Cardápio';
+    return 'WhatsApp com link do Cardápio';
+  }
+
+  function _seasonSuggestedMessage(actionType, productName, realName, channelName, decision, suggestedCode) {
+    var product = productName || 'esse produto';
+    if (actionType === 'Cupom') {
+      var cupom = realName || suggestedCode || _seasonSuggestedCouponCode(productName, decision && decision.suggestedDiscountValue || 5);
+      var suffix = decision && decision.canDiscount ? ' Use até ' + decision.validUntil + ' no link: [link do Cardápio].' : ' Peça pelo link: [link do Cardápio].';
+      return 'Oi, deixei ' + cupom + ' para repetir ' + product + ' pelo Cardápio.' + suffix;
+    }
+    if (actionType === 'Promoção') return 'Oi, ' + product + ' está com uma condição especial no Cardápio até ' + ((decision && decision.validUntil) || 'o fim da jogada') + '. Peça aqui: [link do Cardápio].';
+    if (actionType === 'Upsell') return 'Quer completar ' + product + ' com uma bebida, sobremesa ou adicional?';
+    if (actionType === 'Pontos/Reativação') return 'Oi, hoje ' + product + ' está disponível no Cardápio. Separei o link para você pedir direto por aqui: [link do Cardápio].';
+    if (actionType === 'Combo/Menu') return 'Hoje dá para pedir ' + product + ' junto com um complemento pelo Cardápio: [link do Cardápio].';
+    return '';
+  }
+
+  function _seasonComplementNameForProduct(action, productName) {
+    var measurement = action && action.measurement || {};
+    if (measurement.upsellName && !_seasonGenericActionName(measurement.upsellName, 'Upsell')) return measurement.upsellName;
+    if (action && action.upsellName && !_seasonGenericActionName(action.upsellName, 'Upsell')) return action.upsellName;
+    var product = _seasonFindCatalogProduct(action, productName);
+    var complement = _bestComplementProductForProduct(product, product ? _productEconomics(product, null, _state.actionContext || {}) : null, _state.actionContext && _state.actionContext.products || [], _state.actionContext || {});
+    return complement && complement.product ? _productActionName(complement.product) : '';
+  }
+
+  function _seasonSuggestedCouponCode(productName, discountValue, action) {
+    var base = _foldText(productName || 'VOLTA').replace(/[^a-z0-9]+/g, '').toUpperCase();
+    base = (base || 'VOLTA').slice(0, 8);
+    var pct = Math.max(1, Math.round(_number(discountValue, 5)));
+    var preferred = base + pct;
+    var used = _seasonUsedCouponCodeMap(action);
+    if (!used[_couponCodeKey(preferred)]) return preferred;
+    for (var i = 2; i <= 99; i += 1) {
+      var code = (base.slice(0, Math.max(3, 8 - String(i).length)) || 'VOLTA') + pct + i;
+      if (!used[_couponCodeKey(code)]) return code;
+    }
+    return preferred + String(Date.now()).slice(-3);
+  }
+
+  function _seasonUsedCouponCodeMap(currentAction) {
+    var used = {};
+    function add(value) {
+      var key = _couponCodeKey(value);
+      if (key) used[key] = true;
+    }
+    function scan(value, depth) {
+      if (!value || depth > 5) return;
+      if (Array.isArray(value)) {
+        value.forEach(function (item) { scan(item, depth + 1); });
+        return;
+      }
+      if (typeof value !== 'object') return;
+      add(value.code);
+      add(value.codigo);
+      add(value.couponCode);
+      add(value.cupomCodigo);
+      add(value.discountCode);
+      add(value.suggestedCouponCode);
+      add(value.suggestedCode);
+      if (value.measurement) scan(value.measurement, depth + 1);
+      if (value.salesPlayExecution) scan(value.salesPlayExecution, depth + 1);
+      if (value.commercialPlay) scan(value.commercialPlay, depth + 1);
+      if (value.commercial) scan(value.commercial, depth + 1);
+      if (value.executionPlan) scan(value.executionPlan, depth + 1);
+      if (value.actionTasks) scan(value.actionTasks, depth + 1);
+      if (value.actionTaskHistory) scan(value.actionTaskHistory, depth + 1);
+      if (value.actions) scan(value.actions, depth + 1);
+    }
+    var ctx = _state.actionContext || {};
+    (ctx.coupons || []).forEach(scan);
+    (_state.seasons || []).forEach(scan);
+    scan(_state.activeSeason || {}, 0);
+    scan(_state.snapshots && _state.snapshots.daily || {}, 0);
+    scan(_state.snapshots && _state.snapshots.weekly || {}, 0);
+    if (currentAction) {
+      var current = currentAction.measurement && currentAction.measurement.suggestedCouponCode || currentAction.suggestedCouponCode || '';
+      delete used[_couponCodeKey(current)];
+    }
+    return used;
+  }
+
+  function _couponCodeKey(value) {
+    return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  function _seasonPrimaryButtonLabel(actionType, status) {
+    if (actionType === 'Cupom') return status === 'existing' ? 'Ver cupons' : 'Criar cupom';
+    if (actionType === 'Promoção') return status === 'existing' ? 'Ver promoções' : 'Criar promoção';
+    if (actionType === 'Upsell') return status === 'existing' ? 'Ver upsells' : 'Cadastrar upsell';
+    if (actionType === 'Combo/Menu') return 'Criar combo';
+    if (actionType === 'Pontos/Reativação') return 'Ver clientes';
+    if (actionType === 'Criar base de leitura') return 'Registrar pedido';
+    return 'Abrir módulo';
+  }
+
+  function _seasonSecondaryButtonLabel(actionType) {
+    if (actionType === 'Cupom') return 'Ver cupons';
+    if (actionType === 'Promoção') return 'Ver promoções';
+    if (actionType === 'Upsell') return 'Ver upsells';
+    if (actionType === 'Combo/Menu') return 'Editar cardápio';
+    if (actionType === 'Pontos/Reativação') return 'Ver pontos';
+    if (actionType === 'Criar base de leitura') return 'Ver pedidos';
+    return '';
+  }
+
+  function _seasonCommercialSystemActionContext(action, type, productName) {
+    var kind = _seasonActionKind(action);
+    if (kind !== 'commercial') return null;
+    var readiness = {};
+    var product = productName ? _seasonFindCatalogProduct(action, productName) : null;
+    if (product) readiness = _seasonProductReadiness(product);
+    var discountDecision = _seasonDiscountDecision(action, productName);
+    var source = String(action && action.source || '');
+    var problem = 'ready_for_commercial_action';
+    var config = {
+      moduleName: 'Temporadas',
+      primaryButtonLabel: 'Ver desempenho',
+      secondaryButtonLabel: '',
+      routeTarget: 'crescimento/performance',
+      availableSystemActions: []
+    };
+    if (type === 'Cupom' || source === 'coupons') {
+      problem = _seasonRealActionName(action, 'Cupom') ? 'ready_for_commercial_action' : 'no_sales_action_created';
+      config = { moduleName: 'Ações de Vendas', primaryButtonLabel: 'Criar cupom', secondaryButtonLabel: 'Ver cupons', routeTarget: 'marketing/cupons', availableSystemActions: ['create_coupon'] };
+    } else if (type === 'Promoção' || source === 'promotions') {
+      problem = _seasonRealActionName(action, 'Promoção') ? 'ready_for_commercial_action' : 'no_sales_action_created';
+      config = { moduleName: 'Ações de Vendas', primaryButtonLabel: 'Criar promoção', secondaryButtonLabel: 'Ver promoções', routeTarget: 'marketing/promocoes', availableSystemActions: ['create_promotion'] };
+    } else if (type === 'Upsell' || source === 'upsell') {
+      problem = _seasonRealActionName(action, 'Upsell') ? 'ready_for_commercial_action' : 'no_sales_action_created';
+      config = { moduleName: 'Ações de Vendas', primaryButtonLabel: 'Cadastrar upsell', secondaryButtonLabel: 'Ver upsells', routeTarget: 'marketing/upsell', availableSystemActions: ['create_upsell'] };
+    } else if (type === 'Combo/Menu') {
+      config = { moduleName: 'Cardápio', primaryButtonLabel: 'Criar combo', secondaryButtonLabel: 'Editar cardápio', routeTarget: 'catalogo/produtos', availableSystemActions: ['create_combo'] };
+    } else if (type === 'Pontos/Reativação') {
+      config = { moduleName: 'Clientes', primaryButtonLabel: 'Ver clientes', secondaryButtonLabel: 'Ver pontos', routeTarget: 'pedidos/clientes', availableSystemActions: ['view_customers'] };
+    } else if (type === 'Canal de venda') {
+      config = { moduleName: 'Pedidos', primaryButtonLabel: 'Ver pedidos do Cardápio', secondaryButtonLabel: 'Editar cardápio', routeTarget: 'pedidos/lista', availableSystemActions: ['view_channel_orders'] };
+    }
+    config.discountDecision = discountDecision;
+    return _seasonSystemActionContext('commercial', problem, productName || '', readiness, config);
+  }
+
+  function _seasonStrategicWhy(action, actionType, product, fallback) {
+    fallback = String(fallback || '').trim();
+    if (actionType === 'Cupom') {
+      return product
+        ? product + ' já tem resposta. O cupom não é para vender barato: é para trazer recompra ou migração para o Cardápio com desconto limitado, pedido mínimo e limite de uso.'
+        : 'O cupom só entra quando existe uma estratégia clara de recompra, reativação, primeira compra pelo Cardápio ou meta de volume.';
+    }
+    if (actionType === 'Promoção') {
+      return product
+        ? product + ' só recebe promoção quando o BocaFood calcula margem suficiente e existe uma meta clara de volume ou recompra.'
+        : 'Promoção só entra quando o desconto está calculado e existe motivo comercial claro.';
+    }
+    if (actionType === 'Upsell') {
+      return product
+        ? product + ' já vende. Em vez de baixar preço, a jogada tenta aumentar o valor do pedido oferecendo um complemento no Cardápio.'
+        : 'A jogada tenta aumentar ticket sem depender de desconto.';
+    }
+    if (actionType === 'Pontos/Reativação') {
+      return product
+        ? product + ' já é um motivo concreto para chamar clientes de volta sem transformar produto forte em venda barata.'
+        : 'A jogada usa clientes conhecidos antes de recorrer a desconto.';
+    }
+    if (actionType === 'Canal de venda') {
+      return product
+        ? product + ' já mostrou demanda. A jogada tenta puxar essa venda pelo canal com melhor controle antes de reduzir margem.'
+        : 'A jogada usa canal e rotina de venda antes de desconto.';
+    }
+    return _shortSeasonText(fallback || 'Essa jogada vem dos sinais reais da temporada.', 260);
+  }
+
+  function _seasonCommercialWhere(type, channelName, customerGroup) {
+    if (type === 'Criar base de leitura') return 'Base de leitura';
+    if (type === 'Cupom') return 'Ações de Vendas → Cupons';
+    if (type === 'Promoção') return 'Ações de Vendas → Promoções';
+    if (type === 'Upsell') return 'Ações de Vendas → Upsell';
+    if (type === 'Combo/Menu') return 'Cardápio → Produtos';
+    if (customerGroup) return customerGroup;
+    if (type === 'Pontos/Reativação') return 'Clientes que já compraram';
+    if (type === 'Ajuste de preço') return 'Preços e Margem';
+    return channelName || 'Operação principal';
+  }
+
+  function _seasonGenericActionName(name, type) {
+    var folded = _foldText(name || '');
+    if (!folded) return true;
+    var generic = [
+      'criar cupom',
+      'ativar promocao',
+      'ativar promoção',
+      'cadastrar upsell',
+      'montar combo',
+      'chamar clientes com pontos',
+      'desconto controlado',
+      'registrar pedidos completos',
+      'revisar produto parado',
+      'cupom cadastrado',
+      'promocao cadastrada',
+      'promoção cadastrada',
+      'upsell cadastrado',
+      'programa de pontos',
+      'criar acao de venda',
+      'criar ação de venda',
+      'oferecer',
+      'criar',
+      'usar',
+      'use',
+      'cadastre',
+      'cadastrar',
+      'ativar',
+      'ative',
+      'destacar',
+      'destaque',
+      'publicar',
+      'publique',
+      'enviar',
+      'envie',
+      'acao',
+      'ação',
+      'promocao',
+      'promoção',
+      'cupom',
+      'upsell',
+      'combo',
+      'oferta',
+      'complemento',
+      'produto',
+      'canal',
+      'extra',
+      _foldText(type || '')
+    ];
+    return generic.indexOf(folded) >= 0 || folded === 'para';
+  }
+
+  function _shortSeasonText(text, max) {
+    text = String(text || '').trim();
+    max = max || 260;
+    if (text.length <= max) return text;
+    return text.slice(0, max - 1).replace(/\s+\S*$/, '') + '.';
+  }
+
+  function _seasonCommercialPlay(action, task, season) {
+    action = _seasonForceCardapioAction(action || {});
+    var measurement = action.measurement || {};
+    var commercial = action.commercialPlay || action.commercial || {};
+    var product = commercial.productName || action.productName || measurement.productName || _seasonActionProductLabel(action);
+    var channel = commercial.channelName || (action.channel || measurement.channel ? _channelLabel(_normalizeChannel(action.channel || measurement.channel)) : '');
+    var actionType = commercial.actionType || _seasonActionCommercialType(action);
+    var actionName = commercial.actionName || _seasonActionCommercialName(action, actionType);
+    var customerGroup = commercial.customerGroup || action.customerGroup || measurement.customerGroup || '';
+    var combination = commercial.combinationName || action.combinationName || measurement.combinationName || '';
+    var title = commercial.title || _seasonCommercialTitle(actionType, actionName, product, channel, customerGroup, action.title);
+    var execution = _seasonDeterministicSalesPlayExecution(action, actionType, product, channel, customerGroup, commercial.salesPlayExecution || action.salesPlayExecution);
+    return {
+      title: title,
+      summary: _seasonCleanUserFacingText(commercial.summary || action.description || ''),
+      actionKind: commercial.actionKind || _seasonActionKind(action),
+      actionType: actionType,
+      actionName: actionName,
+      productName: product,
+      combinationName: combination,
+      channelName: channel,
+      customerGroup: customerGroup,
+      whatToDo: _seasonCleanUserFacingText(commercial.whatToDo || action.description || _seasonActionObjectiveText(action, season)),
+      whyThis: _seasonStrategicWhy(action, actionType, product, commercial.whyThis || action.why),
+      afterDo: commercial.afterDo || _seasonAfterDoText(action, product, actionType),
+      expectedResult: commercial.expectedResult || _seasonActionMeasureText(action, season),
+      howBocaFoodReads: commercial.howBocaFoodReads || _seasonActionReadText(action),
+      ifNoResult: commercial.ifNoResult || _seasonActionNoResultText(action, product, channel),
+      deadline: _seasonActionDeadlineText(task),
+      whereToDo: commercial.whereToDo || _seasonCommercialWhere(actionType, channel, customerGroup),
+      salesPlayExecution: execution
+    };
+  }
+
+  function _seasonActionKind(action) {
+    var source = String(action && action.source || '');
+    if (source === 'baseline') return 'baseline';
+    if (/^product_/.test(source)) return 'unlock';
+    return 'commercial';
+  }
+
+  function _seasonAfterDoText(action, product, actionType) {
+    var kind = _seasonActionKind(action);
+    if (kind === 'baseline') return 'Volte para Temporadas depois dos próximos pedidos. Com produto, canal e pagamento preenchidos, o BocaFood poderá escolher uma jogada comercial com mais segurança.';
+    if (kind === 'unlock') return 'Volte para Temporadas. A tela será atualizada e poderá liberar a próxima jogada possível para esse produto.';
+    if (actionType === 'Cupom') return 'Volte para Temporadas depois de criar o cupom. A temporada vai mostrar se esse cupom trouxe pedidos.';
+    if (actionType === 'Promoção') return 'Volte para Temporadas depois de criar ou ativar a promoção. A temporada vai mostrar se essa promoção trouxe pedidos.';
+    if (actionType === 'Upsell') return 'Volte para Temporadas depois de cadastrar o upsell. A temporada vai mostrar se clientes aceitaram esse extra.';
+    if (actionType === 'Combo/Menu') return 'Volte para Temporadas depois de criar o combo. A temporada vai mostrar se essa combinação trouxe pedidos.';
+    if (actionType === 'Pontos/Reativação') return 'Volte para Temporadas depois de chamar os clientes. A temporada vai mostrar se clientes conhecidos voltaram a comprar.';
+    return 'Volte para Temporadas depois de executar a ação. A tela vai mostrar se vale repetir ou mudar a jogada.';
+  }
+
+  function _seasonActionCommercialType(action) {
+    var source = String(action && action.source || '');
+    if (source === 'coupons') return 'Cupom';
+    if (source === 'promotions') return 'Promoção';
+    if (source === 'upsell') return 'Upsell';
+    if (source === 'points' || source === 'retention') return 'Pontos/Reativação';
+    if (source === 'healthy_discount') return 'Ajuste de preço';
+    if (source === 'baseline') return 'Criar base de leitura';
+    if (source === 'channels' || source === 'timing' || source === 'consistency') return 'Canal de venda';
+    if (source === 'sales_actions') return _seasonActionTypeFromText(action) || 'Canal de venda';
+    return _seasonActionTypeFromText(action) || 'Cupom';
+  }
+
+  function _seasonActionCommercialName(action, type) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    if (measurement.couponCode) return measurement.couponCode;
+    if (measurement.promotionName) return measurement.promotionName;
+    if (measurement.upsellName) return measurement.upsellName;
+    if (action.couponCode) return action.couponCode;
+    if (action.promotionName) return action.promotionName;
+    if (action.upsellName) return action.upsellName;
+    if (action.commercialPlay && action.commercialPlay.actionName && !_seasonGenericActionName(action.commercialPlay.actionName, type)) return action.commercialPlay.actionName;
+    if (action.commercial && action.commercial.actionName && !_seasonGenericActionName(action.commercial.actionName, type)) return action.commercial.actionName;
+    if (type === 'Criar base de leitura') return 'Registrar pedidos completos';
+    if (type === 'Ajuste de preço') return 'Desconto controlado';
+    if (type === 'Cupom') return 'Criar cupom';
+    if (type === 'Promoção') return 'Ativar promoção';
+    if (type === 'Upsell') return 'Cadastrar upsell';
+    if (type === 'Combo/Menu') return 'Montar combo';
+    if (type === 'Pontos/Reativação') return 'Chamar clientes com pontos';
+    if (type === 'Canal de venda') return '';
+    if (type === 'Revisão de produto parado') return 'Revisar produto parado';
+    return action.title || type || 'Jogada';
+  }
+
+  function _seasonActionTypeFromText(action) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    var text = _foldText([
+      action.title,
+      action.description,
+      action.why,
+      (action.checklist || []).join(' '),
+      measurement.couponCode,
+      measurement.promotionName,
+      measurement.upsellName,
+      measurement.customerGroup
+    ].filter(Boolean).join(' '));
+    if (measurement.couponCode || /\bcupom\b/.test(text)) return 'Cupom';
+    if (measurement.promotionName || /\bpromoc/.test(text)) return 'Promoção';
+    if (measurement.upsellName || /\bupsell\b|\badicional\b|\bextra\b/.test(text)) return 'Upsell';
+    if (/\bcombo\b|\bmenu\b|\bcomposic/.test(text)) return 'Combo/Menu';
+    if (/\bponto|\breativ|\brecompra|\bvoltaram|\bclientes que ja compraram|\bclientes que já compraram/.test(text)) return 'Pontos/Reativação';
+    if (/\bpreco\b|\bpreço\b|\bdesconto\b|\bmargem\b/.test(text)) return 'Ajuste de preço';
+    if (/\bproduto parado\b|\bbaixa saida\b|\bbaixa saída\b/.test(text)) return 'Revisão de produto parado';
+    return '';
+  }
+
+  function _seasonCommercialTitle(actionType, actionName, product, channel, customerGroup, fallback) {
+    var fakeAction = {
+      title: fallback || '',
+      source: actionType === 'Criar base de leitura' ? 'baseline' : '',
+      productName: product || '',
+      channel: 'cardapio',
+      measurement: {
+        productName: product || '',
+        channel: 'cardapio',
+        couponCode: actionType === 'Cupom' && actionName && !_seasonGenericActionName(actionName, actionType) ? actionName : '',
+        promotionName: actionType === 'Promoção' && actionName && !_seasonGenericActionName(actionName, actionType) ? actionName : '',
+        upsellName: actionType === 'Upsell' && actionName && !_seasonGenericActionName(actionName, actionType) ? actionName : ''
+      }
+    };
+    var cta = _seasonPlayCtaTitle(actionType, product, fakeAction);
+    if (cta) return cta;
+    if (fallback && _seasonStartsWithActionVerb(fallback) && !_seasonHasGenericActionList(fallback)) return _seasonShortCtaText(fallback, product);
+    if (actionType === 'Canal de venda') return 'Puxe pedidos pelo Cardápio';
+    return product ? 'Venda mais ' + _seasonShortProductName(product) : 'Complete a leitura do Cardápio';
+  }
+
+  function _seasonCommercialPlayHtml(play) {
+    play = play || {};
+    var execution = play.salesPlayExecution || {};
+    var setupSteps = Array.isArray(execution.setupSteps) ? execution.setupSteps.filter(Boolean) : [];
+    var distributionSteps = Array.isArray(execution.distributionSteps) ? execution.distributionSteps.filter(Boolean) : [];
+    var meta = [];
+    if (play.deadline) meta.push({ label: 'Prazo da jogada', value: play.deadline.replace(/^Colocar em prática /, 'Execute ') });
+    if ((execution.actionType === 'Cupom' || execution.actionType === 'Promoção') && execution.validUntil) {
+      meta.push({ label: 'Validade do cupom', value: 'Válido até ' + execution.validUntil });
+    }
+    var detail = [
+      { label: setupSteps.length ? 'Configure assim' : 'O que fazer agora', value: setupSteps.length ? setupSteps : play.whatToDo },
+      execution.audience ? { label: 'Para quem', value: execution.audience } : null,
+      distributionSteps.length ? { label: 'Como divulgar', value: distributionSteps } : (execution.distributionChannel ? { label: 'Como divulgar', value: execution.distributionChannel } : null),
+      execution.suggestedMessage ? { label: 'Mensagem sugerida', value: execution.suggestedMessage } : null,
+      { label: 'Por que fazer isso', value: _seasonUserFacingWhy(play, execution) },
+      { label: 'Resultado esperado', value: _seasonPlayExpectedResult(play, execution) }
+    ].filter(Boolean);
+    return '' +
+      '<div class="seasons-commercial-play">' +
+        (meta.length ? '<div class="seasons-commercial-meta">' + meta.map(function (item) {
+          return '<div><span>' + _esc(item.label) + '</span><strong>' + _esc(item.value || '-') + '</strong></div>';
+        }).join('') + '</div>' : '') +
+        '<div class="seasons-commercial-detail">' + detail.map(function (item) {
+          return '<section><span>' + _esc(item.label) + '</span>' + _seasonPlayDetailValueHtml(item.value) + '</section>';
+        }).join('') + '</div>' +
+      '</div>';
+  }
+
+  function _seasonUserFacingWhy(play, execution) {
+    play = play || {};
+    execution = execution || {};
+    var type = execution.actionType || play.actionType || '';
+    var product = execution.productName || play.productName || '';
+    var audience = execution.audience || play.customerGroup || '';
+    if (type === 'Cupom') {
+      return audience
+        ? 'A jogada usa um público definido e um cupom com prazo, limite e pedido mínimo.'
+        : 'A jogada usa um cupom com prazo, limite e pedido mínimo.';
+    }
+    if (type === 'Promoção') return 'A promoção tem benefício, prazo e limite definidos para evitar uma ação aberta demais.';
+    if (type === 'Upsell') return product ? 'A ideia é vender ' + product + ' junto com um complemento.' : 'A ideia é aumentar o valor do pedido com um complemento.';
+    if (type === 'Combo/Menu') return 'O combo deixa a escolha mais simples para quem abre o Cardápio.';
+    if (type === 'Pontos/Reativação') return audience ? 'Esse público já conhece a loja e pode responder melhor a uma chamada direta.' : 'Clientes conhecidos costumam ser o melhor começo para recompra.';
+    if (type === 'Canal de venda') return 'O Cardápio deixa o pedido mais direto para a cliente.';
+    if (type === 'Ajuste de preço') return 'Esse ajuste evita puxar venda por um produto que ainda não está pronto para campanha.';
+    if (type === 'Revisão de produto parado') return 'A revisão ajuda a deixar o produto mais claro antes de divulgar.';
+    if (play.actionKind === 'unlock') return 'Esse passo deixa o produto pronto para uma ação de venda melhor.';
+    if (play.actionKind === 'baseline') return 'Esse passo organiza os primeiros pedidos antes de criar campanha.';
+    return _seasonCleanUserFacingText(play.whyThis || 'Essa jogada combina com o momento da loja.');
+  }
+
+  function _seasonCleanUserFacingText(text) {
+    text = String(text || '').trim();
+    if (!text) return '';
+    text = text
+      .replace(/\s*Os pedidos do Cardápio entram automaticamente e são o único canal usado pela Temporada\.?/gi, '')
+      .replace(/\s*Os pedidos do Cardápio entram automaticamente;\s*/gi, ' ')
+      .replace(/\s*a jogada é puxar o pedido para esse canal\.?/gi, '')
+      .replace(/\s*A jogada concentra a venda no Cardápio para facilitar execução e leitura\.?/gi, ' O Cardápio deixa o pedido mais direto para a cliente.')
+      .replace(/\s*O BocaFood (vai observar|observa|vai ler|lê|vai procurar|procura|vai reconhecer|reconhece)[^\.]*\.?/gi, '')
+      .replace(/\s*A Temporada (vai observar|observa|vai ler|lê|vai procurar|procura|consegue orientar e medir)[^\.]*\.?/gi, '')
+      .replace(/\s*Measurement continua interno\.?/gi, '')
+      .replace(/\s*Leitura interna[^\.]*\.?/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (_seasonLooksLikeInternalReason(text)) return 'Essa jogada combina com o momento da loja.';
+    return _shortSeasonText(text, 180);
+  }
+
+  function _seasonLooksLikeInternalReason(text) {
+    var folded = _foldText(text || '');
+    return /nao divulgar para todos|não divulgar para todos|produto forte|venda barata|sem transformar|antes de dar desconto|desconto automatico|desconto automático|margem segura|estrategia clara|estratégia clara|mecanismo|guardrail|limite interno|unico canal usado pela temporada|único canal usado pela temporada|pedidos do cardapio entram automaticamente|facilitar execucao e leitura|facilitar execução e leitura|como o bocafood|bocafood vai observar|bocafood vai ler|bocafood vai procurar|temporada vai observar|temporada consegue|measurement|scorebreakdown|payload|algoritmo/.test(folded);
+  }
+
+  function _seasonPlayDetailValueHtml(value) {
+    if (Array.isArray(value)) {
+      return '<ul>' + value.map(function (item) {
+        return '<li>' + _esc(item || '-') + '</li>';
+      }).join('') + '</ul>';
+    }
+    return '<p>' + _esc(value || '-') + '</p>';
+  }
+
+  function _seasonPlayExpectedResult(play, execution) {
+    play = play || {};
+    execution = execution || {};
+    var qty = Math.max(1, Math.round(_number(execution.expectedQuantity || play.expectedQuantity, 1)));
+    if (execution.actionType === 'Cupom') {
+      var code = execution.suggestedCode || execution.benefitValue || '';
+      return execution.productName
+        ? 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' no ' + (execution.channelName || 'Cardápio') + ' com ' + execution.productName + ' usando o cupom ' + (code || 'da jogada') + '.'
+        : 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' usando o cupom ' + (code || 'da jogada') + '.';
+    }
+    if (execution.actionType === 'Promoção') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' usando a promoção até o fim da jogada.';
+    if (execution.actionType === 'Upsell') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' com ' + (execution.productName || 'o produto da jogada') + ' + complemento aceito.';
+    if (execution.actionType === 'Pontos/Reativação') return 'Entrar pelo menos ' + qty + ' ' + _seasonOrderWord(qty) + ' de cliente recorrente ou cliente do público indicado.';
+    if (play.expectedResult) return play.expectedResult;
+    return execution.afterAction || 'Entrar pedido ligado à jogada até o fim do prazo.';
+  }
+
+  function _seasonActionReadText(action) {
+    action = action || {};
+    var measurement = action.measurement || {};
+    var parts = [];
+    if (measurement.productName) parts.push('produto ' + measurement.productName);
+    if (measurement.channel) parts.push('canal ' + _channelLabel(_normalizeChannel(measurement.channel)));
+    if (measurement.couponCode) parts.push('cupom ' + measurement.couponCode);
+    if (measurement.promotionName) parts.push('promoção ' + measurement.promotionName);
+    if (measurement.upsellName) parts.push('upsell ' + measurement.upsellName);
+    if (measurement.customerGroup) parts.push(measurement.customerGroup);
+    if (!parts.length) return 'Leitura interna por pedidos ligados a essa ação dentro do prazo da jogada.';
+    return 'Leitura interna por pedidos com ' + parts.join(', ') + ' dentro do prazo da jogada.';
+  }
+
+  function _seasonActionNoResultText(action, product, channel) {
+    var source = String(action && action.source || '');
+    if (source === 'coupons') return 'Não repita o mesmo cupom do mesmo jeito. Troque produto, benefício ou canal antes de tentar de novo.';
+    if (source === 'promotions') return 'Não aumente desconto automaticamente. Revise margem, produto e canal antes de repetir.';
+    if (source === 'upsell') return 'Teste outro complemento ou outro produto de entrada antes de repetir o mesmo upsell.';
+    if (source === 'retention' || source === 'points') return 'Mude o grupo de clientes ou o benefício antes de chamar de novo.';
+    if (source === 'channels') return 'Na próxima jogada, troque canal, produto ou público antes de tentar de novo.';
+    if (source === 'consistency') return 'Na próxima jogada, troque produto, canal ou público para o próximo dia fraco.';
+    if (product || channel) return 'Na próxima jogada, mude um ponto específico: produto, canal, público ou complemento.';
+    return 'Na próxima jogada, mude um ponto específico antes de tentar de novo.';
+  }
+
   function _seasonActionObjectiveText(action, season) {
     if (action && action.goalText) return action.goalText;
     var source = String(action && action.source || '');
@@ -6703,7 +8909,7 @@ Modules.Temporadas = (function () {
     if (source === 'coupons') return 'Criar uma chamada de compra com limite de desconto mais controlado.';
     if (source === 'promotions') return 'Usar uma promoção que pode transformar interesse em venda.';
     if (source === 'healthy_discount') return 'Testar desconto pequeno sem apertar demais a margem.';
-    if (source === 'channels' || source === 'timing') return 'Colocar uma ação concreta no canal que já trouxe resposta.';
+    if (source === 'channels' || source === 'timing') return 'Usar o produto definido no canal que já trouxe resposta.';
     if (source === 'retention' || source === 'points') return 'Trazer clientes que já conhecem sua operação para comprar de novo.';
     if (source === 'consistency') return 'Dar movimento para dias que ainda estão fracos.';
     if (season && season.objective === 'increase_ticket') return 'Aumentar o valor médio dos pedidos.';
@@ -6739,7 +8945,7 @@ Modules.Temporadas = (function () {
     if (source === 'coupons') return 'o cupom entrar em pedidos sem derrubar demais o valor da venda.';
     if (source === 'promotions') return 'a promoção gerar venda real e manter uma sobra saudável.';
     if (source === 'healthy_discount') return 'vender mais ' + (product || 'o produto') + ' sem passar do desconto indicado.';
-    if (source === 'channels' || source === 'timing') return 'entrar venda pelo canal indicado, de preferência com ' + (product || 'o produto escolhido') + '.';
+    if (source === 'channels' || source === 'timing') return 'entrar venda pelo Cardápio, de preferência com ' + (product || 'o produto escolhido') + '.';
     if (source === 'retention' || source === 'points') return 'cliente que já comprou voltar a fazer pedido.';
     if (source === 'consistency') return 'o dia ou horário fraco receber pedido dentro do prazo.';
     if (season && season.objective === 'increase_ticket') return 'o pedido médio subir sem depender só de desconto.';
@@ -6751,18 +8957,18 @@ Modules.Temporadas = (function () {
     if (!task || !task.actionId) return '';
     var status = task.status || 'pending';
     var evidence = task.evidence || {};
-    var title = status === 'executed_with_result' ? 'Deu resultado' : (status === 'result_in_progress' ? 'Resultado em leitura' : (status === 'executed_without_result' ? 'Foi feita, mas não respondeu' : (status === 'not_executed' ? 'Não foi executada no prazo' : 'Ainda em andamento')));
+    var title = status === 'executed_with_result' ? 'Deu resultado' : (status === 'result_in_progress' ? 'Pedido apareceu' : (status === 'executed_without_result' ? 'Foi feita, mas não respondeu' : (status === 'not_executed' ? 'Não foi executada no prazo' : 'Ainda em andamento')));
     var text = '';
     if (status === 'executed_with_result') {
       text = (evidence.message || 'A jogada apareceu nas vendas.') + (_number(evidence.orderTotal, 0) > 0 ? ' Pedido ligado: ' + _fmtMoney(evidence.orderTotal) + '.' : '');
     } else if (status === 'result_in_progress') {
-      text = (evidence.message || 'A jogada já apareceu nas vendas.') + ' O BocaFood mantém a leitura aberta até o fim da janela para saber se vale repetir ou trocar.';
+      text = (evidence.message || 'A jogada já apareceu nas vendas.') + ' Mantenha a ação até o prazo combinado.';
     } else if (status === 'not_executed') {
       text = 'Não encontramos a ação criada ou aplicada dentro do prazo de execução. Na próxima rodada, vale trocar para uma jogada mais simples.';
     } else if (status === 'executed_without_result') {
-      text = 'A ação foi colocada em prática, mas não trouxe venda ligada a ela dentro da janela de medição.';
+      text = 'A ação foi colocada em prática, mas não trouxe venda ligada a ela dentro do prazo.';
     } else {
-      text = 'Assim que uma venda ligada a essa jogada aparecer, o BocaFood mostra aqui o resultado.';
+      text = 'Aguardando pedido ligado a essa jogada.';
     }
     return '<div class="seasons-action-result seasons-action-result-' + _esc(status) + '"><span>Resultado</span><strong>' + _esc(title) + '</strong><p>' + _esc(text) + '</p></div>';
   }
@@ -6784,7 +8990,7 @@ Modules.Temporadas = (function () {
         '<div class="seasons-next-checklist-head"><strong>O que aconteceu</strong><span>Resultado das jogadas</span></div>' +
         '<div class="seasons-action-outcome-grid">' +
           '<span><small>Com resultado</small><strong>' + done.length + '</strong></span>' +
-          '<span><small>Em leitura</small><strong>' + reading.length + '</strong></span>' +
+          '<span><small>Pedido apareceu</small><strong>' + reading.length + '</strong></span>' +
           '<span><small>Sem resposta</small><strong>' + expired.length + '</strong></span>' +
           '<span><small>Em andamento</small><strong>' + pending.length + '</strong></span>' +
           '<span><small>Vendas ligadas</small><strong>' + _esc(_fmtMoney(revenue)) + '</strong></span>' +
@@ -6835,8 +9041,14 @@ Modules.Temporadas = (function () {
       '</section>';
   }
 
-  function _seasonActionTaskStatusHtml(task) {
-    if (!task || !task.actionId) return '';
+  function _seasonActionTaskStatusHtml(task, action) {
+    action = action || {};
+    if (!task || !task.actionId) {
+      if (String(action.source || '') === 'baseline') {
+        return '<div class="seasons-action-task-status seasons-action-task-status-pending"><span>' + _icon('fact_check') + 'Precisa de base</span><small>Complete produto, canal e pagamento nos próximos pedidos para liberar uma jogada comercial confiável.</small></div>';
+      }
+      return '';
+    }
     var status = task.status || 'pending';
     var due = _formatDate(task.executeDueAt || task.dueAt);
     var resultDue = _formatDate(task.resultDueAt);
@@ -6852,7 +9064,7 @@ Modules.Temporadas = (function () {
         : (task.executionStatus === 'created_waiting_result' ? 'Ação criada. Agora vamos medir resposta até ' + (resultDue || 'o fim da janela') + '.' : 'Execute até ' + (due || 'o prazo da rodada') + '.'))));
     return '' +
       '<div class="seasons-action-task-status seasons-action-task-status-' + _esc(status) + '">' +
-        '<span>' + _icon(status === 'executed_with_result' ? 'check_circle' : (status === 'not_executed' ? 'error' : (status === 'result_in_progress' ? 'query_stats' : 'schedule'))) + _esc(task.statusLabel || _seasonActionTaskStatusLabel(status)) + '</span>' +
+        '<span>' + _icon(status === 'executed_with_result' ? 'check_circle' : (status === 'not_executed' ? 'error' : (status === 'result_in_progress' ? 'query_stats' : 'schedule'))) + _esc(String(action.source || '') === 'baseline' && status === 'pending' ? 'Precisa de base' : (task.statusLabel || _seasonActionTaskStatusLabel(status))) + '</span>' +
         '<small>' + _esc(text) + '</small>' +
       '</div>';
   }
@@ -6867,29 +9079,71 @@ Modules.Temporadas = (function () {
 
   function _seasonActionButtons(action, task, season) {
     var source = String(action && action.source || '');
-    if (source === 'promotions') return [
-      { type: 'promotion', label: _seasonActionLooksExisting(action) ? 'Ver promoção' : 'Criar promoção', icon: 'local_offer', primary: true },
-      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    var type = _seasonActionCommercialType(action || {});
+    if (source === 'product_visibility') return [
+      { type: 'catalog', label: 'Ativar no Cardápio', icon: 'visibility', primary: true },
+      { type: 'catalog', label: 'Editar produto', icon: 'edit' }
     ];
-    if (source === 'coupons' || source === 'healthy_discount') return [
-      { type: 'coupon', label: _seasonActionLooksExisting(action) ? 'Ver cupom' : 'Criar cupom', icon: 'sell', primary: true },
-      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    if (source === 'product_image') return [
+      { type: 'catalog', label: 'Editar produto', icon: 'edit', primary: true }
     ];
-    if (source === 'upsell') return [
-      { type: 'upsell', label: _seasonActionLooksExisting(action) ? 'Ver upsell' : 'Criar upsell', icon: 'add_shopping_cart', primary: true },
-      { type: 'catalog', label: 'Ver produto', icon: 'restaurant_menu' }
+    if (source === 'product_price') return [
+      { type: 'catalog', label: 'Editar produto', icon: 'edit', primary: true }
     ];
-    if (source === 'products' || source === 'sales_actions') return [
-      { type: 'catalog', label: 'Aplicar destaque', icon: 'star', primary: true },
-      { type: 'promotion', label: 'Criar promoção', icon: 'local_offer' }
+    if (source === 'product_margin') return [
+      { type: 'margin', label: 'Editar ficha técnica', icon: 'edit', primary: true },
+      { type: 'margin', label: 'Ver margem', icon: 'analytics' }
     ];
-    if (source === 'retention' || source === 'points') return [
+    if (type === 'Criar base de leitura' || source === 'baseline') return [
+      { type: 'orders', label: 'Registrar pedido', icon: 'add_circle', primary: true },
+      { type: 'ordersList', label: 'Ver pedidos', icon: 'receipt_long' }
+    ];
+    if (type === 'Promoção' || source === 'promotions') {
+      if (_seasonActionLooksExisting(action)) return [
+        { type: 'promotion', label: 'Ver promoções', icon: 'local_offer', primary: true }
+      ];
+      return [
+        { type: 'promotion', label: 'Criar promoção', icon: 'local_offer', primary: true },
+        { type: 'promotion', label: 'Ver promoções', icon: 'visibility' }
+      ];
+    }
+    if (type === 'Cupom' || source === 'coupons') {
+      if (_seasonActionLooksExisting(action)) return [
+        { type: 'coupon', label: 'Ver cupons', icon: 'sell', primary: true }
+      ];
+      return [
+        { type: 'coupon', label: 'Criar cupom', icon: 'sell', primary: true },
+        { type: 'coupon', label: 'Ver cupons', icon: 'visibility' }
+      ];
+    }
+    if (type === 'Upsell' || source === 'upsell') {
+      if (_seasonActionLooksExisting(action)) return [
+        { type: 'upsell', label: 'Ver upsells', icon: 'add_shopping_cart', primary: true }
+      ];
+      return [
+        { type: 'upsell', label: 'Cadastrar upsell', icon: 'add_shopping_cart', primary: true },
+        { type: 'upsell', label: 'Ver upsells', icon: 'visibility' }
+      ];
+    }
+    if (type === 'Combo/Menu') return [
+      { type: 'combo', label: 'Criar combo', icon: 'restaurant', primary: true },
+      { type: 'catalog', label: 'Editar cardápio', icon: 'restaurant_menu' }
+    ];
+    if (type === 'Pontos/Reativação' || source === 'retention' || source === 'points') return [
       { type: 'customers', label: 'Ver clientes', icon: 'groups', primary: true },
       { type: 'points', label: 'Ver pontos', icon: 'loyalty' }
     ];
-    if (source === 'channels' || source === 'timing' || source === 'consistency') return [
-      { type: 'performance', label: source === 'consistency' ? 'Ver dias fracos' : 'Ver canais', icon: 'query_stats', primary: true },
-      { type: 'promotion', label: 'Criar ação', icon: 'campaign' }
+    if (type === 'Canal de venda' || source === 'channels' || source === 'timing' || source === 'consistency') return [
+      { type: 'ordersList', label: 'Ver pedidos do Cardápio', icon: 'receipt_long', primary: true },
+      { type: 'catalog', label: 'Editar cardápio', icon: 'restaurant_menu' }
+    ];
+    if (type === 'Ajuste de preço' || source === 'healthy_discount') return [
+      { type: 'catalog', label: 'Ajustar preço', icon: 'edit', primary: true },
+      { type: 'margin', label: 'Ver margem', icon: 'analytics' }
+    ];
+    if (type === 'Revisão de produto parado' || source === 'products' || source === 'sales_actions') return [
+      { type: 'catalog', label: 'Editar produto', icon: 'edit', primary: true },
+      { type: 'performance', label: 'Ver desempenho', icon: 'analytics' }
     ];
     return [
       { type: 'performance', label: 'Ver desempenho', icon: 'analytics', primary: true }
@@ -6931,9 +9185,13 @@ Modules.Temporadas = (function () {
       promotion: 'marketing/promocoes',
       coupon: 'marketing/cupons',
       upsell: 'marketing/upsell',
+      combo: 'catalogo/produtos',
       catalog: 'catalogo/produtos',
       customers: 'pedidos/clientes',
       points: 'marketing/pontos',
+      orders: 'pedidos/lista',
+      ordersList: 'pedidos/lista',
+      margin: 'dinheiro/precos',
       performance: 'crescimento/performance'
     })[buttonType] || 'crescimento/performance';
   }
@@ -6943,9 +9201,14 @@ Modules.Temporadas = (function () {
       promotion: 'Abrindo Promoções com esta jogada como referência.',
       coupon: 'Abrindo Cupons com esta jogada como referência.',
       upsell: 'Abrindo Upsell com esta jogada como referência.',
+      combo: 'Abrindo Cardápio para criar o combo.',
       catalog: 'Abrindo Produtos para aplicar a jogada.',
       customers: 'Abrindo Clientes para trabalhar recompra.',
       points: 'Abrindo Programa de Pontos.',
+      channels: 'Abrindo Canais de venda.',
+      orders: 'Abrindo novo pedido para criar base de leitura.',
+      ordersList: 'Abrindo Pedidos da jogada.',
+      margin: 'Abrindo Preços e Margem.',
       performance: 'Abrindo Performance para comparar os sinais.'
     })[buttonType] || 'Abrindo a área relacionada.';
   }
@@ -7500,7 +9763,7 @@ Modules.Temporadas = (function () {
           '</div>' +
           '<div class="seasons-final-summary">' +
             '<span class="seasons-section-label">Análises</span>' +
-            '<p>As leituras automáticas e recomendações da Próxima Jogada começam quando a temporada ficar ativa.</p>' +
+            '<p>As leituras automáticas começam quando a temporada ficar ativa.</p>' +
           '</div>' +
           '<div class="seasons-modal-foot" style="padding:0;margin-top:4px;border-top:none;background:transparent;">' +
             '<button class="seasons-secondary-button" type="button" onclick="Modules.Temporadas.closeFinalResult()">Fechar</button>' +
@@ -7567,7 +9830,7 @@ Modules.Temporadas = (function () {
             '<div class="seasons-help-grid">' +
               _helpItem('Painel da Temporada', 'Mostra o caminho escolhido: objetivo, prioridade, dificuldade, score, progresso e dias restantes.', 'Use este bloco para saber rapidamente se a temporada está andando no ritmo certo.') +
               _helpItem('Visão Geral', 'Resume como a temporada está hoje, o que está ajudando e o que está travando.', 'Os cards têm explicação extra: clique neles para abrir o balão de ajuda.') +
-              _helpItem('Próxima Jogada', 'Mostra as ações práticas que valem fazer agora, com produto, canal, prazo e motivo quando esses dados existem.', 'É a parte mais operacional da Temporada: aqui fica o que fazer no dia a dia.') +
+              _helpItem('Leitura da temporada', 'Mostra os sinais e o aprendizado da temporada, sem instruções de execução.', 'É a parte que acompanha o negócio no dia a dia.') +
               _helpItem('Resultado da jogada', 'Quando uma jogada aparece nos pedidos, o BocaFood mostra se ela deu resultado, não respondeu ou passou do prazo.', 'Assim a próxima decisão aprende com o que aconteceu.') +
             '</div>' +
           '</section>' +
@@ -7589,19 +9852,19 @@ Modules.Temporadas = (function () {
               _helpItem('Score', 'Mostra se o caminho está saudável para o objetivo escolhido.', objective.score + ' Um progresso alto com risco alto pode ter score menor; um progresso parcial com bons sinais pode manter score melhor.') +
               _helpItem('Risco', 'Mostra a chance de a temporada não chegar bem ao final se continuar no ritmo atual.', 'Risco alto não é erro: é um aviso para agir mais rápido, simplificar a jogada ou proteger o resultado.') +
               _helpItem('Base observada', 'Mostra o retrato das vendas desta temporada até agora.', 'Use para entender o volume de pedidos, o ticket médio e o resultado que está puxando o objetivo escolhido.') +
-              _helpItem('O que ajuda e o que trava', 'Mostra sinais simples do que está puxando a temporada e do que está atrapalhando.', 'Use essa parte para entender por que a Próxima Jogada foi sugerida.') +
+              _helpItem('O que ajuda e o que trava', 'Mostra sinais simples do que está puxando a temporada e do que está atrapalhando.', 'Use essa parte para entender a leitura da temporada.') +
             '</div>' +
           '</section>' +
           '<section class="seasons-help-section">' +
-            '<h3>Como agir com a Próxima Jogada</h3>' +
+            '<h3>Como ler a temporada</h3>' +
             '<div class="seasons-help-intro">' +
               '<h4>Uma jogada por vez</h4>' +
-              '<p>A Próxima Jogada existe para transformar a rota em ação prática. Ela deve dizer o que fazer, por que fazer, até quando fazer e como o BocaFood vai reconhecer se valeu a pena.</p>' +
-              '<span>Quando a dificuldade for maior, podem aparecer mais jogadas, mas cada uma precisa ter um objetivo claro.</span>' +
+              '<p>A temporada existe para acompanhar a rota em leitura e aprendizado. Ela mostra o que está acontecendo, o que ajuda, o que trava e como o resultado está se formando.</p>' +
+              '<span>Quando houver mais dados, a leitura fica mais precisa, sem virar lista de execução.</span>' +
             '</div>' +
             '<div class="seasons-help-grid">' +
-              _helpItem('Fazer', 'É a ação principal da jogada.', 'Exemplo: destacar um produto, criar uma promoção, usar um cupom, ativar upsell ou puxar recompra.') +
-              _helpItem('Por que fazer', 'Mostra o dado que justifica a jogada.', 'Pode vir de produto forte, canal que respondeu melhor, promoção usada, cupom, upsell ou cliente recorrente.') +
+              _helpItem('Fazer', 'É a ação principal da jogada.', 'Exemplo: usar um cupom específico com um produto no canal definido.') +
+              _helpItem('Por que fazer', 'Mostra o dado que justifica a jogada.', 'Pode vir de produto forte, canal que respondeu melhor ou cliente recorrente.') +
               _helpItem('Até quando', 'Mostra o prazo para colocar a jogada em prática.', 'O prazo muda conforme a dificuldade: seguro é mais tranquilo, agressivo é mais rápido.') +
               _helpItem('Vai valer a pena se', 'Mostra como o BocaFood vai reconhecer resposta.', 'O resultado precisa aparecer em pedido real ou em ação criada dentro do BocaFood.') +
             '</div>' +
@@ -8266,7 +10529,7 @@ Modules.Temporadas = (function () {
       if (!_wizard) return;
       console.error('Temporadas baseline error', err);
       _wizard.baselineLoading = false;
-      _wizard.error = (err && err.message) || 'Não conseguimos preparar esta Temporada agora. Confira se já existe uma rota no Plano de Voo.';
+      _wizard.error = (err && err.message) || 'Não conseguimos preparar esta Temporada agora. Crie ou ative uma rota no Plano de Voo antes de continuar.';
       _renderWizard();
     });
   }
@@ -8302,9 +10565,9 @@ Modules.Temporadas = (function () {
       var durationDays = (duration && duration.days) || 30;
       var now = new Date();
       var validOrders = _creationBaselineOrders(orders, range, now, durationDays);
-      var baseline = _buildBaselineMetrics(validOrders, durationDays);
+      var baseline = _buildBaselineMetrics(validOrders, durationDays, _state.actionContext || {});
       var baseValue = _baselineValueForObjective(baseline, values.objective);
-      var currentRevenue = range && now >= range.start ? _number(_buildBaselineMetrics(_ordersInPeriod(orders, range.start, now < range.end ? now : range.end), durationDays).baselineRevenue, 0) : 0;
+      var currentRevenue = range && now >= range.start ? _number(_buildBaselineMetrics(_ordersInPeriod(orders, range.start, now < range.end ? now : range.end), durationDays, _state.actionContext || {}).baselineRevenue, 0) : 0;
       var gap = Math.max(0, routeTarget - currentRevenue);
       var calculatedTarget = _targetFromFlightPlan(values.objective, routeTarget, gap, summary, baseline, range);
       var risk = _flightPlanTargetRisk(values.difficulty, calculatedTarget, baseValue, baseline.baselineConfidence);
@@ -8670,7 +10933,7 @@ Modules.Temporadas = (function () {
       coupons: _calculateCouponImpact(validOrders, season, baseline),
       promotions: _calculatePromotionImpact(validOrders, season, baseline),
       upsell: _calculateUpsellImpact(validOrders, season, baseline),
-      points: _calculatePointsImpact(validOrders, season, baseline),
+      points: _calculatePointsImpact(validOrders, season, baseline, actionContext),
       channels: _calculateChannelImpact(validOrders, season, baseline, actionContext),
       products: _calculateProductImpact(validOrders, season, baseline, actionContext)
     };
@@ -8752,13 +11015,13 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _calculatePointsImpact(validOrders, season, baseline) {
+  function _calculatePointsImpact(validOrders, season, baseline, actionContext) {
     var redemption = (validOrders || []).filter(function (order) {
       return _number(order.pointsRedemption, 0) > 0 || _number(order.pointsDiscount, 0) > 0;
     });
     var customerCounts = {};
     (validOrders || []).forEach(function (order) {
-      if (!order.customerKey) return;
+      if (!_isReliableCustomerRecurrenceOrder(order, actionContext)) return;
       customerCounts[order.customerKey] = (customerCounts[order.customerKey] || 0) + 1;
     });
     var repeatMap = {};
@@ -8830,6 +11093,22 @@ Modules.Temporadas = (function () {
     return (salesChannels || []).filter(function (item) {
       return item && (item.key === key || _normalizeChannel(item.name || '') === key || _foldText(item.name || '') === folded);
     })[0] || null;
+  }
+
+  function _seasonChannelImportModel(channel) {
+    return String(channel && (channel.importModel || channel.import_model || channel.orderImportModel || channel.importacaoModelo || channel.modeloImportacao || '') || '').trim();
+  }
+
+  function _seasonChannelHasImportModel(channel, actionContext) {
+    var channels = actionContext && (actionContext.allSalesChannels || actionContext.salesChannels) || [];
+    var config = _channelConfigFor(channel, channels);
+    return !!_seasonChannelImportModel(config);
+  }
+
+  function _isReliableCustomerRecurrenceOrder(order, actionContext) {
+    var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
+    if (!normalized || !normalized.customerKey) return false;
+    return !_seasonChannelHasImportModel(normalized.channel, actionContext || {});
   }
 
   function _channelCostImpact(item, config) {
@@ -9078,7 +11357,7 @@ Modules.Temporadas = (function () {
     return Math.round(_clamp(penalty, 0, 12));
   }
 
-  function _buildBaselineMetrics(orders, days) {
+  function _buildBaselineMetrics(orders, days, actionContext) {
     var revenue = 0;
     var activeDayMap = {};
     var customers = {};
@@ -9095,7 +11374,7 @@ Modules.Temporadas = (function () {
       if (date) activeDayMap[date.toISOString().slice(0, 10)] = true;
 
       var key = normalized.customerKey;
-      if (key) customers[key] = (customers[key] || 0) + 1;
+      if (key && _isReliableCustomerRecurrenceOrder(normalized, actionContext)) customers[key] = (customers[key] || 0) + 1;
     });
 
     var customerKeys = Object.keys(customers);
@@ -9432,13 +11711,19 @@ Modules.Temporadas = (function () {
     return _loadSnapshotOrders(season, snapshotType).then(function (orders) {
       var payload = _buildSnapshotPayload(season, snapshotType, dateKey, orders || []);
       if (!_snapshotHasRelevantChanges(existing, payload)) return existing;
-      var patch = Object.assign({}, payload, {
-        updatedAt: new Date().toISOString(),
+      var keepOpenTaskRecommendation = _shouldKeepAIRecommendationForOpenTasks(existing, season);
+      var aiFields = keepOpenTaskRecommendation ? _snapshotAIFields(existing) : {
         aiRecommendation: null,
         aiRecommendationGeneratedAt: null,
         aiRecommendationModel: '',
         aiRecommendationStatus: 'not_requested',
-        aiRecommendationError: ''
+        aiRecommendationError: '',
+        aiContextHash: '',
+        aiContextSize: 0,
+        aiTriggerReason: ''
+      };
+      var patch = Object.assign({}, payload, aiFields, {
+        updatedAt: new Date().toISOString()
       });
       return DB.update('season_metrics_snapshots', existing.id, patch).then(function () {
         return Object.assign({}, existing, patch);
@@ -9447,6 +11732,22 @@ Modules.Temporadas = (function () {
       console.warn('Temporadas snapshot refresh skipped', err);
       return existing;
     });
+  }
+
+  function _snapshotAIFields(snapshot) {
+    return {
+      aiRecommendation: snapshot && snapshot.aiRecommendation || null,
+      aiRecommendationGeneratedAt: snapshot && snapshot.aiRecommendationGeneratedAt || null,
+      aiRecommendationModel: snapshot && snapshot.aiRecommendationModel || '',
+      aiRecommendationStatus: snapshot && snapshot.aiRecommendationStatus || 'not_requested',
+      aiRecommendationError: snapshot && snapshot.aiRecommendationError || '',
+      aiContextHash: snapshot && snapshot.aiContextHash || '',
+      aiContextSize: _number(snapshot && snapshot.aiContextSize, 0),
+      aiTriggerReason: snapshot && snapshot.aiTriggerReason || '',
+      aiPromptTokens: _number(snapshot && snapshot.aiPromptTokens, 0),
+      aiCompletionTokens: _number(snapshot && snapshot.aiCompletionTokens, 0),
+      aiTotalTokens: _number(snapshot && snapshot.aiTotalTokens, 0)
+    };
   }
 
   function _snapshotHasRelevantChanges(existing, payload) {
@@ -9483,7 +11784,7 @@ Modules.Temporadas = (function () {
     var range = _snapshotRange(season, snapshotType);
     var validOrders = _ordersInPeriod(orders || [], range.periodStart, range.periodEnd);
     var days = Math.max(1, Math.ceil((range.periodEnd.getTime() - range.periodStart.getTime()) / 86400000));
-    var metrics = _buildRuntimeMetrics(validOrders, days);
+    var metrics = _buildRuntimeMetrics(validOrders, days, _state.actionContext || {});
     var confidence = _snapshotConfidence(validOrders.length);
     var mainMetrics = _mainMetricsForSnapshot(season, metrics);
     var auxiliaryMetrics = _auxiliaryMetricsForSnapshot(metrics, confidence);
@@ -9662,67 +11963,360 @@ Modules.Temporadas = (function () {
     actionContext = actionContext || {};
     businessHistory = businessHistory || {};
     season = season || {};
+    var rolling60 = businessHistory.periods && businessHistory.periods.rolling_60 || {};
     var rolling30 = businessHistory.periods && businessHistory.periods.rolling_30 || {};
+    var readingWindow = _number(rolling60.ordersCount, 0) > 0 ? rolling60 : rolling30;
     var previous30 = businessHistory.periods && businessHistory.periods.previous_30 || {};
-    var points = _pointsIntelligenceForAI(actionContext, rolling30);
+    var points = _pointsIntelligenceForAI(actionContext, readingWindow);
     var activePromotions = _activeActionRecordsForAI(actionContext.promotions || [], 'promotion');
     var activeCoupons = _activeActionRecordsForAI(actionContext.coupons || [], 'coupon');
     var activeUpsells = _activeActionRecordsForAI(actionContext.upsells || [], 'upsell');
     var seasonLinked = _seasonLinkedActionRecordsForAI(actionContext);
     var channels = _availableChannelsForAI(actionContext.salesChannels || []);
-    var performanceChannels = _channelsPerformanceForAI(metrics.channelBreakdown || rolling30.topChannels || [], actionContext.salesChannels || []);
+    var performanceChannels = _seasonCardapioPerformanceChannels(_channelsPerformanceForAI(metrics.channelBreakdown || readingWindow.topChannels || [], actionContext.salesChannels || []));
     var catalog = _catalogPossibilitiesForAI(actionContext.products || [], actionContext.variantGroups || []);
     var salesLevers = _availableSalesLeversForAI(activePromotions, activeCoupons, activeUpsells, points);
+    var customerSegments = actionContext.customerSegmentsForActions || actionContext.customerSegments || _customerSegmentIntelligenceForTemporadas(actionContext);
+    var actionGuardrails = _seasonActionGuardrailsForAI(metrics, performanceChannels, catalog, {
+      promotions: activePromotions,
+      coupons: activeCoupons,
+      upsells: activeUpsells,
+      points: points,
+      customerSegments: customerSegments,
+      actionContext: actionContext,
+      season: season
+    });
     return {
-      period: 'ultimos_30_dias',
-      revenue: _roundMoney(rolling30.revenue),
+      period: _number(rolling60.ordersCount, 0) > 0 ? 'ultimos_60_dias' : 'historico_disponivel_ate_30_dias',
+      revenue: _roundMoney(readingWindow.revenue),
       previousRevenue: _roundMoney(previous30.revenue),
-      orders: Math.round(_number(rolling30.ordersCount, 0)),
+      orders: Math.round(_number(readingWindow.ordersCount, 0)),
       previousOrders: Math.round(_number(previous30.ordersCount, 0)),
-      averageTicket: _roundMoney(rolling30.averageTicket),
-      activeDays: Math.round(_number(rolling30.activeDays, 0)),
-      topProducts: _simplePerformanceList(rolling30.topProducts || metrics.topProducts || [], 5),
+      averageTicket: _roundMoney(readingWindow.averageTicket),
+      activeDays: Math.round(_number(readingWindow.activeDays, 0)),
+      topProducts: _simplePerformanceList(readingWindow.topProducts || metrics.topProducts || [], 5),
       topChannels: performanceChannels.slice(0, 5),
       strongHours: [],
       lowSellingProducts: _simplePerformanceList(metrics.lowSellingProducts || [], 4),
       realMenuCombinations: _realMenuCombinationsForAI(metrics.realMenuCombinations || [], 6),
       actionPerformance: {
-        couponOrders: Math.round(_number(rolling30.couponOrders, metrics.couponUsage || 0)),
-        promotionOrders: Math.round(_number(rolling30.promotionOrders, _number(metrics.promotionDiscount, 0) > 0 ? 1 : 0)),
-        upsellOrders: Math.round(_number(rolling30.upsellOrders, metrics.upsellAcceptedCount || 0)),
-        discountTotal: _roundMoney(rolling30.discountTotal || (_number(metrics.couponDiscount, 0) + _number(metrics.promotionDiscount, 0) + _number(metrics.upsellDiscount, 0))),
+        couponOrders: Math.round(_number(readingWindow.couponOrders, metrics.couponUsage || 0)),
+        promotionOrders: Math.round(_number(readingWindow.promotionOrders, _number(metrics.promotionDiscount, 0) > 0 ? 1 : 0)),
+        upsellOrders: Math.round(_number(readingWindow.upsellOrders, metrics.upsellAcceptedCount || 0)),
+        discountTotal: _roundMoney(readingWindow.discountTotal || (_number(metrics.couponDiscount, 0) + _number(metrics.promotionDiscount, 0) + _number(metrics.upsellDiscount, 0))),
         upsellAddedRevenue: _roundMoney(metrics.upsellAddedRevenue),
         seasonLinkedActions: seasonLinked
       },
       availableActions: {
         promotions: activePromotions.slice(0, 4),
         coupons: activeCoupons.slice(0, 4),
-        upsells: activeUpsells.slice(0, 4)
+        upsells: activeUpsells.slice(0, 4),
+        usedCouponCodes: Object.keys(_seasonUsedCouponCodeMap()).slice(0, 30)
       },
+      actionGuardrails: actionGuardrails,
       businessPossibilities: {
         businessConfig: actionContext.businessConfig || {},
         salesChannels: channels.slice(0, 10),
         bestMarginChannels: _bestMarginChannelsForAI(performanceChannels).slice(0, 5),
-        unexploredChannels: _unexploredChannelsForAI(channels, rolling30.topChannels || metrics.channelBreakdown || []).slice(0, 6),
+        unexploredChannels: [],
         catalogProducts: catalog.products.slice(0, 12),
         menuProducts: catalog.menus.slice(0, 8),
         availableSalesLevers: salesLevers,
-        recommendedPaths: _recommendedSalesPathsForAI(metrics, performanceChannels, catalog, salesLevers, points).slice(0, 8)
+        recommendedPaths: actionGuardrails.candidateActions.slice(0, 5)
       },
       playHistory: _seasonPlayHistoryForAI(season),
       pointsProgram: points,
       customerSignals: {
-        recurringCustomers: Math.round(_number(rolling30.recurringCustomers, metrics.recurringCustomers || 0)),
-        repurchaseRate: _number(rolling30.repurchaseRate, metrics.repurchaseRate || 0),
+        recurringCustomers: Math.round(_number(readingWindow.recurringCustomers, metrics.recurringCustomers || 0)),
+        repurchaseRate: _number(readingWindow.repurchaseRate, metrics.repurchaseRate || 0),
         customersWithPoints: points.customersWithPoints,
         customersReadyToRedeem: points.customersReadyToRedeem,
-        suggestedGroups: _customerGroupsForAI(metrics, rolling30, points)
+        segmentCounts: customerSegments.counts || {},
+        segmentGroups: customerSegments.suggestedGroups || [],
+        recommendedAudiences: _safeCustomerAudiencesForAI(customerSegments.recommendedAudiences || []),
+        suggestedGroups: _customerGroupsForAI(metrics, readingWindow, points, customerSegments)
       }
     };
   }
 
+  function _seasonActionGuardrailsForAI(metrics, channels, catalog, info) {
+    info = info || {};
+    var blocked = _seasonBlockedActionsForAI(info.season || {}).concat(_seasonActiveRecordsBlockedForAI(info || {}));
+    var candidates = _seasonCandidateActionsForAI(metrics || {}, channels || [], catalog || {}, info, blocked);
+    if (!candidates.length) {
+      candidates = _recommendedSalesPathsForAI(metrics || {}, channels || [], catalog || {}, _availableSalesLeversForAI(info.promotions || [], info.coupons || [], info.upsells || [], info.points || {}), info.points || {}, info.actionContext || {}, info.season || {})
+        .filter(function (path) { return _seasonCandidateIsAllowed(path, blocked); })
+        .slice(0, 3);
+    }
+    if (!candidates.length && catalog && catalog.products && catalog.products.length) {
+      for (var i = 0; i < catalog.products.length; i += 1) {
+        var baseCandidate = _seasonBaseReadingCandidate(catalog.products[i]);
+        if (_seasonCandidateIsAllowed(baseCandidate, blocked)) {
+          candidates.push(baseCandidate);
+          break;
+        }
+      }
+    }
+    return {
+      rule: 'Use somente candidateActions. Nunca use blockedActions como nova jogada.',
+      blockedActions: blocked.slice(0, 12),
+      candidateActions: candidates.slice(0, 5),
+      requiredFields: [
+        'actionType',
+        'productName',
+        'specificInstruction',
+        'whereToDo',
+        'expectedResult',
+        'customerGroup',
+        'candidateId',
+        'Para Combo/Menu ou Upsell, combinationName é obrigatório e deve ser um produto real.'
+      ]
+    };
+  }
+
+  function _seasonBlockedActionsForAI(season) {
+    var tasks = (season && season.actionTaskHistory || []).concat(season && season.actionTasks || []);
+    return (tasks || []).filter(function (task) {
+      var status = String(task && task.status || 'pending');
+      return status === 'pending' || status === 'result_in_progress' || status === 'manually_done';
+    }).map(function (task) {
+      task = task || {};
+      var title = task.title || task.label || '';
+      var productName = task.productName || task.targetProductName || task.measurement && task.measurement.productName || _seasonProductNameFromActionText(title);
+      var actionName = task.actionName || task.promotionName || task.couponCode || task.upsellName || task.measurement && (task.measurement.promotionName || task.measurement.couponCode || task.measurement.upsellName) || _seasonActionNameFromTaskText(title);
+      var actionType = _seasonBlockedActionType(task.source || task.type || '', title);
+      return {
+        actionKey: _seasonActionCandidateKey(actionType, actionName, productName),
+        actionType: actionType,
+        actionName: actionName,
+        productName: productName,
+        status: status,
+        reason: 'Já existe jogada aberta ou em leitura com essa ação.'
+      };
+    }).filter(function (item) {
+      return item.actionType || item.actionName || item.productName;
+    });
+  }
+
+  function _seasonActiveRecordsBlockedForAI(info) {
+    info = info || {};
+    var productById = _seasonCatalogProductMap(info.actionContext && info.actionContext.products || []);
+    var out = [];
+    function addRecords(records, type, label) {
+      (records || []).forEach(function (record) {
+        record = record || {};
+        var productName = record.productName || record.targetProductName || _seasonProductNameForActionRecord(record, productById);
+        var actionName = record.name || record.code || record.title || label || type;
+        if (!actionName && !productName) return;
+        out.push({
+          actionKey: _seasonActionCandidateKey(type, actionName, productName),
+          actionType: type,
+          actionName: actionName,
+          productName: productName,
+          productId: record.productId || record.targetProductId || '',
+          status: 'active',
+          reason: 'Já existe ação ativa com esse produto ou mecânica.'
+        });
+      });
+    }
+    addRecords(info.promotions || [], 'promotion', 'promoção ativa');
+    addRecords(info.coupons || [], 'coupon', 'cupom ativo');
+    addRecords(info.upsells || [], 'upsell', 'upsell ativo');
+    return out;
+  }
+
+  function _seasonBlockedActionType(source, title) {
+    var text = _foldText([source, title].join(' '));
+    if (/promoc|2x1|oferta/.test(text)) return 'promotion';
+    if (/cupom|coupon/.test(text)) return 'coupon';
+    if (/upsell|complement/.test(text)) return 'upsell';
+    if (/combo|menu/.test(text)) return 'combo';
+    if (/ponto|reativ|cliente/.test(text)) return 'retention';
+    if (/canal|cardapio|pedido/.test(text)) return 'channel';
+    return source || 'action';
+  }
+
+  function _seasonActionNameFromTaskText(value) {
+    var text = String(value || '').trim();
+    var match = text.match(/(?:usar|repetir|ativar|criar)\s+(.+?)\s+(?:em|para|com)\s+/i);
+    if (match && match[1]) return match[1].trim();
+    if (/2x1/i.test(text)) return '2x1';
+    return '';
+  }
+
+  function _seasonProductNameFromActionText(value) {
+    var text = String(value || '').trim();
+    var match = text.match(/\s(?:em|para|com|de)\s+(.+)$/i);
+    if (!match || !match[1]) return '';
+    return match[1].replace(/\s+no\s+card[aá]pio.*$/i, '').trim();
+  }
+
+  function _seasonCandidateActionsForAI(metrics, channels, catalog, info, blocked) {
+    var out = [];
+    var products = (metrics.topProducts || []).slice(0, 5);
+    var productById = _seasonCatalogProductMap(info.actionContext && info.actionContext.products || []);
+    var channel = (_bestMarginChannelsForAI(channels || [])[0] || (channels || [])[0] || {});
+
+    function add(candidate) {
+      if (!_seasonCandidateIsAllowed(candidate, blocked)) return;
+      if ((candidate.actionType === 'combo' || candidate.actionType === 'upsell') && !candidate.combinationName) return;
+      out.push(candidate);
+    }
+
+    products.forEach(function (product, index) {
+      if (!product || !product.name) return;
+      var catalogProduct = productById[product.id || product.productId || ''] || productById[_foldText(product.name || '')] || _seasonFindCatalogProduct(null, product.name);
+      var complement = _seasonComplementCandidateFor(catalogProduct, info.actionContext || {});
+      if (complement) {
+        add(_seasonCandidate('combo', {
+          actionName: 'Montar combo',
+          productId: product.id || product.productId || '',
+          productName: product.name,
+          combinationName: complement,
+          channelName: channel.name || 'Cardápio',
+          customerGroup: _seasonCandidateAudience(info.customerSegments, 'combo', product.name),
+          evidence: product.name + ' já tem venda real; o combo precisa sair com um complemento definido.',
+          specificInstruction: 'Monte um combo com ' + product.name + ' + ' + complement + ' no Cardápio.',
+          whereToDo: 'Cardápio → Produtos',
+          expectedResult: 'Entrar pedido com ' + product.name + ' + ' + complement + ' pelo Cardápio.'
+        }));
+      }
+      if (complement && index <= 2) {
+        add(_seasonCandidate('upsell', {
+          actionName: 'Cadastrar upsell',
+          productId: product.id || product.productId || '',
+          productName: product.name,
+          combinationName: complement,
+          channelName: channel.name || 'Cardápio',
+          customerGroup: _seasonCandidateAudience(info.customerSegments, 'upsell', product.name),
+          evidence: product.name + ' pode puxar aumento de ticket sem desconto.',
+          specificInstruction: 'Cadastre ' + complement + ' como upsell para quem escolher ' + product.name + ' no Cardápio.',
+          whereToDo: 'Ações de Vendas → Upsell',
+          expectedResult: 'Entrar pedido com ' + product.name + ' e upsell ' + complement + ' aceito.'
+        }));
+      }
+    });
+
+    if (info.points && info.points.active !== false && _number(info.points.customersReadyToRedeem, 0) > 0 && products[0] && products[0].name) {
+      add(_seasonCandidate('retention', {
+        actionName: 'Chamar clientes com pontos',
+        productName: products[0].name,
+        channelName: 'Cardápio',
+        customerGroup: 'Clientes com pontos para usar',
+        evidence: Math.round(_number(info.points.customersReadyToRedeem, 0)) + ' cliente(s) têm pontos prontos para uso.',
+        specificInstruction: 'Chame clientes com pontos para pedir ' + products[0].name + ' pelo Cardápio.',
+        whereToDo: 'Clientes',
+        expectedResult: 'Entrar pedido de cliente com pontos ou cliente recorrente.'
+      }));
+    }
+
+    return out;
+  }
+
+  function _seasonCandidate(type, data) {
+    data = data || {};
+    var actionName = data.actionName || '';
+    var productName = data.productName || '';
+    return Object.assign({
+      candidateId: _seasonActionCandidateKey(type, actionName, productName),
+      actionType: type,
+      actionName: actionName,
+      productName: productName,
+      productId: data.productId || '',
+      combinationName: data.combinationName || '',
+      channelName: data.channelName || 'Cardápio',
+      customerGroup: data.customerGroup || '',
+      evidence: data.evidence || '',
+      specificInstruction: data.specificInstruction || '',
+      whereToDo: data.whereToDo || '',
+      expectedResult: data.expectedResult || ''
+    }, data);
+  }
+
+  function _seasonActionCandidateKey(type, actionName, productName) {
+    return [_foldText(type || ''), _foldText(actionName || ''), _foldText(productName || '')].join('|');
+  }
+
+  function _seasonCandidateIsAllowed(candidate, blocked) {
+    if (!candidate) return false;
+    var type = candidate.actionType || candidate.type || '';
+    var actionName = candidate.actionName || candidate.name || '';
+    var productName = candidate.productName || '';
+    var candidateKey = _seasonActionCandidateKey(type, actionName, productName);
+    var candidateProduct = _foldText(productName);
+    var candidateAction = _foldText(actionName);
+    return !(blocked || []).some(function (item) {
+      if (!item) return false;
+      if (item.actionKey && item.actionKey === candidateKey) return true;
+      var blockedType = _foldText(item.actionType || '');
+      var blockedProduct = _foldText(item.productName || '');
+      var blockedAction = _foldText(item.actionName || '');
+      if (blockedProduct && candidateProduct && blockedProduct === candidateProduct) return true;
+      if (blockedType && blockedType !== _foldText(type)) return false;
+      if (/promotion|coupon|upsell/.test(blockedType) && blockedAction && candidateAction && blockedAction === candidateAction) return true;
+      if (blockedAction && candidateAction && blockedAction === candidateAction && blockedProduct && candidateProduct && blockedProduct === candidateProduct) return true;
+      if (blockedAction && candidateAction && blockedAction === candidateAction && !candidateProduct) return true;
+      return false;
+    });
+  }
+
+  function _seasonBaseReadingCandidate(product) {
+    var name = product && product.name || '';
+    return _seasonCandidate('base_reading', {
+      actionName: 'Registrar pedidos completos',
+      productId: product && product.id || '',
+      productName: name,
+      channelName: 'Cardápio',
+      customerGroup: 'Clientes do Cardápio',
+      evidence: 'Ainda falta base suficiente para uma jogada comercial mais específica.',
+      specificInstruction: 'Registre os próximos pedidos de ' + (name || 'um produto do Cardápio') + ' com produto, canal e pagamento completos.',
+      whereToDo: 'Pedidos',
+      expectedResult: 'Entrar pedido completo para liberar próxima leitura comercial.'
+    });
+  }
+
+  function _seasonCatalogProductMap(products) {
+    var map = {};
+    (products || []).forEach(function (product) {
+      if (product && product.id) map[String(product.id)] = product;
+      var name = _productActionName(product || {});
+      if (name) map[_foldText(name)] = product;
+    });
+    return map;
+  }
+
+  function _seasonComplementCandidateFor(product, actionContext) {
+    if (!product) return '';
+    var complement = _bestComplementProductForProduct(product, _productEconomics(product, null, actionContext || {}), actionContext && actionContext.products || [], actionContext || {});
+    return complement && complement.product ? _productActionName(complement.product) : '';
+  }
+
+  function _seasonProductNameForActionRecord(record, productMap) {
+    var ids = record && (record.productIds || record.products || record.triggerProductIds || record.triggerProducts || record.targetProductIds || record.productId || record.targetProductId) || [];
+    if (!Array.isArray(ids)) ids = ids ? [ids] : [];
+    for (var i = 0; i < ids.length; i += 1) {
+      var product = productMap && productMap[String(ids[i] || '')];
+      if (product) return _productActionName(product);
+    }
+    return record && (record.productName || record.targetProductName || record.produtoNome || '') || '';
+  }
+
+  function _seasonCandidateAudience(customerSegments, actionType, productName) {
+    var audiences = customerSegments && customerSegments.recommendedAudiences || [];
+    var productKey = _slugKey(productName || '');
+    var best = null;
+    (audiences || []).forEach(function (audience) {
+      if (!audience || _number(audience.count, 0) <= 0) return;
+      if (productKey && audience.productKey && audience.productKey !== productKey) return;
+      var compatible = audience.compatibleActionTypes || [];
+      if (compatible.length && compatible.indexOf(actionType) < 0 && !(actionType === 'promotion' && compatible.indexOf('coupon') >= 0)) return;
+      if (!best || _number(audience.score, 0) > _number(best.score, 0)) best = audience;
+    });
+    return best && best.label ? best.label : (productName ? 'Clientes que já compraram ' + productName : 'Clientes recorrentes');
+  }
+
   function _availableChannelsForAI(channels) {
-    return (channels || []).map(function (channel) {
+    return _seasonOnlyCardapioChannels(channels || []).map(function (channel) {
       channel = channel || {};
       return {
         key: channel.key || _normalizeChannel(channel.name || ''),
@@ -9766,6 +12360,13 @@ Modules.Temporadas = (function () {
     }).sort(function (a, b) {
       return _number(b.netRevenue, 0) - _number(a.netRevenue, 0) || _number(b.netMarginPct, 0) - _number(a.netMarginPct, 0);
     });
+  }
+
+  function _seasonCardapioPerformanceChannels(channels) {
+    var cardapio = (channels || []).filter(function (channel) {
+      return _isCardapioChannel(channel && (channel.key || channel.name || ''));
+    })[0] || null;
+    return [Object.assign({ key: 'cardapio', name: 'Cardápio', orders: 0, revenue: 0, totalFees: 0, channelCostPct: 0, discountTotal: 0, netRevenue: 0, netMarginPct: 100, healthLabel: 'canal direto', actionAdvice: 'único canal de venda considerado pela Temporada' }, cardapio || {})];
   }
 
   function _bestMarginChannelsForAI(channels) {
@@ -9863,15 +12464,26 @@ Modules.Temporadas = (function () {
       });
     }
 
-    if (!paths.length && (catalog.products || []).length) {
+    if (!paths.length && (catalog.products || []).length && _number(metrics.orders, 0) >= 3) {
       add({
-        actionType: 'create_sales_action',
-        actionName: 'criar ação de venda',
+        actionType: 'upsell',
+        actionName: '',
+        productName: catalog.products[0].name || '',
+        channelName: channel.name || 'Cardápio',
+        evidence: 'há histórico de pedidos e produto definido, mas ainda não há ação de venda criada.',
+        reason: 'a primeira jogada deve criar uma ação específica sem depender de desconto',
+        whenToUse: 'quando existe histórico, mas não existe cupom, promoção ou upsell pronto'
+      });
+    }
+    if (!paths.length && (catalog.products || []).length && _seasonRecentCardapioOrdersCount(metrics, 30) <= 0) {
+      add({
+        actionType: 'base_reading',
+        actionName: 'registrar pedidos completos',
         productName: catalog.products[0].name || '',
         channelName: channel.name || '',
         evidence: 'há produto cadastrado, mas falta ação de venda pronta com resultado.',
-        reason: 'sem cupom, promoção, upsell ou pontos suficientes, a jogada deve começar criando uma ação mensurável',
-        whenToUse: 'quando ainda não existe ação de venda pronta'
+        reason: 'a jogada deve começar criando base de leitura antes de recomendar desconto ou oferta',
+        whenToUse: 'quando ainda não existe leitura confiável'
       });
     }
     return paths.slice(0, 10);
@@ -9973,7 +12585,7 @@ Modules.Temporadas = (function () {
         names: points.customersReadyToRedeem > 0 ? ['clientes com pontos para usar'] : ['programa de pontos ativo']
       });
     }
-    if (!levers.length) levers.push({ type: 'none_ready', count: 0, names: ['sem cupom, promoção, upsell ou pontos pronto para usar'] });
+    if (!levers.length) levers.push({ type: 'none_ready', count: 0, names: ['sem ação de venda pronta para usar'] });
     return levers;
   }
 
@@ -10051,6 +12663,8 @@ Modules.Temporadas = (function () {
         type: type || '',
         name: _actionRecordName(item, type),
         code: item.code || item.codigo || '',
+        productId: item.productId || item.produtoId || item.targetProductId || '',
+        productName: item.productName || item.produtoNome || item.targetProductName || '',
         benefit: _actionRecordBenefitText(item),
         target: _actionRecordTargetText(item),
         seasonActionId: item.seasonActionId || ''
@@ -10143,13 +12757,445 @@ Modules.Temporadas = (function () {
     };
   }
 
-  function _customerGroupsForAI(metrics, rolling30, points) {
+  function _customerSegmentIntelligenceForTemporadas(actionContext) {
+    actionContext = actionContext || {};
+    var customers = actionContext.customers || [];
+    var orders = (actionContext.orders || []).map(_normalizeSeasonOrder).filter(_isValidSeasonOrder);
+    var periodDays = 60;
+    var since = _addDays(_dayStart(new Date()), -periodDays + 1);
+    var catalogMap = _segmentCatalogMap(actionContext.products || []);
+    var records = [];
+    var byKey = {};
+    function addKey(key, record) {
+      key = String(key || '').trim().toLowerCase();
+      if (key && !byKey[key]) byKey[key] = record;
+    }
+    function keysForCustomer(customer) {
+      customer = customer || {};
+      var keys = [];
+      ['id', '_id', 'customerId', 'clientId', 'uid', 'docId'].forEach(function (field) {
+        if (customer[field]) keys.push('id:' + customer[field]);
+      });
+      var phone = _normalizePhone(customer.phone || customer.customerPhone || customer.whatsapp || customer.customerWhatsapp || customer.telefone || '');
+      if (phone) keys.push('phone:' + phone);
+      var email = String(customer.email || customer.customerEmail || customer.mail || '').trim().toLowerCase();
+      if (email) keys.push('email:' + email);
+      return keys;
+    }
+    function recordForCustomer(customer, index) {
+      var record = {
+        id: customer.id || customer._id || customer.customerId || customer.clientId || customer.uid || customer.docId || ('customer_' + index),
+        status: customer.status || '',
+        points: _number(customer.pointsBalance != null ? customer.pointsBalance : customer.pontos != null ? customer.pontos : customer.points, 0),
+        channels: {},
+        orders: []
+      };
+      records.push(record);
+      keysForCustomer(customer).forEach(function (key) { addKey(key, record); });
+      return record;
+    }
+    customers.forEach(recordForCustomer);
+    orders.forEach(function (order, index) {
+      var key = String(order.customerKey || '').trim().toLowerCase();
+      var record = key ? byKey[key] : null;
+      if (!record) {
+        record = { id: key || ('order_customer_' + index), status: '', points: 0, channels: {}, orders: [] };
+        records.push(record);
+        if (key) byKey[key] = record;
+      }
+      record.orders.push(order);
+      if (order.channel) record.channels[order.channel] = (record.channels[order.channel] || 0) + 1;
+    });
+
+    var counts = { novo: 0, recorrente: 0, vip: 0, inativo: 0, sem_pedido: 0, bloqueado: 0, sem_segunda_compra: 0, com_pontos: 0 };
+    var productSegments = {};
+    var channelSegments = {};
+    var categorySegments = {};
+    var readyToRedeem = 0;
+    var minPoints = _number(actionContext.pointsConfig && actionContext.pointsConfig.minimumPointsToUse, 0);
+    var totalWithOrders = 0;
+    var avgTicketSum = 0;
+    records.forEach(function (record) {
+      var stats = _customerSegmentStatsForTemporadas(record, catalogMap, actionContext);
+      counts[stats.segment] = (counts[stats.segment] || 0) + 1;
+      if (stats.ordersCount > 0) {
+        totalWithOrders++;
+        avgTicketSum += _number(stats.avgTicket, 0);
+      }
+      if (stats.secondPurchaseMissing) counts.sem_segunda_compra++;
+      if (record.points > 0) counts.com_pontos++;
+      if (minPoints > 0 && record.points >= minPoints) readyToRedeem++;
+      (stats.topProducts || []).forEach(function (item) {
+        var key = _slugKey(item.name || '');
+        if (!key) return;
+        if (!productSegments[key]) productSegments[key] = { productName: item.name, productKey: key, counts: { novo: 0, recorrente: 0, vip: 0, inativo: 0, sem_pedido: 0, bloqueado: 0, sem_segunda_compra: 0, com_pontos: 0 }, customers: 0, revenue: 0 };
+        productSegments[key].counts[stats.segment] = (productSegments[key].counts[stats.segment] || 0) + 1;
+        if (stats.secondPurchaseMissing) productSegments[key].counts.sem_segunda_compra++;
+        if (record.points > 0) productSegments[key].counts.com_pontos++;
+        productSegments[key].customers++;
+        productSegments[key].revenue += _number(item.revenue, 0);
+      });
+      (stats.topChannels || []).forEach(function (item) {
+        var key = _normalizeChannel(item.channel || '');
+        if (!key) return;
+        if (!channelSegments[key]) channelSegments[key] = { channelKey: key, channelName: _channelLabel(key), counts: { novo: 0, recorrente: 0, vip: 0, inativo: 0, sem_pedido: 0, bloqueado: 0, sem_segunda_compra: 0, com_pontos: 0 }, customers: 0, revenue: 0 };
+        channelSegments[key].counts[stats.segment] = (channelSegments[key].counts[stats.segment] || 0) + 1;
+        if (stats.secondPurchaseMissing) channelSegments[key].counts.sem_segunda_compra++;
+        if (record.points > 0) channelSegments[key].counts.com_pontos++;
+        channelSegments[key].customers++;
+        channelSegments[key].revenue += _number(item.revenue, 0);
+      });
+      (stats.topCategories || []).forEach(function (item) {
+        var key = _slugKey(item.category || '');
+        if (!key) return;
+        if (!categorySegments[key]) categorySegments[key] = { categoryKey: key, categoryName: item.category, counts: { novo: 0, recorrente: 0, vip: 0, inativo: 0, sem_pedido: 0, bloqueado: 0, sem_segunda_compra: 0, com_pontos: 0 }, customers: 0 };
+        categorySegments[key].counts[stats.segment] = (categorySegments[key].counts[stats.segment] || 0) + 1;
+        if (stats.secondPurchaseMissing) categorySegments[key].counts.sem_segunda_compra++;
+        if (record.points > 0) categorySegments[key].counts.com_pontos++;
+        categorySegments[key].customers++;
+      });
+    });
+    var total = records.length;
+    var base = {
+      generatedAt: new Date().toISOString(),
+      periodDays: periodDays,
+      hasEnoughCustomerBase: totalWithOrders >= 3,
+      totalCustomers: total,
+      totalCustomersWithOrders: totalWithOrders,
+      counts: counts,
+      customersReadyToRedeem: readyToRedeem,
+      averageTicket: totalWithOrders ? avgTicketSum / totalWithOrders : 0,
+      productSegments: productSegments,
+      channelSegments: channelSegments,
+      categorySegments: categorySegments
+    };
+    base.segments = _customerSegmentsForActionsList(base);
+    base.recommendedAudiences = _customerRecommendedAudiencesForActions(base, since);
+    base.suggestedGroups = _customerSegmentSuggestedGroups(counts, readyToRedeem);
+    return {
+      generatedAt: base.generatedAt,
+      periodDays: base.periodDays,
+      hasEnoughCustomerBase: base.hasEnoughCustomerBase,
+      totalCustomers: base.totalCustomers,
+      totalCustomersWithOrders: base.totalCustomersWithOrders,
+      total: base.totalCustomers,
+      counts: base.counts,
+      customersReadyToRedeem: base.customersReadyToRedeem,
+      averageTicket: _roundMoney(base.averageTicket),
+      segments: base.segments,
+      recommendedAudiences: base.recommendedAudiences,
+      suggestedGroups: base.suggestedGroups,
+      productSegments: base.productSegments,
+      channelSegments: base.channelSegments,
+      categorySegments: base.categorySegments
+    };
+  }
+
+  function _customerSegmentStatsForTemporadas(record, catalogMap, actionContext) {
+    record = record || {};
+    var orders = (record.orders || []).slice().sort(function (a, b) {
+      return _seasonDateTs(b.createdAt) - _seasonDateTs(a.createdAt);
+    });
+    var count = orders.length;
+    var recurrenceOrders = orders.filter(function (order) {
+      return _isReliableCustomerRecurrenceOrder(order, actionContext);
+    });
+    var recurrenceCount = recurrenceOrders.length;
+    var total = orders.reduce(function (sum, order) { return sum + _number(order.total, 0); }, 0);
+    var avgTicket = count ? total / count : 0;
+    var last = orders[0] || null;
+    var days = last && last.createdAt ? Math.floor((Date.now() - _seasonDateTs(last.createdAt)) / 86400000) : null;
+    var freq = {};
+    var productRevenue = {};
+    var categoryFreq = {};
+    var channelFreq = {};
+    var channelRevenue = {};
+    orders.forEach(function (order) {
+      var channel = _normalizeChannel(order.channel || '');
+      if (channel) {
+        channelFreq[channel] = (channelFreq[channel] || 0) + 1;
+        channelRevenue[channel] = (channelRevenue[channel] || 0) + _number(order.total, 0);
+      }
+      (order.items || []).forEach(function (item) {
+        var name = item.name || item.nome || item.productName || item.title || '';
+        if (!name) return;
+        freq[name] = (freq[name] || 0) + (_number(item.quantity != null ? item.quantity : item.qty, 1) || 1);
+        productRevenue[name] = (productRevenue[name] || 0) + _number(item.total, 0);
+        var productInfo = catalogMap[_slugKey(item.productId || item.id || '')] || catalogMap[_slugKey(name)] || {};
+        var category = productInfo.category || '';
+        if (category) categoryFreq[category] = (categoryFreq[category] || 0) + 1;
+      });
+    });
+    var segment = 'sem_pedido';
+    if (String(record.status || '').toLowerCase() === 'bloqueado') segment = 'bloqueado';
+    else if (!count) segment = 'sem_pedido';
+    else if (days !== null && days > 60) segment = 'inativo';
+    else if (total >= 100 || count >= 5) segment = 'vip';
+    else if (recurrenceCount >= 2) segment = 'recorrente';
+    else segment = 'novo';
+    return {
+      segment: segment,
+      ordersCount: count,
+      recurrenceOrdersCount: recurrenceCount,
+      totalSpent: total,
+      avgTicket: avgTicket,
+      daysSinceLast: days,
+      secondPurchaseMissing: recurrenceCount === 1 && days !== null && days >= 14,
+      topProducts: Object.keys(freq).map(function (name) {
+        return { name: name, quantity: freq[name], revenue: productRevenue[name] || 0 };
+      }).sort(function (a, b) {
+        return b.quantity - a.quantity;
+      }).slice(0, 5),
+      topCategories: Object.keys(categoryFreq).map(function (category) {
+        return { category: category, quantity: categoryFreq[category] };
+      }).sort(function (a, b) {
+        return b.quantity - a.quantity;
+      }).slice(0, 4),
+      topChannels: Object.keys(channelFreq).map(function (channel) {
+        return { channel: channel, orders: channelFreq[channel], revenue: channelRevenue[channel] || 0 };
+      }).sort(function (a, b) {
+        return b.orders - a.orders;
+      }).slice(0, 4)
+    };
+  }
+
+  function _segmentCatalogMap(products) {
+    var map = {};
+    (products || []).forEach(function (product) {
+      var name = _productActionName(product);
+      var category = product.categoryName || product.category || product.categoria || '';
+      var item = { name: name, category: category };
+      [product.id, product.productId, product.uid, name].forEach(function (key) {
+        key = _slugKey(key || '');
+        if (key) map[key] = item;
+      });
+    });
+    return map;
+  }
+
+  function _segmentConfidence(count, baseCount) {
+    count = _number(count, 0);
+    baseCount = Math.max(1, _number(baseCount, 0));
+    if (count >= 5 && count / baseCount >= .18) return 'alta';
+    if (count >= 2) return 'media';
+    if (count === 1) return 'baixa';
+    return 'baixa';
+  }
+
+  function _segmentMeasurement(type, extra) {
+    return Object.assign({ type: type || 'retention' }, extra || {});
+  }
+
+  function _customerSegmentsForActionsList(base) {
+    base = base || {};
+    var counts = base.counts || {};
+    var total = base.totalCustomers || 0;
+    var out = [];
+    function add(id, label, type, count, criteria, actions, bestUse, angle, measurement) {
+      count = Math.round(_number(count, 0));
+      if (count <= 0) return;
+      out.push({
+        id: id,
+        label: label,
+        type: type,
+        count: count,
+        confidence: _segmentConfidence(count, total),
+        criteria: criteria,
+        customerIdsPreview: [],
+        productAffinity: '',
+        channelAffinity: '',
+        lastPurchaseRange: '',
+        averageTicket: _roundMoney(base.averageTicket),
+        totalRevenue: 0,
+        compatibleActions: actions,
+        bestUse: bestUse,
+        suggestedMessageAngle: angle,
+        measurementKey: measurement && measurement.customerSegmentId || id,
+        measurement: measurement
+      });
+    }
+    add('new_customers_60d', 'Clientes novos', 'new', counts.novo, '1 pedido ou primeira compra recente.', ['coupon', 'retention'], 'segunda compra', 'continuidade depois da primeira compra', _segmentMeasurement('retention', { customerSegmentId: 'new_customers_60d' }));
+    add('recurring_customers_60d', 'Clientes recorrentes', 'recurring', counts.recorrente, '2 ou mais pedidos válidos.', ['coupon', 'retention', 'upsell', 'combo'], 'recompra e aumento de ticket', 'repetir algo que já funcionou', _segmentMeasurement('retention', { customerSegmentId: 'recurring_customers_60d' }));
+    add('vip_customers_60d', 'Clientes VIP', 'vip', counts.vip, 'Maior frequência, 5+ pedidos ou €100+ em compras.', ['upsell', 'combo', 'retention'], 'oferta premium e combo maior', 'prioridade ou novidade', _segmentMeasurement('retention', { customerSegmentId: 'vip_customers_60d' }));
+    add('inactive_customers_60d', 'Clientes inativos há mais de 60 dias', 'inactive', counts.inativo, 'Cliente com compra anterior e mais de 60 dias sem comprar.', ['coupon', 'retention'], 'reativação', 'voltar a comprar', _segmentMeasurement('retention', { customerSegmentId: 'inactive_customers_60d' }));
+    add('no_second_purchase_60d', 'Clientes sem segunda compra', 'no_second_purchase', counts.sem_segunda_compra, 'Clientes com 1 pedido e sem nova compra depois de 14 dias.', ['coupon', 'retention'], 'segunda compra', 'fazer a segunda compra', _segmentMeasurement('retention', { customerSegmentId: 'no_second_purchase_60d' }));
+    add('customers_with_points', 'Clientes com pontos', 'points', counts.com_pontos, 'Clientes com saldo de pontos positivo.', ['points', 'retention'], 'recompra com pontos', 'lembrar pontos disponíveis', _segmentMeasurement('points', { customerSegmentId: 'customers_with_points' }));
+    return out;
+  }
+
+  function _customerRecommendedAudiencesForActions(base, since) {
+    base = base || {};
+    var audiences = [];
+    var counts = base.counts || {};
+    function add(item) {
+      if (!item || _number(item.count, 0) <= 0) return;
+      item.confidence = item.confidence || _segmentConfidence(item.count, base.totalCustomersWithOrders || base.totalCustomers || 0);
+      audiences.push(item);
+    }
+    add({
+      id: 'aud_recurring',
+      label: 'Clientes recorrentes',
+      reason: 'Esse público já comprou mais de uma vez e tende a responder melhor a recompra ou oferta complementar.',
+      count: counts.recorrente || 0,
+      bestForObjective: ['sell_more', 'retain_customers', 'improve_consistency'],
+      compatibleActionTypes: ['coupon', 'retention', 'upsell', 'combo'],
+      preferredChannel: 'WhatsApp com link do Cardápio',
+      measurement: _segmentMeasurement('retention', { customerSegmentId: 'aud_recurring' }),
+      score: 72
+    });
+    add({
+      id: 'aud_vip',
+      label: 'Clientes VIP',
+      reason: 'Esse público tem maior frequência ou gasto e é melhor para ticket, combo e oferta premium.',
+      count: counts.vip || 0,
+      bestForObjective: ['increase_ticket', 'retain_customers'],
+      compatibleActionTypes: ['upsell', 'combo', 'retention'],
+      preferredChannel: 'WhatsApp',
+      measurement: _segmentMeasurement('retention', { customerSegmentId: 'aud_vip' }),
+      score: 78
+    });
+    add({
+      id: 'aud_inactive',
+      label: 'Clientes inativos há mais de 60 dias',
+      reason: 'Esse público já comprou, mas precisa de uma chamada de retorno.',
+      count: counts.inativo || 0,
+      bestForObjective: ['retain_customers'],
+      compatibleActionTypes: ['coupon', 'retention'],
+      preferredChannel: 'WhatsApp',
+      measurement: _segmentMeasurement('retention', { customerSegmentId: 'aud_inactive' }),
+      score: 68
+    });
+    add({
+      id: 'aud_no_second_purchase',
+      label: 'Clientes sem segunda compra',
+      reason: 'Esse público comprou uma vez e ainda não voltou; é bom para cupom ou mensagem de segunda compra.',
+      count: counts.sem_segunda_compra || 0,
+      bestForObjective: ['sell_more', 'retain_customers'],
+      compatibleActionTypes: ['coupon', 'retention'],
+      preferredChannel: 'WhatsApp',
+      measurement: _segmentMeasurement('retention', { customerSegmentId: 'aud_no_second_purchase' }),
+      score: 66
+    });
+    add({
+      id: 'aud_points_ready',
+      label: 'Clientes com pontos suficientes para resgate',
+      reason: 'Esse público tem benefício pronto para usar e pode voltar sem depender de desconto novo.',
+      count: base.customersReadyToRedeem || 0,
+      bestForObjective: ['retain_customers'],
+      compatibleActionTypes: ['points', 'retention'],
+      preferredChannel: 'WhatsApp',
+      measurement: _segmentMeasurement('points', { customerSegmentId: 'aud_points_ready' }),
+      score: 76
+    });
+    Object.keys(base.productSegments || {}).forEach(function (key) {
+      var item = base.productSegments[key] || {};
+      var count = _number(item.customers, 0);
+      add({
+        id: 'buyers_product_' + key + '_' + (base.periodDays || 60) + 'd',
+        label: 'Clientes que já compraram ' + item.productName + ' nos últimos ' + (base.periodDays || 60) + ' dias',
+        reason: 'Esse público já demonstrou interesse no produto e é melhor para recompra, upsell ou combo ligado a ele.',
+        count: count,
+        bestForObjective: ['sell_more', 'increase_ticket', 'retain_customers'],
+        compatibleActionTypes: ['coupon', 'retention', 'upsell', 'combo'],
+        preferredChannel: 'WhatsApp com link do Cardápio',
+        productName: item.productName,
+        productKey: key,
+        measurement: _segmentMeasurement('retention', { customerSegmentId: 'buyers_product_' + key + '_' + (base.periodDays || 60) + 'd', productName: item.productName }),
+        score: 70 + Math.min(12, count)
+      });
+    });
+    Object.keys(base.categorySegments || {}).forEach(function (key) {
+      var item = base.categorySegments[key] || {};
+      var count = _number(item.customers, 0);
+      add({
+        id: 'buyers_category_' + key + '_' + (base.periodDays || 60) + 'd',
+        label: 'Clientes que compraram produtos da categoria ' + item.categoryName + ' nos últimos ' + (base.periodDays || 60) + ' dias',
+        reason: 'Esse público comprou produtos parecidos pela categoria e pode responder a venda cruzada ou apresentação de produto próximo.',
+        count: count,
+        bestForObjective: ['sell_more', 'increase_ticket'],
+        compatibleActionTypes: ['retention', 'upsell', 'combo'],
+        preferredChannel: 'WhatsApp com link do Cardápio',
+        categoryName: item.categoryName,
+        categoryKey: key,
+        measurement: _segmentMeasurement('retention', { customerSegmentId: 'buyers_category_' + key + '_' + (base.periodDays || 60) + 'd' }),
+        score: 58 + Math.min(10, count)
+      });
+    });
+    Object.keys(base.channelSegments || {}).forEach(function (key) {
+      var item = base.channelSegments[key] || {};
+      var channelName = item.channelName || _channelLabel(key);
+      var isDirect = _isCardapioChannel(key);
+      if (!isDirect) return;
+      add({
+        id: 'buyers_channel_' + key + '_' + (base.periodDays || 60) + 'd',
+        label: 'Clientes que compraram pelo Cardápio nos últimos ' + (base.periodDays || 60) + ' dias',
+        reason: 'Esse público já usa o Cardápio e pode responder a recompra.',
+        count: item.customers || 0,
+        bestForObjective: ['sell_more', 'improve_consistency'],
+        compatibleActionTypes: ['retention', 'coupon'],
+        preferredChannel: 'Cardápio',
+        channelName: channelName,
+        channelKey: key,
+        measurement: _segmentMeasurement('channel', { customerSegmentId: 'buyers_channel_' + key + '_' + (base.periodDays || 60) + 'd', channel: 'cardapio' }),
+        score: 62
+      });
+    });
+    return audiences.sort(function (a, b) {
+      return _number(b.score, 0) - _number(a.score, 0) || _number(b.count, 0) - _number(a.count, 0);
+    }).slice(0, 18);
+  }
+
+  function _safeCustomerAudiencesForAI(items) {
+    return (items || []).slice(0, 10).map(function (item) {
+      item = item || {};
+      return {
+        id: item.id || '',
+        label: item.label || '',
+        reason: item.reason || '',
+        count: Math.round(_number(item.count, 0)),
+        confidence: item.confidence || '',
+        bestForObjective: item.bestForObjective || [],
+        compatibleActionTypes: item.compatibleActionTypes || [],
+        preferredChannel: item.preferredChannel || '',
+        productName: item.productName || '',
+        productKey: item.productKey || '',
+        categoryName: item.categoryName || '',
+        categoryKey: item.categoryKey || '',
+        channelName: item.channelName || '',
+        channelKey: item.channelKey || '',
+        measurement: item.measurement || {}
+      };
+    });
+  }
+
+  function _customerSegmentSuggestedGroups(counts, readyToRedeem) {
+    counts = counts || {};
     var groups = [];
+    if (_number(counts.vip, 0) > 0) groups.push('clientes VIP');
+    if (_number(counts.recorrente, 0) > 0) groups.push('clientes recorrentes');
+    if (_number(counts.inativo, 0) > 0) groups.push('clientes inativos há mais de 60 dias');
+    if (_number(counts.novo, 0) > 0) groups.push('clientes novos');
+    if (_number(readyToRedeem, 0) > 0) groups.push('clientes com pontos suficientes para resgate');
+    if (!groups.length) groups.push('clientes dos primeiros pedidos registrados');
+    return groups.slice(0, 5);
+  }
+
+  function _seasonDateTs(value) {
+    var date = _toDate(value);
+    return date ? date.getTime() : 0;
+  }
+
+  function _customerGroupsForAI(metrics, rolling30, points, customerSegments) {
+    var groups = [];
+    customerSegments = customerSegments || {};
+    (customerSegments.suggestedGroups || []).forEach(function (group) {
+      if (group) groups.push(group);
+    });
     if (_number(rolling30.recurringCustomers, metrics.recurringCustomers || 0) > 0) groups.push('clientes que já compraram mais de uma vez');
     if (_number(points.customersReadyToRedeem, 0) > 0) groups.push('clientes com pontos suficientes para resgate');
     if (_number(points.pointsEarned30d, 0) > _number(points.pointsUsed30d, 0)) groups.push('clientes que juntaram pontos e ainda não usaram');
     if (!groups.length) groups.push('clientes dos primeiros pedidos registrados');
-    return groups.slice(0, 4);
+    return _uniqueTextItems(groups).slice(0, 5);
   }
 
   function _roundMoney(value) {
@@ -10214,15 +13260,285 @@ Modules.Temporadas = (function () {
   }
 
   function _generateAIRecommendation(context) {
-    if (window.SeasonsAI && typeof SeasonsAI.generateSeasonActionRecommendation === 'function') {
-      return SeasonsAI.generateSeasonActionRecommendation(context);
-    }
     return Promise.resolve({
-      recommendation: _fallbackRecommendationForUI(),
-      status: 'fallback',
-      model: 'local-rules-v1',
-      error: 'SeasonsAI indisponível'
+      recommendation: _buildSimpleSeasonRecommendation(context || {}),
+      status: 'generated',
+      model: 'simple-rules-v1',
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
     });
+  }
+
+  function _buildSimpleSeasonRecommendation(context) {
+    var season = context.season || {};
+    var operational = context.operationalData || {};
+    var status = context.status || {};
+    var product = _simpleSeasonProductForPlay(context);
+    var play = _simpleSeasonPlayForProduct(season, operational, status, product);
+    return {
+      headline: play.title,
+      helpingSignals: play.signals.map(function (item) { return item.label + ': ' + item.value; }),
+      blockingSignals: play.guardrails || [],
+      nextAction: play.summary,
+      sourceHierarchy: [
+        'blockedActions',
+        'activeActionTasks',
+        'topProducts',
+        'lowSellingProducts',
+        'catalogProducts',
+        'objectiveBuildDifficultyRules'
+      ],
+      simplePlay: play,
+      commercialPlay: _simplePlayToCommercialPlay(play)
+    };
+  }
+
+  function _simpleSeasonProductForPlay(context) {
+    var operational = context.operationalData || {};
+    var blocked = _simpleBlockedProductMap(context);
+    var candidates = [];
+    function add(item, source) {
+      item = item || {};
+      var name = item.name || item.productName || item.label || '';
+      if (!name || blocked[_productNameKey(name)] || blocked[_foldText(name)]) return;
+      var catalogProduct = _seasonFindCatalogProduct(null, name) || {};
+      var economics = _productEconomics(catalogProduct, item, _state.actionContext || {});
+      candidates.push({
+        id: item.id || item.productId || catalogProduct.id || '',
+        name: name,
+        source: source,
+        quantity: _number(item.quantity || item.qty || item.orders, 0),
+        orders: _number(item.orders || item.count || item.quantity, 0),
+        revenue: _number(item.revenue || item.total, 0),
+        marginPct: economics.hasPriceAndCost ? _number(economics.marginPct, 0) : _number(item.marginPercent || item.marginPct || item.margin, 0),
+        economics: economics,
+        catalogProduct: catalogProduct
+      });
+    }
+    (operational.topProducts || []).forEach(function (item) { add(item, 'top'); });
+    (operational.lowSellingProducts || []).forEach(function (item) { add(item, 'low'); });
+    ((_state.actionContext && _state.actionContext.products) || []).forEach(function (item) { add({ id: item.id, name: _productActionName(item), revenue: 0, quantity: 0 }, 'catalog'); });
+    candidates = candidates.filter(function (item, index) {
+      return candidates.findIndex(function (other) { return _productNameKey(other.name) === _productNameKey(item.name); }) === index;
+    });
+    if (!candidates.length) return null;
+    var objective = context.season && context.season.objective || '';
+    var build = context.season && context.season.build || '';
+    if (objective === 'increase_ticket') {
+      return candidates.filter(function (item) { return !!_simpleComplementForProduct(item); })[0] || candidates[0];
+    }
+    if (build === 'margin') {
+      return candidates.slice().sort(function (a, b) {
+        return (_number(a.marginPct, 999) || 999) - (_number(b.marginPct, 999) || 999);
+      })[0] || candidates[0];
+    }
+    if (objective === 'improve_consistency') {
+      return candidates.filter(function (item) { return item.source === 'low'; })[0] || candidates[0];
+    }
+    return candidates[0];
+  }
+
+  function _simpleBlockedProductMap(context) {
+    var map = {};
+    var guardrails = context && context.operationalData && context.operationalData.salesIntelligence && context.operationalData.salesIntelligence.actionGuardrails || {};
+    (guardrails.blockedActions || []).forEach(function (item) {
+      var name = item && item.productName || '';
+      if (!name) return;
+      map[_productNameKey(name)] = true;
+      map[_foldText(name)] = true;
+    });
+    (context && context.executionPlan && context.executionPlan.actionTasks || []).forEach(function (task) {
+      var status = String(task && task.status || '');
+      if (status && status !== 'pending' && status !== 'result_in_progress' && status !== 'manually_done') return;
+      var name = task.productName || task.targetProductName || task.measurement && task.measurement.productName || _seasonProductNameFromActionText(task.title || '');
+      if (!name) return;
+      map[_productNameKey(name)] = true;
+      map[_foldText(name)] = true;
+    });
+    return map;
+  }
+
+  function _simpleSeasonPlayForProduct(season, operational, status, product) {
+    season = season || {};
+    operational = operational || {};
+    var profile = _difficultyExecutionProfile(season.difficulty || 'balanced');
+    var productName = product && product.name || '';
+    var complement = product ? _simpleComplementForProduct(product) : null;
+    var build = season.build || 'volume';
+    var objective = season.objective || 'sell_more';
+    var reviewDays = Math.max(2, Math.round(_number(profile.resultWindowDays, 7)));
+    var base = {
+      actionType: 'baseline',
+      actionLabel: 'Registrar pedidos completos',
+      title: 'Complete a leitura da temporada',
+      productName: productName || '',
+      combinationName: '',
+      whereToDo: 'Pedidos',
+      customerGroup: 'Clientes do Cardápio',
+      metricToWatch: 'Pedidos completos',
+      reviewInDays: reviewDays,
+      reading: _simpleSeasonReadingText(season, operational, status),
+      signals: _simplePlaySignals(season, operational, product),
+      guardrails: _simplePlayGuardrails(product),
+      steps: [
+        'Registre os próximos pedidos com produto, canal e pagamento preenchidos.',
+        'Não crie desconto novo até a leitura ter base suficiente.',
+        'Volte na leitura da temporada depois que entrarem pedidos reais.'
+      ],
+      expectedResult: 'Ter pedidos completos para escolher uma ação comercial com mais segurança.'
+    };
+    if (!productName) {
+      base.summary = 'Ainda falta produto seguro para recomendar. Primeiro complete pedidos e cadastros.';
+      base.why = 'Sem produto claro, a melhor jogada é melhorar a base de dados.';
+      return base;
+    }
+    if (objective === 'increase_ticket' && complement) {
+      return _simplePlay('upsell', base, {
+        actionLabel: 'Cadastrar upsell',
+        title: 'Cadastre upsell com ' + complement.name,
+        summary: 'Use ' + productName + ' como produto de entrada e ofereça ' + complement.name + ' como adicional no Cardápio.',
+        combinationName: complement.name,
+        whereToDo: 'Ações de Vendas → Upsell',
+        metricToWatch: 'Pedidos com upsell aceito',
+        why: productName + ' já tem sinal de venda e pode aumentar o ticket com um complemento específico.',
+        steps: [
+          'Crie um upsell para quem escolher ' + productName + '.',
+          'Use exatamente este complemento: ' + complement.name + '.',
+          'Mantenha a oferta simples, sem desconto obrigatório.',
+          'Acompanhe se os pedidos começam a entrar com o adicional.'
+        ],
+        expectedResult: 'Aumentar o valor médio dos pedidos com ' + productName + '.'
+      });
+    }
+    if (objective === 'retain_customers' || build === 'retention') {
+      return _simplePlay('retention', base, {
+        actionLabel: 'Chamar clientes que já compraram',
+        title: 'Traga clientes de volta com ' + productName,
+        summary: 'Use ' + productName + ' como motivo de recompra para clientes que já conhecem sua comida.',
+        whereToDo: 'Clientes',
+        customerGroup: 'Clientes que já compraram ' + productName,
+        metricToWatch: 'Pedidos de clientes recorrentes',
+        why: 'A temporada pede recompra, então a jogada deve falar com quem já tem mais chance de voltar.',
+        steps: [
+          'Filtre clientes que já compraram ou clientes recorrentes.',
+          'Envie uma chamada direta com o link do Cardápio e destaque ' + productName + '.',
+          'Não mude o produto da chamada durante a leitura.',
+          'Acompanhe se esses clientes voltam a pedir.'
+        ],
+        expectedResult: 'Gerar recompra usando um produto conhecido.'
+      });
+    }
+    if (build === 'margin' || (product && product.economics && product.economics.hasPriceAndCost && _number(product.marginPct, 0) < 25)) {
+      return _simplePlay('price_margin', base, {
+        actionLabel: 'Revisar preço e margem',
+        title: 'Revise a margem de ' + productName,
+        summary: 'Antes de vender mais ' + productName + ', confira se preço e custo deixam sobra suficiente.',
+        whereToDo: 'Preço e Margem',
+        metricToWatch: 'Margem do produto',
+        why: 'A estratégia da temporada pede margem; desconto ou volume sem sobra pode piorar o resultado.',
+        steps: [
+          'Abra ' + productName + ' em Preço e Margem.',
+          'Confira preço, custo, embalagem e comissão.',
+          'Se a margem estiver baixa, ajuste o preço antes de promover.',
+          'Depois acompanhe pedidos e margem do produto.'
+        ],
+        expectedResult: 'Vender com mais segurança de margem.'
+      });
+    }
+    if (objective === 'improve_consistency') {
+      return _simplePlay('channel_focus', base, {
+        actionLabel: 'Puxar pedido pelo Cardápio',
+        title: 'Use o Cardápio para puxar ' + productName,
+        summary: 'Escolha ' + productName + ' como produto foco e envie o link do Cardápio para gerar movimento nos dias fracos.',
+        whereToDo: 'Cardápio',
+        metricToWatch: 'Dias com pedido',
+        why: 'A temporada pede regularidade, então a jogada precisa aumentar dias com movimento.',
+        steps: [
+          'Deixe ' + productName + ' fácil de encontrar no Cardápio.',
+          'Envie o link do Cardápio com chamada direta para esse produto.',
+          'Use a mesma chamada durante a janela da jogada.',
+          'Acompanhe se aparecem mais dias com pedido.'
+        ],
+        expectedResult: 'Aumentar dias com venda sem trocar de ação no meio.'
+      });
+    }
+    return _simplePlay('highlight_product', base, {
+      actionLabel: 'Destacar produto forte',
+      title: 'Dê protagonismo para ' + productName,
+      summary: 'Use ' + productName + ' como produto foco da temporada e acompanhe se ele puxa pedidos pelo Cardápio.',
+      whereToDo: 'Cardápio → Produtos',
+      metricToWatch: 'Pedidos do produto',
+      why: 'Para vender mais com menos risco, o caminho mais simples é reforçar um produto que já tem sinal de resposta.',
+      steps: [
+        'Coloque ' + productName + ' em destaque no Cardápio.',
+        'Use uma chamada simples explicando o produto.',
+        'Envie o link do Cardápio para clientes e contatos recentes.',
+        'Acompanhe pedidos desse produto até a próxima leitura.'
+      ],
+      expectedResult: 'Gerar pedidos usando um produto com resposta mais clara.'
+    });
+  }
+
+  function _simplePlay(type, base, data) {
+    return Object.assign({}, base, data || {}, {
+      actionType: type,
+      simplePlayId: [type, _productNameKey((data && data.productName) || base.productName || ''), _todayKey()].join('|')
+    });
+  }
+
+  function _simpleComplementForProduct(product) {
+    if (!product) return null;
+    var catalogProduct = product.catalogProduct && product.catalogProduct.id ? product.catalogProduct : _seasonFindCatalogProduct(null, product.name);
+    var complement = _bestComplementProductForProduct(catalogProduct, product.economics || _productEconomics(catalogProduct, null, _state.actionContext || {}), _state.actionContext && _state.actionContext.products || [], _state.actionContext || {});
+    return complement && complement.product ? { name: _productActionName(complement.product), economics: complement.economics } : null;
+  }
+
+  function _simpleSeasonReadingText(season, operational, status) {
+    var objective = season && season.objective || '';
+    if (objective === 'increase_ticket') return 'O foco desta temporada é fazer cada pedido valer mais, então a jogada precisa ter produto de entrada e complemento específico.';
+    if (objective === 'retain_customers') return 'O foco desta temporada é recompra, então a jogada deve falar com clientes que já conhecem o negócio.';
+    if (objective === 'improve_consistency') return 'O foco desta temporada é regularidade, então a jogada deve ajudar a criar mais dias com pedido.';
+    if (_number(status && status.progressPercent, 0) < 50) return 'A temporada precisa ganhar ritmo com uma ação simples, mensurável e sem trocar de foco no meio.';
+    return 'A temporada já tem algum movimento; agora a próxima jogada precisa reforçar o produto com melhor sinal.';
+  }
+
+  function _simplePlaySignals(season, operational, product) {
+    var signals = [
+      { label: 'Fonte principal', value: 'Pedidos e catálogo' }
+    ];
+    if (product && product.name) {
+      signals.push({ label: 'Produto escolhido', value: product.name });
+      if (_number(product.revenue, 0) > 0) signals.push({ label: 'Venda do produto', value: _fmtMoney(product.revenue) });
+      if (product.economics && product.economics.hasPriceAndCost) signals.push({ label: 'Margem estimada', value: Math.round(_number(product.marginPct, 0)) + '%' });
+    }
+    return signals.slice(0, 5);
+  }
+
+  function _simplePlayGuardrails(product) {
+    var list = ['Não sugerir produto com jogada aberta ou ação ativa.'];
+    if (product && product.name) list.push('Não trocar o produto foco até a leitura da jogada fechar.');
+    list.push('Não deixar complemento em aberto.');
+    return list;
+  }
+
+  function _simplePlayToCommercialPlay(play) {
+    play = play || {};
+    return {
+      title: play.title || '',
+      summary: play.summary || '',
+      actionType: play.actionType || '',
+      actionName: play.actionLabel || '',
+      actionKind: play.actionType === 'baseline' ? 'baseline' : 'commercial',
+      productName: play.productName || '',
+      combinationName: play.combinationName || '',
+      channelName: 'Cardápio',
+      customerGroup: play.customerGroup || '',
+      whereToDo: play.whereToDo || '',
+      whatToDo: play.summary || '',
+      whyThis: play.why || '',
+      afterDo: 'Depois de executar, acompanhe a métrica indicada até a próxima leitura.',
+      expectedResult: play.expectedResult || '',
+      candidateId: play.simplePlayId || ''
+    };
   }
 
   function _persistSeasonAIFields(season, recommendation, generatedAt, meta) {
@@ -10744,7 +14060,7 @@ Modules.Temporadas = (function () {
   }
 
   function _buildRuntimeMetrics(orders, days, actionContext) {
-    var base = _buildBaselineMetrics(orders, days);
+    var base = _buildBaselineMetrics(orders, days, actionContext);
     var customers = {};
     var products = {};
     var hours = {};
@@ -10761,7 +14077,7 @@ Modules.Temporadas = (function () {
       var normalized = _normalizeSeasonOrder(order);
       if (!normalized) return;
       var key = normalized.customerKey;
-      if (key) customers[key] = (customers[key] || 0) + 1;
+      if (key && _isReliableCustomerRecurrenceOrder(normalized, actionContext)) customers[key] = (customers[key] || 0) + 1;
       if (!channels[normalized.channel]) channels[normalized.channel] = { channel: normalized.channel, orders: 0, revenue: 0 };
       channels[normalized.channel].orders += 1;
       channels[normalized.channel].revenue += normalized.total;
@@ -11024,8 +14340,8 @@ Modules.Temporadas = (function () {
     var previousStart = new Date(recentStart.getTime());
     previousStart.setDate(previousStart.getDate() - 7);
 
-    var recent = _buildRuntimeMetrics(_ordersInPeriod(orders, recentStart, end), 7);
-    var previous = _buildRuntimeMetrics(_ordersInPeriod(orders, previousStart, recentStart), 7);
+    var recent = _buildRuntimeMetrics(_ordersInPeriod(orders, recentStart, end), 7, _state.actionContext || {});
+    var previous = _buildRuntimeMetrics(_ordersInPeriod(orders, previousStart, recentStart), 7, _state.actionContext || {});
     var recentValue = _primaryValueForObjective(recent, season.objective);
     var previousValue = _primaryValueForObjective(previous, season.objective);
     return previousValue > 0 && recentValue < previousValue * .75;

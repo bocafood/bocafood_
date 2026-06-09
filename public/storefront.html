@@ -5643,10 +5643,12 @@
       box-shadow: none;
     }
 
-    .modal-footer.is-combo-footer {
-      grid-template-columns: minmax(0, 1fr);
-      justify-content: stretch;
-    }
+	    .modal-footer.is-combo-footer {
+	      position: static;
+	      grid-template-columns: minmax(0, 1fr);
+	      justify-content: stretch;
+	      margin-top: 16px;
+	    }
 
     .modal-footer.is-combo-footer .modal-add {
       width: 100%;
@@ -10852,10 +10854,11 @@
       var selectedDeliveryZone = null;
       var deliveryZones = [];
       var slotCounts = {};
-      var requestedStoreSlug = storeSlugFromPath();
-      var pendingCouponCode = couponCodeFromUrl();
-      var marketingTrackingApplied = false;
-      var googlePlacesScriptPromise = null;
+	      var requestedStoreSlug = storeSlugFromPath();
+	      var pendingCouponCode = couponCodeFromUrl();
+	      var marketingTrackingApplied = false;
+	      var directGa4TrackingEnabled = false;
+	      var googlePlacesScriptPromise = null;
       var deliveryPostalLookupTimer = null;
       var deliveryAddressLookupTimer = null;
       var deliveryAddressLookupSeq = 0;
@@ -11122,11 +11125,30 @@
         if (!value) return 0;
         try {
           if (value && typeof value.toDate === 'function') return value.toDate().getTime();
+          if (typeof value === 'string') {
+            var dateOnly = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (dateOnly) {
+              var localDate = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+              return isFinite(localDate.getTime()) ? localDate.getTime() : 0;
+            }
+          }
           var date = new Date(value);
           return isFinite(date.getTime()) ? date.getTime() : 0;
         } catch (e) {
           return 0;
         }
+      }
+
+      function startOfDay(ts) {
+        var d = ts ? new Date(ts) : new Date();
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      }
+
+      function endOfDay(ts) {
+        var d = ts ? new Date(ts) : new Date();
+        d.setHours(23, 59, 59, 999);
+        return d.getTime();
       }
 
       function text(value) {
@@ -11283,13 +11305,14 @@
         var gtmId = trackingId(firstText(cfg.gtmId, cfg.googleTagManagerId), /^GTM-[A-Z0-9-]+$/i);
         var metaPixelId = trackingId(firstText(cfg.metaPixelId, cfg.pixelId, cfg.facebookPixelId), /^\d{5,30}$/);
 
-        if (ga4Id) {
-          window.dataLayer = window.dataLayer || [];
-          window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
-          window.gtag('js', new Date());
-          window.gtag('config', ga4Id, { page_title: document.title, page_path: window.location.pathname });
-          injectScript('bf-ga4-script', 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(ga4Id));
-        }
+	        if (ga4Id && !gtmId) {
+	          directGa4TrackingEnabled = true;
+	          window.dataLayer = window.dataLayer || [];
+	          window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+	          window.gtag('js', new Date());
+	          window.gtag('config', ga4Id, { page_title: document.title, page_path: window.location.pathname });
+	          injectScript('bf-ga4-script', 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(ga4Id));
+	        }
 
         if (gtmId) {
           window.dataLayer = window.dataLayer || [];
@@ -11315,15 +11338,75 @@
         }
       }
 
-      function trackMarketingEvent(name, params) {
-        params = params || {};
-        if (window.gtag) window.gtag('event', name, params);
-        if (window.dataLayer) window.dataLayer.push(Object.assign({ event: name }, params));
-        if (window.fbq) {
-          if (name === 'add_to_cart') window.fbq('track', 'AddToCart', { content_name: params.item_name || '', value: params.value || 0, currency: params.currency || 'EUR' });
-          if (name === 'begin_checkout') window.fbq('track', 'InitiateCheckout', { value: params.value || 0, currency: params.currency || 'EUR' });
-        }
-      }
+	      function trackMarketingEvent(name, params) {
+	        params = marketingCleanParams(params || {});
+	        if (directGa4TrackingEnabled && window.gtag) window.gtag('event', name, params);
+	        if (window.dataLayer) {
+	          var layerPayload = Object.assign({ event: name }, params);
+	          if (Array.isArray(params.items)) layerPayload.ecommerce = Object.assign({}, params);
+	          window.dataLayer.push(layerPayload);
+	        }
+	        if (window.fbq) {
+	          if (name === 'add_to_cart') window.fbq('track', 'AddToCart', { content_name: params.item_name || '', value: params.value || 0, currency: params.currency || 'EUR' });
+	          if (name === 'begin_checkout') window.fbq('track', 'InitiateCheckout', { value: params.value || 0, currency: params.currency || 'EUR' });
+	          if (name === 'purchase') window.fbq('track', 'Purchase', { value: params.value || 0, currency: params.currency || 'EUR' });
+	        }
+	      }
+
+	      function marketingCleanParams(params) {
+	        var out = {};
+	        Object.keys(params || {}).forEach(function (key) {
+	          var value = params[key];
+	          if (value === undefined || value === null || value === '') return;
+	          if (Array.isArray(value) && !value.length) return;
+	          out[key] = value;
+	        });
+	        return out;
+	      }
+
+	      function marketingBaseParams(extra) {
+	        return Object.assign({
+	          currency: 'EUR',
+	          store_slug: firstText(cfg.slug, cfg.publicSlug, cfg.storeSlug, cfg.linkSlug, ''),
+	          storefront_channel: 'cardapio'
+	        }, extra || {});
+	      }
+
+	      function marketingCategoryLabel(categoryId) {
+	        var id = String(categoryId || '');
+	        var cat = (categories || []).find(function (item) { return String(item.id || '') === id; });
+	        return firstText(cat && cat.label, id && id.replace(/-/g, ' '), '');
+	      }
+
+	      function marketingItemFromProduct(product, qty, price) {
+	        product = product || {};
+	        var categoryId = productCategory(product);
+	        return marketingCleanParams({
+	          item_id: String(product.id || product.productId || ''),
+	          item_name: productName(product),
+	          item_category: marketingCategoryLabel(categoryId),
+	          price: num(price != null ? price : productPrice(product)),
+	          quantity: num(qty || 1)
+	        });
+	      }
+
+	      function marketingItemFromCartItem(item) {
+	        item = item || {};
+	        var product = findProduct(item.id) || {};
+	        var categoryId = productCategory(product.id ? product : item);
+	        return marketingCleanParams({
+	          item_id: String(item.id || ''),
+	          item_name: firstText(item.name, productName(product)),
+	          item_category: marketingCategoryLabel(categoryId),
+	          price: cartLineUnitPrice(item),
+	          quantity: num(item.qty || 1),
+	          discount: cartLinePromoSaving(item) + num(item.addAlsoDiscount || 0)
+	        });
+	      }
+
+	      function marketingCartItems() {
+	        return cart.map(marketingItemFromCartItem);
+	      }
 
       function normalizeHex(value) {
         var raw = String(value || '').trim();
@@ -11419,6 +11502,10 @@
       function productName(product) {
         product = product || {};
         return firstText(product.name, product.nome, product.title, 'Produto');
+      }
+
+      function productTextKey(value) {
+        return searchText(value).replace(/[^a-z0-9]+/g, ' ').trim();
       }
 
       function productDesc(product) {
@@ -12952,13 +13039,13 @@
           if (['pausada', 'pausado', 'paused', 'inativa', 'inativo', 'inactive', 'finalizada', 'finalizado', 'expired', 'expirada', 'expirado', 'cancelada', 'cancelado', 'canceled', 'rascunho', 'draft'].indexOf(status) >= 0) return false;
           var start = p.startDate || p.startsAt || p.validFrom || p.dataInicio || p.inicio;
           if (start) {
-            var sd = new Date(start);
-            if (!isNaN(sd.getTime()) && now < sd.getTime()) return false;
+            var sd = dateValue(start);
+            if (sd && now < startOfDay(sd)) return false;
           }
           var end = p.expiry || p.validUntil || p.endDate || p.endsAt || p.dataFim || p.fim;
           if (end) {
-            var dt = new Date(end);
-            if (!isNaN(dt.getTime()) && now > dt.getTime() + 86400000) return false;
+            var dt = dateValue(end);
+            if (dt && now > endOfDay(dt)) return false;
           }
           if (!promotionAppliesToStorefront(p)) return false;
           return true;
@@ -13043,11 +13130,42 @@
         return ids.map(String).filter(Boolean).filter(function (id, idx, arr) { return arr.indexOf(id) === idx; });
       }
 
+      function promotionProductNameKey(value) {
+        return searchText(value || '').replace(/[^a-z0-9]+/g, ' ').trim();
+      }
+
+      function promotionProductNames(promo) {
+        var names = [
+          promo && promo.productName,
+          promo && promo.produtoNome,
+          promo && promo.productLabel,
+          promo && promo.productTitle
+        ];
+        function addName(item) {
+          if (!item) return;
+          if (typeof item === 'string') names.push(item);
+          else names.push(firstText(item.name, item.title, item.productName, item.nome, item.label));
+        }
+        ['products', 'items', 'selectedProducts', 'productsSelected', 'suggestedProducts'].forEach(function (field) {
+          var list = promo && promo[field];
+          if (Array.isArray(list)) list.forEach(addName);
+        });
+        return names.map(promotionProductNameKey).filter(Boolean).filter(function (name, idx, arr) { return arr.indexOf(name) === idx; });
+      }
+
+      function promotionProductMatchesByName(promo, product) {
+        var names = promotionProductNames(promo);
+        if (!names.length || !product) return false;
+        return names.indexOf(promotionProductNameKey(productName(product))) >= 0;
+      }
+
       function promotionProducts(promo) {
         var ids = promotionProductIds(promo);
         if (!promo || !promotionId(promo)) return [];
         if (promo.applyTo === 'all' || promo.scope === 'todos_produtos') return products.filter(function (p) { return p && p.menuVisible !== false; });
-        return products.filter(function (p) { return ids.indexOf(String(p.id || '')) >= 0 && p.menuVisible !== false; });
+        return products.filter(function (p) {
+          return p && p.menuVisible !== false && (ids.indexOf(String(p.id || '')) >= 0 || promotionProductMatchesByName(promo, p));
+        });
       }
 
       function selectedPromoBannerProduct() {
@@ -13204,11 +13322,12 @@
         categories = categories.filter(function (c) { return c && c.active !== false && c.visible !== false; }).map(function (c, idx) {
           var hasOrder = c.order !== undefined || c.sortOrder !== undefined || c.position !== undefined;
           var orderValue = c.order !== undefined ? c.order : (c.sortOrder !== undefined ? c.sortOrder : c.position);
-          return {
-            id: String(c.id || c.slug || slugify(c.label || c.name)),
-            label: firstText(c.label, c.name, c.nome, c.id),
-            order: hasOrder ? num(orderValue) : (10000 + idx)
-          };
+	          return {
+	            id: String(c.id || c.slug || slugify(c.label || c.name)),
+	            label: firstText(c.label, c.name, c.nome, c.id),
+	            subtitle: firstText(c.subtitle, c.subtitulo, c.shortDescription, c.description, c.descricao),
+	            order: hasOrder ? num(orderValue) : (10000 + idx)
+	          };
         });
         Object.keys(fromProducts).forEach(function (id) {
           if (!categories.some(function (c) { return c.id === id; })) categories.push(fromProducts[id]);
@@ -13337,6 +13456,13 @@
         return 'pct';
       }
 
+      function promotionBundleMatchMode(promo) {
+        var raw = searchText(promo && (promo.bundleMatchMode || promo.bundleScope || promo.benefitProductRule || promo.matchMode || '') || '').replace(/\s+/g, '_');
+        return raw === 'any_participant' || raw === 'any' || raw === 'mixed' || raw === 'mix' || raw === 'todos_participantes' || raw === 'qualquer_participante'
+          ? 'any_participant'
+          : 'same_product';
+      }
+
       function promotionNumber(value) {
         var str = String(value == null ? '' : value).trim();
         if (!str) return 0;
@@ -13375,6 +13501,7 @@
         if (promo.productId && String(promo.productId) === productId) return true;
         if (promo.produtoId && String(promo.produtoId) === productId) return true;
         if (promo.suggestedProductId && String(promo.suggestedProductId) === productId) return true;
+        if (promotionProductMatchesByName(promo, product)) return true;
         return false;
       }
 
@@ -13405,6 +13532,7 @@
           discount: discount,
           leve: leve,
           pague: pague,
+          bundleMatchMode: promotionBundleMatchMode(promo),
           promo: promo
         };
       }
@@ -13447,6 +13575,19 @@
         return ids.map(String).filter(Boolean).filter(function (id, pos, arr) { return arr.indexOf(id) === pos; });
       }
 
+      function upsellRuleProductNames(rule) {
+        var names = [];
+        if (Array.isArray(rule && rule.productNames)) names = names.concat(rule.productNames);
+        if (Array.isArray(rule && rule.suggestedProductNames)) names = names.concat(rule.suggestedProductNames);
+        if (Array.isArray(rule && rule.productSnapshot)) {
+          names = names.concat(rule.productSnapshot.map(function (item) { return item && item.name; }));
+        }
+        if (rule && rule.productName) names.push(rule.productName);
+        return names.map(function (name) { return String(name || '').trim(); }).filter(Boolean).filter(function (name, pos, arr) {
+          return arr.map(productTextKey).indexOf(productTextKey(name)) === pos;
+        });
+      }
+
       function upsellRuleBenefitType(rule) {
         var raw = String(rule && (rule.benefitType || rule.benefit || '') || '').trim().toLowerCase();
         if (raw === 'percent' || raw === 'percentage') return 'pct';
@@ -13460,6 +13601,15 @@
         if (rule && rule.triggerProductId) ids.push(rule.triggerProductId);
         if (Array.isArray(rule && rule.triggerProductIds)) ids = ids.concat(rule.triggerProductIds);
         return ids.map(String).filter(Boolean).filter(function (id, pos, arr) { return arr.indexOf(id) === pos; });
+      }
+
+      function upsellRuleTriggerNames(rule) {
+        var names = [];
+        if (rule && rule.triggerProductName) names.push(rule.triggerProductName);
+        if (Array.isArray(rule && rule.triggerProductNames)) names = names.concat(rule.triggerProductNames);
+        return names.map(function (name) { return String(name || '').trim(); }).filter(Boolean).filter(function (name, pos, arr) {
+          return arr.map(productTextKey).indexOf(productTextKey(name)) === pos;
+        });
       }
 
       function upsellRuleLocations(rule) {
@@ -13511,6 +13661,7 @@
         var end = dateValue(rule.endDate || rule.endsAt || rule.validUntil || rule.expiry);
         if (end && now > end + 86400000) return false;
         var locations = upsellRuleLocations(rule);
+        if (upsellRuleDisplayMoment(rule) === 'trigger') return true;
         if (locations.length && !locations.some(function (loc) {
           return ['cart', 'carrinho', 'basket', 'bag', 'checkout', 'finalizar', 'site', 'todos', 'all'].indexOf(loc) >= 0;
         })) return false;
@@ -13524,6 +13675,8 @@
         if (['none', 'pct', 'eur', 'special_price'].indexOf(benefit) < 0) return false;
         var triggerIds = upsellRuleTriggerIds(rule);
         if (triggerIds.length && triggerIds.indexOf(String(product.id)) >= 0) return true;
+        var productKey = productTextKey(productName(product));
+        if (productKey && upsellRuleTriggerNames(rule).some(function (name) { return productTextKey(name) === productKey; })) return true;
         var triggerCategory = firstText(rule && rule.triggerCategory, rule && rule.trigger_category, rule && rule.categoryTrigger);
         if (triggerCategory && String(product.category || product.categoryId || product.categoria || '').toLowerCase() === triggerCategory.toLowerCase()) return true;
         return false;
@@ -13563,6 +13716,11 @@
         if (type === 'valor_minimo' || type === 'carrinho') return true;
         var triggerIds = upsellRuleTriggerIds(rule);
         if (triggerIds.length && triggerIds.some(cartHasProduct)) return true;
+        var triggerNames = upsellRuleTriggerNames(rule).map(productTextKey);
+        if (triggerNames.length && cart.some(function (item) {
+          var product = findProduct(item && item.id);
+          return product && triggerNames.indexOf(productTextKey(productName(product))) >= 0;
+        })) return true;
         var triggerCategory = firstText(rule.triggerCategory, rule.trigger_category, rule.categoryTrigger);
         if (triggerCategory) {
           return cart.some(function (item) {
@@ -13612,7 +13770,34 @@
           var product = findProduct(ids[i]);
           if (product) return product;
         }
+        var names = upsellRuleProductNames(rule);
+        var giftName = firstText(rule && rule.giftProductName, rule && rule.cartGoalGiftProductName, '');
+        if (giftName) names.unshift(giftName);
+        for (var n = 0; n < names.length; n += 1) {
+          var namedProduct = findProductByName(names[n]);
+          if (namedProduct) return namedProduct;
+        }
         return null;
+      }
+
+      function upsellRuleProducts(rule) {
+        var seen = {};
+        var out = [];
+        upsellRuleProductIds(rule).forEach(function (id) {
+          var product = findProduct(id);
+          if (product && !seen[String(product.id)]) {
+            seen[String(product.id)] = true;
+            out.push(product);
+          }
+        });
+        upsellRuleProductNames(rule).forEach(function (name) {
+          var product = findProductByName(name);
+          if (product && !seen[String(product.id)]) {
+            seen[String(product.id)] = true;
+            out.push(product);
+          }
+        });
+        return out;
       }
 
       function cartUpsellGiftApplies(rule, subtotal) {
@@ -13690,8 +13875,8 @@
             var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
             var bundlePay = parseInt(rule.bundlePay || rule.pagueQtd || 0, 10) || 0;
             if (!(bundleQty > bundlePay && bundlePay > 0)) return;
-            upsellRuleProductIds(rule).forEach(function (productId) {
-              cart.filter(function (item) { return String(item.id) === String(productId); }).forEach(function (item) {
+            upsellRuleProducts(rule).forEach(function (ruleProduct) {
+              cart.filter(function (item) { return String(item.id) === String(ruleProduct.id); }).forEach(function (item) {
                 var qty = num(item.qty || 0);
                 var unit = cartLineUnitPrice(item);
                 var bundles = Math.floor(qty / bundleQty);
@@ -13699,10 +13884,10 @@
               });
             });
           } else if (benefit === 'combo_fixed') {
-            var ids = upsellRuleProductIds(rule);
-            if (ids.length && ids.every(cartHasProduct)) {
-              var comboOriginal = ids.reduce(function (sum, id) {
-                var line = cart.find(function (item) { return String(item.id) === String(id); });
+            var comboProducts = upsellRuleProducts(rule);
+            if (comboProducts.length && comboProducts.every(function (item) { return cartHasProduct(item.id); })) {
+              var comboOriginal = comboProducts.reduce(function (sum, product) {
+                var line = cart.find(function (item) { return String(item.id) === String(product.id); });
                 return sum + (line ? cartLineUnitPrice(line) : 0);
               }, 0);
               var comboFinal = num(rule.finalUpsellPrice || rule.comboPrice || rule.specialPrice || rule.fixedPrice);
@@ -13750,17 +13935,18 @@
           var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
           var bundlePay = parseInt(rule.bundlePay || rule.pagueQtd || 0, 10) || 0;
           if (!(bundleQty > bundlePay && bundlePay > 0)) return false;
-          var hasQtyToComplete = upsellRuleProductIds(rule).some(function (productId) {
+          var bundleProducts = upsellRuleProducts(rule);
+          var hasQtyToComplete = bundleProducts.some(function (product) {
             return cart.some(function (item) {
-              return String(item.id) === String(productId) && num(item.qty || 0) < bundleQty;
+              return String(item.id) === String(product.id) && num(item.qty || 0) < bundleQty;
             });
           });
-          return hasQtyToComplete || upsellRuleProductIds(rule).some(cartHasProduct);
+          return hasQtyToComplete || bundleProducts.some(function (product) { return cartHasProduct(product.id); });
         }
         if (benefit === 'combo_fixed') {
-          var ids = upsellRuleProductIds(rule);
-          if (!ids.length) return false;
-          return ids.some(cartHasProduct) && ids.some(function (id) { return !cartHasProduct(id); });
+          var comboProducts = upsellRuleProducts(rule);
+          if (!comboProducts.length) return false;
+          return comboProducts.some(function (product) { return cartHasProduct(product.id); }) && comboProducts.some(function (product) { return !cartHasProduct(product.id); });
         }
         if (['pct', 'eur', 'special_price', 'none'].indexOf(benefit) >= 0) {
           var type = String(rule.type || '').toLowerCase();
@@ -13829,14 +14015,14 @@
         var suggested = cartUpsellSuggestedProduct(rule);
         if (benefit === 'bundle_less_pay_more') {
           var bundleQty = parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0;
-          upsellRuleProductIds(rule).forEach(function (productId) {
+          upsellRuleProducts(rule).forEach(function (product) {
             cart.forEach(function (item) {
-              if (String(item.id) === String(productId) && bundleQty > num(item.qty || 0)) item.qty = bundleQty;
+              if (String(item.id) === String(product.id) && bundleQty > num(item.qty || 0)) item.qty = bundleQty;
             });
           });
         } else if (benefit === 'combo_fixed') {
-          upsellRuleProductIds(rule).forEach(function (productId) {
-            if (!cartHasProduct(productId)) addToCart(productId, 1, '', [], 0, { disableCartUpsellPrompt: true, disablePromotion: true });
+          upsellRuleProducts(rule).forEach(function (product) {
+            if (!cartHasProduct(product.id)) addToCart(product.id, 1, '', [], 0, { disableCartUpsellPrompt: true, disablePromotion: true });
           });
         } else if (['pct', 'eur', 'special_price', 'none'].indexOf(benefit) >= 0 && suggested && !cartHasProduct(suggested.id)) {
           var discount = upsellRuleDiscountForProduct(rule, suggested);
@@ -13905,7 +14091,8 @@
       function scheduleCartUpsellPrompt() {
         if (cartUpsellPromptTimer) clearTimeout(cartUpsellPromptTimer);
         cartUpsellPromptTimer = setTimeout(function () {
-          return;
+          var rule = nextCartUpsellRuleForPrompt('trigger');
+          if (rule) openCartUpsellModal(rule);
         }, 180);
       }
 
@@ -13918,6 +14105,7 @@
         var min = promotionMinOrder(best.promo);
         if (min && (original * qty) < min) return original * qty;
         if (best.calc.type === 'add1') {
+          if (best.calc.bundleMatchMode === 'any_participant') return original * qty;
           var leve = parseInt(best.calc.leve || 0, 10) || 0;
           var pague = parseInt(best.calc.pague || 0, 10) || 0;
           if (leve > 0 && pague > 0 && leve > pague) {
@@ -14068,8 +14256,8 @@
         categories.forEach(function (cat) {
           if (most.length && String(cat.id) === 'mais-pedidos') return;
           var items = products.filter(function (p) { return productCategory(p) === cat.id && p.menuVisible !== false; });
-          if (items.length) html += categoryHtml('cat-' + cat.id, cat.label, t('productsCount', { count: items.length }), items);
-        });
+	          if (items.length) html += categoryHtml('cat-' + cat.id, cat.label, cat.subtitle || t('productsCount', { count: items.length }), items);
+	        });
         if (!html && products.length) html = categoryHtml('cat-todos-produtos', t('allProducts'), t('productsCount', { count: products.length }), products);
         list.innerHTML = html || '<div class="cart-empty">' + text(t('noProducts')) + '</div>';
         wireDynamicEvents();
@@ -14433,7 +14621,7 @@
           button.onclick = function (event) {
             event.stopPropagation();
             var product = findProduct(button.getAttribute('data-product-id'));
-            if (product && (productVariants(product).length || addAlsoProducts(product).length)) openProduct(product.id);
+            if (product && productVariants(product).length) openProduct(product.id);
             else addToCart(button.getAttribute('data-product-id'), 1, '', [], 0);
           };
         });
@@ -14442,6 +14630,14 @@
       function findProduct(id) {
         return products.find(function (p) { return String(p.id) === String(id); }) ||
           allProducts.find(function (p) { return String(p.id) === String(id); });
+      }
+
+      function findProductByName(name) {
+        var key = productTextKey(name);
+        if (!key) return null;
+        return products.find(function (p) { return productTextKey(productName(p)) === key; }) ||
+          allProducts.find(function (p) { return productTextKey(productName(p)) === key; }) ||
+          null;
       }
 
       function productVariants(product) {
@@ -14493,20 +14689,7 @@
         var ids = Array.isArray(product && product.addAlsoIds) ? product.addAlsoIds : [];
         var legacy = ids.map(findProduct).filter(Boolean);
         if (legacy.length) return legacy;
-        var seen = {};
-        var out = [];
-        activeUpsellRulesForProduct(product).some(function (rule) {
-          return upsellRuleProductIds(rule).some(function (id) {
-            if (String(id) === String(product && product.id)) return false;
-            if (seen[String(id)]) return false;
-            var item = findProduct(id);
-            if (!item) return false;
-            seen[String(id)] = true;
-            out.push(Object.assign({}, item, { __upsellRule: rule }));
-            return true;
-          }) || out.length >= 1;
-        });
-        return out.slice(0, 1);
+        return [];
       }
 
       function modalAddAlsoDiscount(product) {
@@ -15097,10 +15280,14 @@
         renderModalVariants();
         renderModalAddAlso();
         renderModalPairing();
-        renderModalReviews(product);
-        updateModalComboState();
-        updateModalPrice();
-        var modal = document.getElementById('product-modal');
+	        renderModalReviews(product);
+	        updateModalComboState();
+	        updateModalPrice();
+	        trackMarketingEvent('view_item', marketingBaseParams({
+	          value: productPrice(product),
+	          items: [marketingItemFromProduct(product, 1, productPrice(product))]
+	        }));
+	        var modal = document.getElementById('product-modal');
         var panel = modal.querySelector('.modal-panel');
         var body = modal.querySelector('.modal-body');
         var footer = modal.querySelector('.modal-footer');
@@ -15768,6 +15955,7 @@
         if (existingIdx >= 0) list[existingIdx] = Object.assign({}, list[existingIdx], address);
         else list.push(address);
         var whatsapp = joinedPhoneValue('account-whatsapp-country', 'account-whatsapp') || joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp') || customerWhatsapp(idx >= 0 ? storeCustomers[idx] : null);
+        var phoneKey = phoneMatchKey(whatsapp);
         var patch = {
           id: uid,
           uid: uid,
@@ -15776,6 +15964,10 @@
           whatsapp: whatsapp || '',
           phone: whatsapp || '',
           customerPhone: whatsapp || '',
+          phoneNormalized: phoneKey,
+          whatsappNormalized: phoneKey,
+          phoneDigits: phoneKey,
+          whatsappDigits: phoneKey,
           deliveryAddress: address,
           defaultDeliveryAddress: address,
           defaultDeliveryAddressId: address.id,
@@ -15808,6 +16000,7 @@
           joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp') ||
           customerWhatsapp(customer) ||
           '';
+        var phoneKey = phoneMatchKey(whatsapp);
         return col('store_customers').doc(authUser.uid).set({
           uid: authUser.uid,
           email: authUser.email || '',
@@ -15815,6 +16008,10 @@
           whatsapp: whatsapp,
           phone: whatsapp,
           customerPhone: whatsapp,
+          phoneNormalized: phoneKey,
+          whatsappNormalized: phoneKey,
+          phoneDigits: phoneKey,
+          whatsappDigits: phoneKey,
           deliveryAddress: address,
           defaultDeliveryAddress: address,
           defaultDeliveryAddressId: address.id || '',
@@ -15847,7 +16044,11 @@
           name: authUser.displayName || authUser.email || '',
           whatsapp: whatsapp || '',
           phone: whatsapp || '',
-          customerPhone: whatsapp || ''
+          customerPhone: whatsapp || '',
+          phoneNormalized: phoneMatchKey(whatsapp),
+          whatsappNormalized: phoneMatchKey(whatsapp),
+          phoneDigits: phoneMatchKey(whatsapp),
+          whatsappDigits: phoneMatchKey(whatsapp)
         };
         if (idx >= 0) storeCustomers[idx] = Object.assign({}, storeCustomers[idx], patch);
         else storeCustomers.push(patch);
@@ -15873,6 +16074,10 @@
           whatsapp: whatsapp,
           phone: whatsapp,
           customerPhone: whatsapp,
+          phoneNormalized: phoneMatchKey(whatsapp),
+          whatsappNormalized: phoneMatchKey(whatsapp),
+          phoneDigits: phoneMatchKey(whatsapp),
+          whatsappDigits: phoneMatchKey(whatsapp),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).catch(function (err) {
           console.warn('Store customer contact save error', err);
@@ -16548,6 +16753,11 @@
         return String(value || '').replace(/\D/g, '');
       }
 
+      function phoneMatchKey(value) {
+        var digits = onlyDigits(value);
+        return digits.length >= 6 ? digits : '';
+      }
+
       function customerContactText(customer) {
         return [
           customer && customer.email,
@@ -16748,17 +16958,18 @@
             benefit: promotionBenefitText(promo.promo),
             minOrder: promotionMinOrder(promo.promo),
             leve: promo.calc.leve || 0,
-            pague: promo.calc.pague || 0
+            pague: promo.calc.pague || 0,
+            bundleMatchMode: promo.calc.bundleMatchMode || promotionBundleMatchMode(promo.promo)
           } : null,
           fiscal: productFiscalSnapshot(product)
         });
-        trackMarketingEvent('add_to_cart', {
-          currency: 'EUR',
-          value: unitPrice * qty,
-          item_id: String(id),
-          item_name: productName(product),
-          quantity: qty
-        });
+	        trackMarketingEvent('add_to_cart', marketingBaseParams({
+	          value: unitPrice * qty,
+	          item_id: String(id),
+	          item_name: productName(product),
+	          quantity: qty,
+	          items: [marketingItemFromProduct(product, qty, unitPrice)]
+	        }));
         renderCart();
         if (!options.disableCartUpsellPrompt) scheduleCartUpsellPrompt();
         return true;
@@ -16788,6 +16999,37 @@
         return cartLineTotal(item) / qty;
       }
 
+      function cartPromoGroupKey(item) {
+        return item && item.promo ? String(item.promo.id || item.promo.promoId || item.promo.name || '') : '';
+      }
+
+      function cartAnyParticipantLineTotal(item) {
+        if (!item || !item.promo) return null;
+        var key = cartPromoGroupKey(item);
+        if (!key) return null;
+        var leve = parseInt(item.promo.leve || item.promo.leveQtd || 0, 10) || 0;
+        var pague = parseInt(item.promo.pague || item.promo.pagueQtd || 0, 10) || 0;
+        if (!(leve > 0 && pague > 0 && leve > pague)) return null;
+        var units = [];
+        cart.forEach(function (line) {
+          if (!line || !line.promo || cartPromoGroupKey(line) !== key || line.promo.type !== 'add1' || line.promo.bundleMatchMode !== 'any_participant') return;
+          if (!cartLinePromoApplies(line)) return;
+          var qty = Math.max(1, num(line.qty || 1));
+          var price = num(line.originalPrice != null ? line.originalPrice : line.price);
+          for (var i = 0; i < qty; i += 1) units.push({ key: line.key, price: price });
+        });
+        var freeCount = Math.floor(units.length / leve) * Math.max(0, leve - pague);
+        if (!(freeCount > 0)) return null;
+        units.sort(function (a, b) { return a.price - b.price; });
+        var freeByKey = {};
+        units.slice(0, freeCount).forEach(function (unit) {
+          freeByKey[unit.key] = (freeByKey[unit.key] || 0) + unit.price;
+        });
+        var original = num(item.originalPrice != null ? item.originalPrice : item.price);
+        var qtyItem = Math.max(1, num(item.qty || 1));
+        return Math.max((original * qtyItem) - num(freeByKey[item.key] || 0), 0);
+      }
+
       function cartLineTotal(item) {
         if (!item) return 0;
         var qty = Math.max(1, num(item.qty || 1));
@@ -16795,6 +17037,11 @@
         var current = num(item.price);
         if (item.promo && !cartLinePromoApplies(item)) return original * qty;
         if (item.promo && item.promo.type === 'add1') {
+          if (item.promo.bundleMatchMode === 'any_participant') {
+            var groupTotal = cartAnyParticipantLineTotal(item);
+            if (groupTotal != null) return groupTotal;
+            return original * qty;
+          }
           var leve = parseInt(item.promo.leve || item.promo.leveQtd || 0, 10) || 0;
           var pague = parseInt(item.promo.pague || item.promo.pagueQtd || 0, 10) || 0;
           if (leve > 0 && pague > 0 && leve > pague) {
@@ -16960,12 +17207,17 @@
         if (!coupon) {
           appliedCoupon = null;
           showCartWarning(t('couponInvalid'));
-        } else {
-          appliedCoupon = coupon;
-          showCartWarning('');
-        }
-        renderCart();
-      }
+	        } else {
+	          appliedCoupon = coupon;
+	          trackMarketingEvent('apply_coupon', marketingBaseParams({
+	            coupon: couponCode(coupon),
+	            value: cartGrandTotal(),
+	            items: marketingCartItems()
+	          }));
+	          showCartWarning('');
+	        }
+	        renderCart();
+	      }
 
       function applyCouponFromUrl() {
         if (!pendingCouponCode) return;
@@ -16989,12 +17241,20 @@
         if (input) input.value = couponCode(coupon);
       }
 
-      function removeCoupon() {
-        appliedCoupon = null;
-        var input = document.getElementById('coupon-input');
-        if (input) input.value = '';
-        renderCart();
-      }
+	      function removeCoupon() {
+	        var removedCode = appliedCoupon ? couponCode(appliedCoupon) : '';
+	        appliedCoupon = null;
+	        var input = document.getElementById('coupon-input');
+	        if (input) input.value = '';
+	        if (removedCode) {
+	          trackMarketingEvent('remove_coupon', marketingBaseParams({
+	            coupon: removedCode,
+	            value: cartGrandTotal(),
+	            items: marketingCartItems()
+	          }));
+	        }
+	        renderCart();
+	      }
 
       function googleMapsKeyFromConfig(data) {
         data = data || {};
@@ -17899,10 +18159,17 @@
         renderCart();
       }
 
-      function openCart() {
-        if (storeAuthUser()) applySavedAddressToCart(currentCustomerRecord(), false);
-        document.getElementById('cart-sheet').classList.add('open');
-      }
+	      function openCart() {
+	        if (storeAuthUser()) applySavedAddressToCart(currentCustomerRecord(), false);
+	        document.getElementById('cart-sheet').classList.add('open');
+	        if (cart.length) {
+	          trackMarketingEvent('view_cart', marketingBaseParams({
+	            value: cartGrandTotal(),
+	            coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
+	            items: marketingCartItems()
+	          }));
+	        }
+	      }
 
       function closeCart() {
         storeAuthUser();
@@ -17942,6 +18209,25 @@
             if (!response.ok || json.ok === false) throw new Error(json.error || ('function_' + response.status));
             return json;
           });
+        });
+      }
+
+      function lookupStoreCustomerByPhoneForOrder(phone) {
+        var phoneKey = phoneMatchKey(phone);
+        if (!phoneKey || !activeTenantId) return Promise.resolve(null);
+        var localMatches = (storeCustomers || []).filter(function (customer) {
+          return phoneMatchKey(customer && (customer.phone || customer.whatsapp || customer.customerPhone || customer.phoneNormalized || customer.whatsappNormalized || '')) === phoneKey;
+        });
+        if (localMatches.length === 1) return Promise.resolve(localMatches[0]);
+        return callStoreFunction('lookupStoreCustomerByPhone', {
+          tenantId: activeTenantId,
+          phone: phone
+        }).then(function (result) {
+          if (!result || !result.found || !result.customer) return null;
+          return mergeStoreCustomerLocal(result.customer);
+        }).catch(function (err) {
+          console.warn('Store customer phone lookup skipped', err);
+          return null;
         });
       }
 
@@ -18203,11 +18489,15 @@
         if (customerPhone) lines.push(t('phone') + ': ' + customerPhone);
         if (note) lines.push('📝 ' + t('observation') + ': ' + note);
         var href = whatsappLink();
-        trackMarketingEvent('begin_checkout', {
-          currency: 'EUR',
-          value: cartGrandTotal(),
-          items: cart.map(function (item) { return { item_id: item.id, item_name: item.name, quantity: item.qty, price: cartLineUnitPrice(item) }; })
-        });
+	        trackMarketingEvent('begin_checkout', marketingBaseParams({
+	          value: cartGrandTotal(),
+	          coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
+	          shipping: fee,
+	          delivery_type: orderType,
+	          payment_type: paymentPublicName(payment),
+	          discount: promoDiscount + upsellDiscount + discount + pointDiscount,
+	          items: marketingCartItems()
+	        }));
         var pointsRedemptionPayload = pointDiscount ? {
           used: true,
           pointsUsed: pointsInfo.points,
@@ -18275,10 +18565,19 @@
               pointsRedemption: pointsRedemptionPayload,
               customerName: customerName,
               customerPhone: customerPhone
-            };
-            pendingStorefrontOrderContext = stripeContext;
-            return startStripeCheckout(stripeContext);
-          }).catch(function (err) {
+	            };
+	            pendingStorefrontOrderContext = stripeContext;
+	            trackMarketingEvent('add_payment_info', marketingBaseParams({
+	              value: cartGrandTotal(),
+	              coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
+	              shipping: fee,
+	              delivery_type: orderType,
+	              payment_type: paymentPublicName(payment),
+	              discount: promoDiscount + upsellDiscount + discount + pointDiscount,
+	              items: marketingCartItems()
+	            }));
+	            return startStripeCheckout(stripeContext);
+	          }).catch(function (err) {
             console.warn('Stripe order save error', err);
             showCartWarning(t('stripeFailed'));
           });
@@ -18303,9 +18602,19 @@
         var pointsRedemption = pointsRedemptionPayload;
         saveOrder({ docRef: pendingOrderDocRef, orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, paymentProvider: '', paymentStatus: 'previsto', paymentState: 'previsto', paid: false, paymentError: '', paymentRetryAvailable: false, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
           return applyPointsRedemption(orderRef, pointsRedemption);
-        }).then(function () {
-          if (href) window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
-          showCartWarning('');
+	        }).then(function () {
+	          trackMarketingEvent('purchase', marketingBaseParams({
+	            transaction_id: orderRef,
+	            value: cartGrandTotal(),
+	            coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
+	            shipping: fee,
+	            delivery_type: orderType,
+	            payment_type: paymentPublicName(payment),
+	            discount: promoDiscount + upsellDiscount + discount + pointDiscount,
+	            items: marketingCartItems()
+	          }));
+	          if (href) window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
+	          showCartWarning('');
           clearCart();
           closeCart();
           openOrderSuccessModal(orderRef);
@@ -18320,7 +18629,6 @@
       function saveOrder(extra) {
         if (!db || !activeTenantId) return Promise.resolve(null);
         var authUser = storeAuthUser();
-        var orderCustomer = currentCustomerRecord();
         var couponToSync = appliedCoupon;
         var freeShippingPromo = extra.freeShippingPromotion || null;
         var freeShippingUpsellRule = extra.freeShippingUpsellRule || null;
@@ -18328,6 +18636,12 @@
         var freeShippingApplied = orderType === 'delivery' && !!freeShippingSource && num(extra.originalDeliveryFee || 0) > 0 && !num(extra.deliveryFee || 0);
         var upsellBenefits = extra.upsellBenefits || { appliedRules: [], gifts: [], lines: [], discount: 0 };
         var upsellDiscount = num(extra.upsellDiscount || upsellBenefits.discount || 0);
+        return lookupStoreCustomerByPhoneForOrder(extra.customerPhone || '').then(function (matchedCustomer) {
+        var orderCustomer = matchedCustomer || currentCustomerRecord();
+        var matchedCustomerId = firstText(matchedCustomer && (matchedCustomer.id || matchedCustomer.customerId || matchedCustomer.clientId || matchedCustomer.customerUid), '');
+        var authCustomerId = authUser && authUser.uid ? authUser.uid : '';
+        var orderCustomerId = matchedCustomerId || authCustomerId;
+        var orderCustomerName = firstText(extra.customerName, matchedCustomer && (matchedCustomer.name || matchedCustomer.customerName), 'Cliente');
         var data = {
           items: cart.map(function (item) {
             var linePrice = cartLineUnitPrice(item);
@@ -18362,16 +18676,19 @@
           } : null,
           total: extra.total,
           type: orderType,
-          customerId: authUser && authUser.uid ? authUser.uid : '',
-          clientId: authUser && authUser.uid ? authUser.uid : '',
-          customerUid: authUser && authUser.uid ? authUser.uid : '',
+          customerId: orderCustomerId,
+          clientId: orderCustomerId,
+          customerUid: orderCustomerId,
           customerEmail: authUser && authUser.email ? authUser.email : '',
-          customerName: extra.customerName || 'Cliente',
-          clientName: extra.customerName || 'Cliente',
-          name: extra.customerName || 'Cliente',
+          customerName: orderCustomerName,
+          clientName: orderCustomerName,
+          name: orderCustomerName,
           customerPhone: extra.customerPhone || '',
           phone: extra.customerPhone || '',
           whatsapp: extra.customerPhone || '',
+          phoneNormalized: phoneMatchKey(extra.customerPhone || ''),
+          whatsappNormalized: phoneMatchKey(extra.customerPhone || ''),
+          customerMatchedByPhone: !!matchedCustomerId,
           customerFiscal: orderCustomer && orderCustomer.fiscal ? orderCustomer.fiscal : {},
           customerDocument: firstText(orderCustomer && orderCustomer.nifCif, orderCustomer && orderCustomer.fiscalId, orderCustomer && orderCustomer.fiscal && orderCustomer.fiscal.fiscalId, ''),
           customerBirthday: orderCustomer && orderCustomer.birthday ? orderCustomer.birthday : '',
@@ -18445,6 +18762,7 @@
           if (!followUps.length) return docRef;
           return Promise.all(followUps).then(function () { return docRef; });
         }).catch(function (err) { console.warn('Order save error', err); throw err; });
+        });
       }
 
       function syncCouponUsage(coupon, discount) {

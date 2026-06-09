@@ -5,6 +5,11 @@ window.Modules.LojaOnline = (function () {
 
   function render(sub) {
     var tab = sub || 'template';
+    var templateTabs = { identidade: true, vitrine: true, operacao: true, atendimento: true, checkout: true, textos: true };
+    if (templateTabs[tab]) {
+      try { if (window.sessionStorage) sessionStorage.setItem('boca_template_initial_tab', tab); } catch (err) {}
+      tab = 'template';
+    }
     if (tab !== 'seo' && tab !== 'avaliacoes') tab = 'template';
     if (!window.Modules || !Modules.Catalogo || typeof Modules.Catalogo.render !== 'function') {
       var app = document.getElementById('app');

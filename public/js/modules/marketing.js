@@ -1667,15 +1667,128 @@ Modules.Marketing = (function () {
 
   function _marketingCostRaw(raw) {
     raw = raw || {};
-    return raw.cost != null ? raw.cost :
-      (raw.custo != null ? raw.custo :
-      (raw.purchasePrice != null ? raw.purchasePrice :
-      (raw.preco_compra != null ? raw.preco_compra :
-      (raw.custo_atual != null ? raw.custo_atual :
-      (raw.custoAtual != null ? raw.custoAtual :
-      (raw.precoCompra != null ? raw.precoCompra :
-      (raw.custoCompra != null ? raw.custoCompra :
-      (raw.purchase_price != null ? raw.purchase_price : 0))))))));
+    var direct = _marketingFirstCostValue(raw, [
+      'cost', 'custo', 'unitCost', 'custoUnitario', 'averageCost', 'avgCost',
+      'recipeCost', 'productionCost', 'costPerYield', 'custoPorRendimento',
+      'purchasePrice', 'preco_compra', 'custo_atual', 'custoAtual',
+      'precoCompra', 'custoCompra', 'purchase_price', 'costPrice',
+      'precoCusto', 'marginCost', 'fichaTecnicaCusto', 'technicalSheetCost'
+    ]);
+    if (_promoNumber(direct) > 0) return direct;
+
+    var nestedSources = [raw.pricing, raw.priceInfo, raw.economics, raw.finance, raw.margin, raw.margem, raw.recipe, raw.fichaTecnica, raw.recipeSnapshot];
+    for (var i = 0; i < nestedSources.length; i += 1) {
+      var nested = nestedSources[i];
+      if (!nested || typeof nested !== 'object') continue;
+      var nestedCost = _marketingCostRaw(nested);
+      if (_promoNumber(nestedCost) > 0) return nestedCost;
+    }
+
+    var totalCost = _promoNumber(_marketingFirstCostValue(raw, ['totalCost', 'custoTotal', 'plannedCost', 'rawTotalCost', 'ingredientCost', 'ingredientsCost', 'directCost']));
+    var yieldQty = _promoNumber(raw.yieldQuantity != null ? raw.yieldQuantity : raw.yield != null ? raw.yield : raw.rendimento);
+    if (totalCost > 0 && yieldQty > 0) return totalCost / yieldQty;
+
+    var ingredientTotal = _marketingIngredientsCost(raw.ingredients) + _marketingComponentsCost(raw.components) + _marketingIngredientsCost(raw.packagingItems || raw.packaging);
+    if (ingredientTotal > 0 && yieldQty > 0) return ingredientTotal / yieldQty;
+    return 0;
+  }
+
+  function _marketingFirstCostValue(raw, fields) {
+    raw = raw || {};
+    for (var i = 0; i < fields.length; i += 1) {
+      var key = fields[i];
+      if (raw[key] == null || raw[key] === '') continue;
+      if (_promoNumber(raw[key]) > 0) return raw[key];
+    }
+    return 0;
+  }
+
+  function _marketingIngredientsCost(items) {
+    if (!Array.isArray(items)) return 0;
+    return items.reduce(function (sum, item) {
+      return sum + _promoNumber(item && (item.totalCost != null ? item.totalCost : item.plannedTotalCost != null ? item.plannedTotalCost : item.costTotal != null ? item.costTotal : item.custoTotal));
+    }, 0);
+  }
+
+  function _marketingComponentsCost(components) {
+    if (!Array.isArray(components)) return 0;
+    return components.reduce(function (sum, comp) {
+      var own = _promoNumber(comp && (comp.totalCost != null ? comp.totalCost : comp.plannedCost != null ? comp.plannedCost : comp.custoTotal));
+      return sum + own + _marketingIngredientsCost(comp && comp.ingredients);
+    }, 0);
+  }
+
+  function _marketingCardapioAliases() {
+    return ['cardapio', 'cardápio', 'Cardápio', 'template', 'store', 'storefront', 'loja', 'loja_online', 'loja online', 'public', 'publico', 'público'];
+  }
+
+  function _marketingChannelMapValue(raw, mapFields, valueFields) {
+    raw = raw || {};
+    var aliases = _marketingCardapioAliases();
+    valueFields = valueFields || ['value', 'valor', 'price', 'preco', 'cost', 'custo'];
+    for (var m = 0; m < mapFields.length; m += 1) {
+      var map = raw[mapFields[m]];
+      if (!map || typeof map !== 'object') continue;
+      for (var i = 0; i < aliases.length; i += 1) {
+        var direct = _promoNumber(map[aliases[i]]);
+        if (direct > 0) return direct;
+        if (map[aliases[i]] && typeof map[aliases[i]] === 'object') {
+          var directNested = _marketingFirstCostValue(map[aliases[i]], valueFields);
+          if (_promoNumber(directNested) > 0) return _promoNumber(directNested);
+        }
+        var folded = String(aliases[i]).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        var foundKey = Object.keys(map).find(function (key) {
+          return String(key || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === folded;
+        });
+        if (foundKey && _promoNumber(map[foundKey]) > 0) return _promoNumber(map[foundKey]);
+        if (foundKey && map[foundKey] && typeof map[foundKey] === 'object') {
+          var foundNested = _marketingFirstCostValue(map[foundKey], valueFields);
+          if (_promoNumber(foundNested) > 0) return _promoNumber(foundNested);
+        }
+      }
+    }
+    return 0;
+  }
+
+  function _marketingCardapioPrice(product) {
+    var raw = product && (product.raw || product) || {};
+    var direct = _marketingFirstCostValue(raw, ['cardapioPrice', 'cardapioPreco', 'precoCardapio', 'priceCardapio', 'menuPrice', 'storefrontPrice', 'publicPrice', 'lojaOnlinePrice']);
+    if (_promoNumber(direct) > 0) return _promoNumber(direct);
+    return _marketingChannelMapValue(raw, ['channelPrices', 'precosPorCanal', 'pricesByChannel', 'priceByChannel', 'prices', 'precos', 'tabelaPrecos', 'priceTable'], ['value', 'valor', 'price', 'preco', 'salePrice', 'precoVenda', 'amount']);
+  }
+
+  function _marketingCardapioCost(product) {
+    var raw = product && (product.raw || product) || {};
+    var direct = _marketingFirstCostValue(raw, ['cardapioCost', 'cardapioCusto', 'custoCardapio', 'costCardapio', 'menuCost', 'storefrontCost', 'publicCost', 'lojaOnlineCost']);
+    if (_promoNumber(direct) > 0) return _promoNumber(direct);
+    return _marketingChannelMapValue(raw, ['channelCosts', 'custosPorCanal', 'costsByChannel', 'costByChannel', 'costs', 'custos', 'tabelaCustos', 'costTable'], ['value', 'valor', 'cost', 'custo', 'unitCost', 'custoUnitario', 'recipeCost', 'costPerYield']);
+  }
+
+  function _marketingLooksLikeRecipe(item) {
+    var raw = item && (item.raw || item) || {};
+    return !!(raw.recipeType || raw.yieldQuantity || raw.yield || raw.rendimento || raw.costPerYield || raw.custoUnitario || Array.isArray(raw.ingredients) || Array.isArray(raw.components));
+  }
+
+  function _marketingFindLinkedRecipe(product) {
+    product = product || {};
+    var raw = product.raw || {};
+    var wantedIds = [
+      product.fichaTecnicaId, product.fichaId, product.recipeId,
+      raw.fichaTecnicaId, raw.fichaId, raw.recipeId, raw.recipe && raw.recipe.id
+    ].map(function (v) { return String(v || '').trim(); }).filter(Boolean);
+    var wantedNames = [product.name, product.title, raw.name, raw.title, raw.productName, raw.nome, raw.fichaTecnicaNome, raw.fichaNome]
+      .map(function (v) { return String(v || '').trim().toLowerCase(); }).filter(Boolean);
+    if (!wantedIds.length && !wantedNames.length) return null;
+    return (_products || []).find(function (candidate) {
+      if (!candidate || candidate === product || !_marketingLooksLikeRecipe(candidate)) return false;
+      var cRaw = candidate.raw || candidate;
+      var cIds = [candidate.id, cRaw.id, cRaw.fichaTecnicaId, cRaw.fichaId, cRaw.recipeId]
+        .map(function (v) { return String(v || '').trim(); }).filter(Boolean);
+      if (wantedIds.some(function (id) { return cIds.indexOf(id) !== -1; })) return true;
+      var cNames = [candidate.name, candidate.title, cRaw.name, cRaw.title, cRaw.productName, cRaw.nome]
+        .map(function (v) { return String(v || '').trim().toLowerCase(); }).filter(Boolean);
+      return wantedNames.some(function (name) { return cNames.indexOf(name) !== -1; });
+    }) || null;
   }
 
   function _normalizeMarketingProduct(raw, source, fallbackIndex) {
@@ -1727,6 +1840,88 @@ Modules.Marketing = (function () {
       });
     });
     return out;
+  }
+
+  function _marketingProductTextKey(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function _marketingProductNameKey(product) {
+    product = product || {};
+    var raw = product.raw || {};
+    return _marketingProductTextKey(firstText(product.name, product.title, raw.name, raw.title, raw.productName, raw.nome));
+  }
+
+  function _marketingIsPromotionMenuProduct(product) {
+    if (!product) return false;
+    var source = String(product.source || '');
+    if (source === 'src2' || source === 'src3') return false;
+    if (source === 'produtos_prontos' || source === 'fichasTecnicas') return false;
+    var raw = product.raw || {};
+    var explicitType = String(raw.type || raw.productType || raw.kind || '').toLowerCase();
+    if (explicitType === 'recipe' || explicitType === 'ficha_tecnica' || explicitType === 'technical_sheet') return false;
+    return true;
+  }
+
+  function _marketingPromotionProductRank(product) {
+    product = product || {};
+    var source = String(product.source || '');
+    var raw = product.raw || {};
+    var rank = 50;
+    if (source === 'src0' || source === 'products') rank = 0;
+    else if (source === 'src1' || source === 'produtos') rank = 1;
+    else if (source === 'src2' || source === 'produtos_prontos') rank = 20;
+    else if (source === 'src3' || source === 'fichasTecnicas') rank = 30;
+    if (raw.menuVisible === false || raw.publicVisible === false || raw.isPublishedInMenu === false) rank += 4;
+    if (_promoBasePrice(product) > 0) rank -= 1;
+    if (product.imageBase64 || raw.imageBase64 || raw.imageUrl || raw.image) rank -= 1;
+    return rank;
+  }
+
+  function _marketingPromotionProducts() {
+    var byName = {};
+    (_products || []).forEach(function (product) {
+      if (!_marketingIsPromotionMenuProduct(product)) return;
+      var key = _marketingProductNameKey(product) || String(product.id || '');
+      if (!key) return;
+      var current = byName[key];
+      if (!current || _marketingPromotionProductRank(product) < _marketingPromotionProductRank(current)) {
+        byName[key] = product;
+      }
+    });
+    return Object.keys(byName).map(function (key) { return byName[key]; }).sort(function (a, b) {
+      return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR', { sensitivity: 'base' });
+    });
+  }
+
+  function _marketingProductsByIds(ids) {
+    var set = {};
+    (ids || []).forEach(function (id) { if (id != null && id !== '') set[String(id)] = true; });
+    if (!Object.keys(set).length) return [];
+    return (_products || []).filter(function (prod) { return !!set[String(prod.id)]; });
+  }
+
+  function _marketingPromotionProductsByIds(ids) {
+    ids = (ids || []).map(String).filter(Boolean);
+    if (!ids.length) return [];
+    var idSet = {};
+    ids.forEach(function (id) { idSet[id] = true; });
+    var selectedSourceProducts = _marketingProductsByIds(ids);
+    var nameSet = {};
+    selectedSourceProducts.forEach(function (prod) {
+      var key = _marketingProductNameKey(prod);
+      if (key) nameSet[key] = true;
+    });
+    var out = _marketingPromotionProducts().filter(function (prod) {
+      return !!idSet[String(prod.id)] || !!nameSet[_marketingProductNameKey(prod)];
+    });
+    if (out.length) return out;
+    return selectedSourceProducts;
   }
 
   function _loadMarketingProducts() {
@@ -1835,7 +2030,8 @@ Modules.Marketing = (function () {
       valueDesconto: promo.valueDesconto != null ? promo.valueDesconto : promo.eurValue != null ? promo.eurValue : promo.fixedDiscount != null ? promo.fixedDiscount : promo.value,
       fixedPrice: promo.fixedPrice != null ? promo.fixedPrice : promo.finalPrice != null ? promo.finalPrice : promo.offerPrice != null ? promo.offerPrice : promo.priceFixed != null ? promo.priceFixed : '',
       leveQtd: promo.leveQtd != null ? promo.leveQtd : promo.leve != null ? promo.leve : (_normalizePromoType(rawType || promo.type) === 'add1' && /^(2x1|2por1|two_for_one|b2x1|pack)$/i.test(String(rawType || promo.type || '')) ? 2 : ''),
-      pagueQtd: promo.pagueQtd != null ? promo.pagueQtd : promo.pague != null ? promo.pague : (_normalizePromoType(rawType || promo.type) === 'add1' && /^(2x1|2por1|two_for_one|b2x1|pack)$/i.test(String(rawType || promo.type || '')) ? 1 : '')
+      pagueQtd: promo.pagueQtd != null ? promo.pagueQtd : promo.pague != null ? promo.pague : (_normalizePromoType(rawType || promo.type) === 'add1' && /^(2x1|2por1|two_for_one|b2x1|pack)$/i.test(String(rawType || promo.type || '')) ? 1 : ''),
+      bundleMatchMode: promo.bundleMatchMode || promo.bundleScope || promo.benefitProductRule || 'same_product'
     });
   }
 
@@ -1926,7 +2122,7 @@ Modules.Marketing = (function () {
 
   function _promoStatusInfo(promo) {
     var now = Date.now();
-    var start = _promoDateValue(promo && (promo.startDate || promo.startsAt));
+    var start = _promoStartTs(promo);
     var end = _promoDateValue(promo && (promo.endDate || promo.endsAt));
     if (end) end = _promoEndOfDay(end);
     var active = promo && promo.active !== false;
@@ -1941,6 +2137,13 @@ Modules.Marketing = (function () {
     if (typeof v === 'number' && isFinite(v)) return v;
     if (v && typeof v.toDate === 'function') {
       try { return v.toDate().getTime(); } catch (e) { return 0; }
+    }
+    if (typeof v === 'string') {
+      var dateOnly = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnly) {
+        var localDate = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+        return isFinite(localDate.getTime()) ? localDate.getTime() : 0;
+      }
     }
     var d = new Date(v);
     return isFinite(d.getTime()) ? d.getTime() : 0;
@@ -1990,7 +2193,8 @@ Modules.Marketing = (function () {
   }
 
   function _promoStartTs(promo) {
-    return _promoDateValue(promo && (promo.startDate || promo.startsAt));
+    var start = _promoDateValue(promo && (promo.startDate || promo.startsAt));
+    return start ? _promoStartOfDay(start) : 0;
   }
 
   function _promoProductIds(promo) {
@@ -2010,6 +2214,29 @@ Modules.Marketing = (function () {
       seen[id] = true;
       return true;
     });
+  }
+
+  function _promoProductIdentitySet(ids) {
+    var set = {};
+    (ids || []).map(String).filter(Boolean).forEach(function (id) { set['id:' + id] = true; });
+    _marketingProductsByIds(ids || []).forEach(function (prod) {
+      var nameKey = _marketingProductNameKey(prod);
+      if (nameKey) set['name:' + nameKey] = true;
+    });
+    _marketingPromotionProductsByIds(ids || []).forEach(function (prod) {
+      var promoNameKey = _marketingProductNameKey(prod);
+      if (promoNameKey) set['name:' + promoNameKey] = true;
+      if (prod.id != null && prod.id !== '') set['id:' + String(prod.id)] = true;
+    });
+    return set;
+  }
+
+  function _promoProductSetsOverlap(a, b) {
+    var aKeys = Object.keys(a || {});
+    for (var i = 0; i < aKeys.length; i += 1) {
+      if (b && b[aKeys[i]]) return true;
+    }
+    return false;
   }
 
   function _promoAppliesToAllProducts(promo) {
@@ -2044,8 +2271,7 @@ Modules.Marketing = (function () {
     if (!data || data.active === false || !_promoIsProductOffer(data)) return null;
     var currentAll = _promoAppliesToAllProducts(data);
     var currentIds = _promoProductIds(data);
-    var currentSet = {};
-    currentIds.forEach(function (id) { currentSet[String(id)] = true; });
+    var currentSet = _promoProductIdentitySet(currentIds);
 
     var conflict = (_promos || []).find(function (promo) {
       if (!promo || promo.active === false || !_promoIsProductOffer(promo)) return false;
@@ -2053,7 +2279,7 @@ Modules.Marketing = (function () {
       if (!_promoRangesOverlap(data.startDate || data.startsAt, data.endDate || data.endsAt, promo.startDate || promo.startsAt, promo.endDate || promo.endsAt)) return false;
       var promoAll = _promoAppliesToAllProducts(promo);
       if (currentAll || promoAll) return true;
-      return _promoProductIds(promo).some(function (id) { return !!currentSet[String(id)]; });
+      return _promoProductSetsOverlap(currentSet, _promoProductIdentitySet(_promoProductIds(promo)));
     });
 
     if (!conflict) return null;
@@ -2077,9 +2303,7 @@ Modules.Marketing = (function () {
   function _promoProductsForPromo(promo) {
     var ids = _promoProductIds(promo);
     if (!ids.length) return [];
-    var set = {};
-    ids.forEach(function (id) { set[String(id)] = true; });
-    return (_products || []).filter(function (prod) { return set[String(prod.id)]; });
+    return _marketingPromotionProductsByIds(ids);
   }
 
   function _promoMatchesProduct(promo, product) {
@@ -2655,7 +2879,11 @@ Modules.Marketing = (function () {
         if (calc.final < cost) {
           list.push({ level: 'danger', color: '#C4362A', text: 'Atenção: essa promoção pode dar prejuízo.' });
         } else if (marginAfter < minMargin) {
-          list.push({ level: 'danger', color: '#C4362A', text: 'Margem abaixo da regra mínima.' });
+          list.push({
+            level: 'danger',
+            color: '#C4362A',
+            text: 'Margem com promoção fica em ' + marginAfter.toFixed(1).replace('.', ',') + '%, abaixo da mínima configurada de ' + minMargin.toFixed(1).replace('.', ',') + '%.'
+          });
         } else if (marginAfter < desiredMargin) {
           list.push({ level: 'warning', color: '#D97706', text: 'Margem perto do limite desejado.' });
         }
@@ -2692,25 +2920,32 @@ Modules.Marketing = (function () {
       });
       var cost = _promoCostForProduct(product);
       var price = _promoBasePrice(product);
+      var hasPrice = price > 0;
       var noCost = cost <= 0;
-      var profitBefore = noCost ? null : (price - cost);
-      var profitAfter = noCost ? null : (calc.final - cost);
+      var profitBefore = noCost || !hasPrice ? null : (price - cost);
+      var profitAfter = noCost || !hasPrice || !(calc.final > 0) ? null : (calc.final - cost);
       var marginBefore = noCost || price <= 0 ? null : (profitBefore / price) * 100;
       var marginAfter = noCost || calc.final <= 0 ? null : (profitAfter / calc.final) * 100;
-      var alertTxt = noCost ? 'Custo não informado. Não foi possível calcular margem.' : '';
+      var promoMarkup = noCost || calc.final <= 0 ? null : (calc.final / cost);
+      var alertTxt = !hasPrice ? 'Preço do Cardápio não encontrado. Não foi possível calcular lucro e margem.' : (noCost ? 'Custo não informado. Não foi possível calcular margem.' : '');
+      var promoLine = _normalizePromoType(promo.type) === 'add1'
+        ? ('Leve ' + (promo.leveQtd || 0) + ', pague ' + (promo.pagueQtd || 0))
+        : ('-' + UI.fmt(calc.discount));
       return '<div style="background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px 12px;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
           '<div style="min-width:0;flex:1;">' +
             '<div style="font-size:13px;font-weight:600;color:#1F1F1F;line-height:1.3;">' + _esc(product.name || 'Produto') + '</div>' +
-            '<div style="font-size:12px;color:#6F6860;margin-top:4px;line-height:1.35;">Preço atual ' + UI.fmt(price) + ' · com promoção ' + UI.fmt(calc.final) + '</div>' +
+            '<div style="font-size:12px;color:#6F6860;margin-top:4px;line-height:1.35;">' + (hasPrice ? ('Preço atual ' + UI.fmt(price) + ' · com promoção ' + UI.fmt(calc.final)) : 'Preço do Cardápio não encontrado') + '</div>' +
           '</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#B42318;background:#FFF0EE;border-radius:999px;padding:5px 9px;white-space:nowrap;">-' + UI.fmt(calc.discount) + '</div>' +
+          '<div style="font-size:12px;font-weight:600;color:#B42318;background:#FFF0EE;border-radius:999px;padding:5px 9px;white-space:nowrap;">' + _esc(promoLine) + '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px;min-width:0;">' +
           _promoInfoTile('Custo', noCost ? '—' : UI.fmt(cost)) +
           _promoInfoTile('Lucro antes', profitBefore == null ? '—' : UI.fmt(profitBefore)) +
           _promoInfoTile('Lucro depois', profitAfter == null ? '—' : UI.fmt(profitAfter)) +
-          _promoInfoTile('Margem', (marginAfter == null ? '—' : marginAfter.toFixed(1).replace('.', ',') + '%')) +
+          _promoInfoTile('Margem antes', (marginBefore == null ? '—' : marginBefore.toFixed(1).replace('.', ',') + '%')) +
+          _promoInfoTile('Margem depois', (marginAfter == null ? '—' : marginAfter.toFixed(1).replace('.', ',') + '%')) +
+          _promoInfoTile('Markup promoção', (promoMarkup == null ? '—' : promoMarkup.toFixed(2).replace('.', ',') + 'x')) +
         '</div>' +
         (alertTxt ? '<div style="font-size:12px;color:#B45309;font-weight:500;margin-top:9px;line-height:1.4;">' + _esc(alertTxt) + '</div>' : '') +
       '</div>';
@@ -2815,15 +3050,22 @@ Modules.Marketing = (function () {
     var selectedIds = _promoProductIds(promo);
     var selectedSet = {};
     selectedIds.forEach(function (id) { selectedSet[String(id)] = true; });
-    var prodListHtml = _products.length === 0
+    var promotionProducts = _marketingPromotionProducts();
+    var selectedProductsForModal = _marketingProductsByIds(selectedIds);
+    var selectedNameSet = {};
+    selectedProductsForModal.forEach(function (prod) {
+      var key = _marketingProductNameKey(prod);
+      if (key) selectedNameSet[key] = true;
+    });
+    var prodListHtml = promotionProducts.length === 0
       ? '<p style="font-size:12px;color:#8A7E7C;margin:0;">Nenhum produto cadastrado.</p>'
-      : _products.map(function (prod) {
-          var checked = selectedSet[String(prod.id)] || false;
+      : promotionProducts.map(function (prod) {
+          var checked = selectedSet[String(prod.id)] || !!selectedNameSet[_marketingProductNameKey(prod)];
           return '<label data-product-name="' + _esc(String(prod.name || '').toLowerCase()) + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;cursor:pointer;min-width:0;max-width:100%;box-sizing:border-box;">' +
             '<input type="checkbox" class="prm-product-check" data-product-id="' + prod.id + '" data-product-name="' + _esc(prod.name) + '" ' + (checked ? 'checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;">' +
             '<div style="min-width:0;flex:1;">' +
             '<div style="font-size:13px;font-weight:500;color:#1F1F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(prod.name) + '</div>' +
-            '<div style="font-size:11px;color:#6F6860;">Produto incluído na oferta</div>' +
+            '<div style="font-size:11px;color:#6F6860;">Produto do Cardápio</div>' +
             '</div>' +
             '</label>';
         }).join('');
@@ -2922,11 +3164,6 @@ Modules.Marketing = (function () {
               </div>
               <button type="button" id="prm-active-toggle" onclick="Modules.Marketing._togglePromoActive()" style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;background:${promo.active !== false ? '#B42318' : '#D8CEC2'};"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;display:block;transform:translateX(${promo.active !== false ? '18px' : '0'});box-shadow:0 1px 4px rgba(31,31,31,.12);"></span></button>
             </div>
-          </section>
-
-          <section style="${sectionStyle}">
-            <div style="font-size:14px;font-weight:650;color:#1F1F1F;line-height:1.25;margin-bottom:10px;">Prévia da promoção</div>
-            <div id="prm-preview"></div>
           </section>
 
           <section style="${sectionStyle}">
@@ -3319,13 +3556,13 @@ Modules.Marketing = (function () {
 
   function _promoBasePrice(product) {
     if (!product) return 0;
-    var raw = product.price != null ? product.price :
-      (product.salePrice != null ? product.salePrice :
-      (product.valor != null ? product.valor :
-      (product.preco != null ? product.preco :
-      (product.precoVenda != null ? product.precoVenda :
-      (product.sale_price != null ? product.sale_price : 0)))));
-    return _promoNumber(raw);
+    var cardapioPrice = _marketingCardapioPrice(product);
+    if (cardapioPrice > 0) return cardapioPrice;
+    var raw = product.raw || {};
+    var direct = _marketingFirstCostValue(product, ['price', 'salePrice', 'valor', 'preco', 'precoVenda', 'sale_price', 'basePrice', 'unitPrice', 'amount', 'valorVenda']);
+    if (_promoNumber(direct) > 0) return _promoNumber(direct);
+    var rawDirect = _marketingFirstCostValue(raw, ['price', 'salePrice', 'valor', 'preco', 'precoVenda', 'sale_price', 'basePrice', 'unitPrice', 'amount', 'valorVenda']);
+    return _promoNumber(rawDirect);
   }
 
   function _promoSelectedProductIds() {
@@ -3337,9 +3574,13 @@ Modules.Marketing = (function () {
   function _promoSelectedProducts() {
     var ids = _promoSelectedProductIds();
     if (!ids.length) return [];
-    var set = {};
-    ids.forEach(function (id) { set[id] = true; });
-    return (_products || []).filter(function (prod) { return set[String(prod.id)]; });
+    return _marketingPromotionProductsByIds(ids);
+  }
+
+  function _promoProductsFromBase() {
+    var ids = _promoProductIds(window._promoBase || {});
+    if (!ids.length) return [];
+    return _marketingPromotionProductsByIds(ids);
   }
 
   function _promoState() {
@@ -3349,17 +3590,20 @@ Modules.Marketing = (function () {
     var eurValue = _promoNumber((document.getElementById('prm-eur') || {}).value);
     var leveQtd = parseInt((document.getElementById('prm-leve') || {}).value, 10) || 0;
     var pagueQtd = parseInt((document.getElementById('prm-pague') || {}).value, 10) || 0;
+    var bundleMatchRadio = document.querySelector('input[name="prm-bundle-match"]:checked');
+    var bundleMatchMode = bundleMatchRadio ? bundleMatchRadio.value : (window._promoBase && (window._promoBase.bundleMatchMode || window._promoBase.bundleScope || window._promoBase.benefitProductRule)) || 'same_product';
     var minOrder = _promoNumber((document.getElementById('prm-min') || {}).value);
     var applyRadio = document.querySelector('input[name="prm-apply"]:checked');
     var applyTo = applyRadio ? applyRadio.value : 'all';
     var selectedProducts = _promoSelectedProducts();
+    if (applyTo === 'selected' && !selectedProducts.length) selectedProducts = _promoProductsFromBase();
     var reference = null;
     if (applyTo === 'selected') {
       reference = selectedProducts[0] || null;
     } else if (window._promoBase && window._promoBase.productId) {
-      reference = (_products || []).find(function (p) { return String(p.id) === String(window._promoBase.productId); }) || null;
+      reference = _marketingPromotionProductsByIds([window._promoBase.productId])[0] || null;
     }
-    if (!reference && applyTo !== 'selected') reference = (_products || [])[0] || null;
+    if (!reference && applyTo !== 'selected') reference = (_marketingPromotionProducts()[0] || (_products || [])[0] || null);
     var basePrice = _promoBasePrice(reference);
     var newPrice = basePrice;
     var discount = 0;
@@ -3386,6 +3630,7 @@ Modules.Marketing = (function () {
       eurValue: eurValue,
       leveQtd: leveQtd,
       pagueQtd: pagueQtd,
+      bundleMatchMode: bundleMatchMode === 'any_participant' ? 'any_participant' : 'same_product',
       minOrder: minOrder,
       applyTo: applyTo,
       selectedProducts: selectedProducts,
@@ -3434,6 +3679,9 @@ Modules.Marketing = (function () {
       : state.type === 'eur'
         ? (UI.fmt(state.value) + ' de desconto')
         : ('Leve ' + (state.leveQtd || 0) + ', pague ' + (state.pagueQtd || 0));
+    var bundleRuleLabel = state.type === 'add1'
+      ? (state.bundleMatchMode === 'any_participant' ? 'Pode misturar produtos participantes' : 'Conta somente o mesmo produto')
+      : '';
     var offerLabel = 'Oferta';
     var priceText = UI.fmt(state.newPrice || 0);
     var originalText = UI.fmt(state.basePrice || 0);
@@ -3458,14 +3706,22 @@ Modules.Marketing = (function () {
         '<div style="font-size:28px;font-weight:700;line-height:1;color:#B42318;">' + priceText + '</div>' +
         '<div style="font-size:12px;color:#6F6860;">' + kindLabel + '</div>' +
       '</div>' +
+      (bundleRuleLabel ? '<div style="margin-top:8px;font-size:11px;color:#6F6860;">' + _esc(bundleRuleLabel) + '</div>' : '') +
       (state.minOrder > 0 ? '<div style="margin-top:8px;font-size:11px;color:#6F6860;">Pedido mínimo: ' + UI.fmt(state.minOrder) + '</div>' : '') +
     '</div>';
   }
 
   function _promoCostForProduct(product) {
     if (!product) return 0;
-    var raw = _marketingCostRaw(product);
-    return _promoNumber(raw);
+    var cardapioCost = _marketingCardapioCost(product);
+    if (cardapioCost > 0) return cardapioCost;
+    var direct = _promoNumber(_marketingCostRaw(product));
+    if (direct > 0) return direct;
+    var rawCost = _promoNumber(_marketingCostRaw(product.raw || {}));
+    if (rawCost > 0) return rawCost;
+    var linkedRecipe = _marketingFindLinkedRecipe(product);
+    var recipeCost = linkedRecipe ? _promoNumber(_marketingCostRaw(linkedRecipe.raw || linkedRecipe)) : 0;
+    return recipeCost > 0 ? recipeCost : 0;
   }
 
   function _promoDiscountForProduct(product, state) {
@@ -3502,8 +3758,12 @@ Modules.Marketing = (function () {
   }
 
   function _promoTargetProducts(state) {
-    if (state.applyTo === 'selected') return state.selectedProducts || [];
-    return (_products || []).slice(0, 3);
+    if (state.applyTo === 'selected') return (state.selectedProducts && state.selectedProducts.length ? state.selectedProducts : _promoProductsFromBase());
+    if (window._promoBase && _promoAppliesToAllProducts(window._promoBase) === false) {
+      var baseProducts = _promoProductsFromBase();
+      if (baseProducts.length) return baseProducts;
+    }
+    return _marketingPromotionProducts().slice(0, 3);
   }
 
   function _promoItemImpactHtml(product, state) {
@@ -3526,8 +3786,12 @@ Modules.Marketing = (function () {
 
     var priceLine = UI.fmt(calc.original) + ' → ' + UI.fmt(calc.final);
     var discountLine = calc.discount > 0 ? 'Desconto: ' + UI.fmt(calc.discount) : 'Sem desconto aplicado';
-    var marginLine = calc.margin != null
-      ? 'Margem estimada: ' + UI.fmt(calc.margin)
+    var cost = _promoCostForProduct(product);
+    var marginBefore = cost > 0 && calc.original > 0 ? ((calc.original - cost) / calc.original) * 100 : null;
+    var marginAfter = cost > 0 && calc.final > 0 ? ((calc.final - cost) / calc.final) * 100 : null;
+    var promoMarkup = cost > 0 && calc.final > 0 ? calc.final / cost : null;
+    var marginLine = marginBefore != null && marginAfter != null
+      ? 'Margem antes: ' + marginBefore.toFixed(1).replace('.', ',') + '% · depois: ' + marginAfter.toFixed(1).replace('.', ',') + '%' + (promoMarkup != null ? ' · markup promoção: ' + promoMarkup.toFixed(2).replace('.', ',') + 'x' : '')
       : '';
 
     if (state.type === 'add1') {
@@ -3535,6 +3799,7 @@ Modules.Marketing = (function () {
         '<div style="font-size:13px;font-weight:600;color:#1F1F1F;">' + _esc(name) + '</div>' +
         '<div style="font-size:12px;color:#6F6860;margin-top:4px;">' + priceLine + '</div>' +
         '<div style="font-size:12px;color:#B42318;font-weight:600;margin-top:4px;">Leve ' + (state.leveQtd || 0) + ', pague ' + (state.pagueQtd || 0) + '</div>' +
+        '<div style="font-size:12px;color:#6F6860;margin-top:4px;">' + (state.bundleMatchMode === 'any_participant' ? 'Pode misturar produtos participantes.' : 'Conta somente unidades do mesmo produto.') + '</div>' +
         (marginLine ? '<div style="font-size:12px;color:#6F6860;margin-top:4px;">' + marginLine + '</div>' : '') +
       '</div>';
     }
@@ -3570,12 +3835,35 @@ Modules.Marketing = (function () {
     if (panel) panel.style.display = applyTo === 'selected' ? 'block' : 'none';
 
     var state = _promoState();
-    var preview = document.getElementById('prm-preview');
     var impact = document.getElementById('prm-impact');
     var count = document.getElementById('prm-products-count');
     if (count) count.textContent = _promoSelectedProductIds().length + ' produtos selecionados';
-    if (preview) preview.innerHTML = _promoPreviewHtml(state);
     if (impact) impact.innerHTML = _promoImpactHtml(state);
+  }
+
+  function _isPromoLivePreviewField(target) {
+    if (!target || !target.id && !target.name && !target.classList) return false;
+    if (target.name === 'prm-apply') return true;
+    if (target.name === 'prm-bundle-match') return true;
+    if (target.classList && target.classList.contains('prm-product-check')) return true;
+    return [
+      'prm-name', 'prm-min', 'prm-start', 'prm-end', 'prm-rules',
+      'prm-pct', 'prm-eur', 'prm-leve', 'prm-pague', 'prm-product-search'
+    ].indexOf(target.id || '') !== -1;
+  }
+
+  function _promoLivePreviewEvent(evt) {
+    var target = evt && evt.target;
+    if (!_isPromoLivePreviewField(target)) return;
+    if (target.id === 'prm-product-search') _filterPromoProducts();
+    if (target.id !== 'prm-product-search') _refreshPromoPreview();
+  }
+
+  function _bindPromoLivePreview() {
+    if (window._promoLivePreviewBound) return;
+    window._promoLivePreviewBound = true;
+    document.addEventListener('input', _promoLivePreviewEvent, true);
+    document.addEventListener('change', _promoLivePreviewEvent, true);
   }
 
   function _filterPromoProducts() {
@@ -3602,6 +3890,7 @@ Modules.Marketing = (function () {
     var eurValue = eurEl ? eurEl.value : (base.valueDesconto != null ? base.valueDesconto : (type === 'eur' ? (base.value || '') : ''));
     var leveQtd = leveEl ? leveEl.value : (base.leveQtd != null ? base.leveQtd : '');
     var pagueQtd = pagueEl ? pagueEl.value : (base.pagueQtd != null ? base.pagueQtd : '');
+    var bundleMatchMode = base.bundleMatchMode || base.bundleScope || base.benefitProductRule || 'same_product';
 
     if (type === 'pct') {
       host.innerHTML = '<div style="display:grid;grid-template-columns:minmax(100px,145px) auto;gap:8px;align-items:end;min-width:0;">' +
@@ -3626,7 +3915,18 @@ Modules.Marketing = (function () {
         '</div><div><label style="' + labelStyle + '">Pague</label>' +
         '<input id="prm-pague" type="number" min="0" step="1" value="' + (pagueQtd || '') + '" placeholder="Ex: 2" oninput="Modules.Marketing._refreshPromoPreview()" style="' + fieldStyle + '">' +
         '</div></div>' +
-        '<div style="margin-top:7px;color:#6F6860;font-size:12px;line-height:1.35;">Exemplo: Leve 3, pague 2. Pague precisa ser menor que Leve.</div>';
+        '<div style="margin-top:7px;color:#6F6860;font-size:12px;line-height:1.35;">Exemplo: Leve 3, pague 2. Pague precisa ser menor que Leve.</div>' +
+        '<div style="margin-top:12px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:10px 12px;">' +
+          '<div style="' + labelStyle + '">Como contar os produtos para liberar o benefício?</div>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;cursor:pointer;color:#1F1F1F;font-size:13px;line-height:1.35;">' +
+            '<input type="radio" name="prm-bundle-match" value="same_product" ' + (bundleMatchMode !== 'any_participant' ? 'checked' : '') + ' onchange="Modules.Marketing._refreshPromoPreview()" style="margin-top:2px;accent-color:#B42318;">' +
+            '<span><strong style="font-weight:650;">Somente o mesmo produto</strong><br><span style="color:#6F6860;">Exemplo: leve 3 coxinhas e pague 2 coxinhas.</span></span>' +
+          '</label>' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;cursor:pointer;color:#1F1F1F;font-size:13px;line-height:1.35;">' +
+            '<input type="radio" name="prm-bundle-match" value="any_participant" ' + (bundleMatchMode === 'any_participant' ? 'checked' : '') + ' onchange="Modules.Marketing._refreshPromoPreview()" style="margin-top:2px;accent-color:#B42318;">' +
+            '<span><strong style="font-weight:650;">Qualquer produto participante</strong><br><span style="color:#6F6860;">Exemplo: leve 3 itens da promoção e pague 2, mesmo misturando produtos.</span></span>' +
+          '</label>' +
+        '</div>';
       return;
     }
 
@@ -3666,6 +3966,7 @@ Modules.Marketing = (function () {
     window._promoBase = promo;
     window._promoModal = UI.modal({ title: title, body: body, footer: footer, maxWidth: editMode ? '1120px' : '980px' });
     if (editMode) {
+      _bindPromoLivePreview();
       _renderPromoOfferFields();
       _applySeasonDraftToPromoForm();
       setTimeout(function () { _refreshPromoPreview(); }, 80);
@@ -3754,6 +4055,8 @@ Modules.Marketing = (function () {
     var eurValue = _promoNumber((document.getElementById('prm-eur') || {}).value);
     var leveQtd = parseInt((document.getElementById('prm-leve') || {}).value, 10) || 0;
     var pagueQtd = parseInt((document.getElementById('prm-pague') || {}).value, 10) || 0;
+    var bundleMatchEl = document.querySelector('input[name="prm-bundle-match"]:checked');
+    var bundleMatchMode = bundleMatchEl ? bundleMatchEl.value : 'same_product';
     var startDate = (document.getElementById('prm-start') || {}).value || '';
     var endDate = (document.getElementById('prm-end') || {}).value || '';
     if (type === 'pct' && !(pctValue > 0)) { UI.toast('Informe o percentual de desconto', 'error'); return; }
@@ -3770,6 +4073,9 @@ Modules.Marketing = (function () {
       valueDesconto: type === 'eur' ? eurValue : 0,
       leveQtd: type === 'add1' ? leveQtd : 0,
       pagueQtd: type === 'add1' ? pagueQtd : 0,
+      bundleMatchMode: type === 'add1' && bundleMatchMode === 'any_participant' ? 'any_participant' : 'same_product',
+      bundleScope: type === 'add1' && bundleMatchMode === 'any_participant' ? 'any_participant' : 'same_product',
+      benefitProductRule: type === 'add1' && bundleMatchMode === 'any_participant' ? 'any_participant' : 'same_product',
       minOrder: minOrder,
       startDate: startDate,
       endDate: endDate,
@@ -4443,10 +4749,12 @@ Modules.Marketing = (function () {
   function _upsellBenefitSelectorHtml(rule) {
     rule = _upsellRule(rule || {});
     var type = String(window._upsellType || rule.type || '').trim();
-    var current = typeof window._upsellBenefit === 'string' ? String(window._upsellBenefit).trim() : String(rule.benefitType || '').trim();
+    var rawCurrent = typeof window._upsellBenefit === 'string' ? String(window._upsellBenefit).trim() : String(rule.benefitType || '').trim();
+    var current = rawCurrent;
     var allowed = _upsellBenefitOptionsForType(type);
     var legacyBenefit = rule.benefitType === 'special_price' || current === 'special_price';
-    if (current === 'special_price' || (current && allowed.indexOf(current) < 0)) current = '';
+    var invalidBenefit = !!(current && current !== 'special_price' && allowed.indexOf(current) < 0);
+    if (current === 'special_price' || invalidBenefit) current = '';
     if (!type) {
       return '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:8px;">' +
         '<label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;">Benefício</label>' +
@@ -4454,13 +4762,16 @@ Modules.Marketing = (function () {
         '<div style="font-size:12px;color:#8A7E7C;line-height:1.5;background:#F8F5F5;border:1px dashed #E4D7D4;border-radius:12px;padding:12px 14px;">Selecione primeiro o tipo de upsell.</div>' +
       '</div>';
     }
-    return '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    var allBenefitKeys = ['none', 'pct', 'eur', 'combo_fixed', 'bundle_less_pay_more', 'gift', 'cart_goal', 'frete'];
+    return '<div style="display:flex;flex-direction:column;gap:10px;padding:' + (invalidBenefit || legacyBenefit ? '12px' : '0') + ';border:' + (invalidBenefit ? '1.5px solid #C4362A' : (legacyBenefit ? '1px solid #F2D9A6' : 'none')) + ';border-radius:' + (invalidBenefit || legacyBenefit ? '14px' : '0') + ';background:' + (invalidBenefit ? '#FFF0EE' : (legacyBenefit ? '#FFF8E8' : 'transparent')) + ';">' +
       '<div style="font-size:11px;font-weight:600;color:#7A746B;text-transform:uppercase;letter-spacing:.02em;">Benefício</div>' +
       '<input id="ups-benefit-type" type="hidden" value="' + _esc(current) + '">' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + allowed.map(function (b) {
+      (invalidBenefit ? '<div data-ups-benefit-alert="1" style="display:flex;align-items:flex-start;gap:10px;background:#FFE8E5;border:1px solid #F5B8AF;border-radius:12px;padding:12px 14px;color:#B42318;font-size:12px;line-height:1.45;"><span class="mi" style="font-size:18px;line-height:1;flex:0 0 auto;">error</span><div><strong style="display:block;font-size:12.5px;margin-bottom:2px;">Benefício incompatível com este tipo de upsell</strong>O benefício "' + _esc(_upsellBenefitInfo(rawCurrent).label) + '" não combina com "' + _esc(_upsellTypeInfo(type).label) + '". Escolha uma das opções disponíveis abaixo para continuar.</div></div>' : '') +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + allBenefitKeys.map(function (b) {
         var bi = _upsellBenefitInfo(b);
         var active = bi.key === current;
-        return '<button type="button" data-benefit-pick="1" data-benefit-key="' + bi.key + '" onclick="Modules.Marketing._pickUpsellBenefit(\'' + bi.key + '\', event)" style="padding:9px 12px;border-radius:999px;border:1px solid ' + (active ? '#C4362A' : '#E8DCD7') + ';background:' + (active ? '#FFF0EE' : '#FFFCF8') + ';color:' + (active ? '#C4362A' : '#1A1A1A') + ';font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:' + (active ? '0 6px 14px rgba(196,54,42,.10)' : 'none') + ';">' + _esc(bi.label) + '</button>';
+        var compatible = allowed.indexOf(bi.key) >= 0;
+        return '<button type="button" data-benefit-pick="1" data-benefit-key="' + bi.key + '" data-benefit-compatible="' + (compatible ? '1' : '0') + '" onclick="Modules.Marketing._pickUpsellBenefit(\'' + bi.key + '\', event)" style="padding:9px 12px;border-radius:999px;border:1px solid ' + (active ? '#C4362A' : (compatible ? '#E8DCD7' : '#E9DEDA')) + ';background:' + (active ? '#FFF0EE' : (compatible ? '#FFFCF8' : '#F4EFEC')) + ';color:' + (active ? '#C4362A' : (compatible ? '#1A1A1A' : '#9B8F88')) + ';font-size:12px;font-weight:600;font-family:inherit;cursor:' + (compatible ? 'pointer' : 'not-allowed') + ';opacity:' + (compatible ? '1' : '.58') + ';box-shadow:' + (active ? '0 6px 14px rgba(196,54,42,.10)' : 'none') + ';">' + _esc(bi.label) + (!compatible ? ' <span style="font-weight:500;">· incompatível</span>' : '') + '</button>';
       }).join('') + '</div>' +
       (current ? '<div style="font-size:12px;color:#8A7E7C;line-height:1.5;">A opção escolhida define os campos abaixo.</div>' : '<div style="font-size:12px;color:#8A7E7C;line-height:1.5;background:#F8F5F5;border:1px dashed #E4D7D4;border-radius:12px;padding:12px 14px;">Escolha uma opção para configurar os campos da regra.</div>') +
       (legacyBenefit ? '<div style="font-size:12px;color:#8A7E7C;line-height:1.5;background:#FFF8E8;border:1px solid #F2D9A6;border-radius:12px;padding:12px 14px;">Regra legada detectada. Revise antes de ativar.</div>' : '') +
@@ -4484,16 +4795,31 @@ Modules.Marketing = (function () {
 
     document.querySelectorAll('[data-benefit-pick]').forEach(function (btn) {
       var active = btn.dataset.benefitKey === current;
-      btn.style.borderColor = active ? '#C4362A' : '#EEE6E4';
-      btn.style.background = active ? '#FFF0EE' : '#fff';
-      btn.style.color = active ? '#C4362A' : '#1A1A1A';
+      var compatible = allowed.indexOf(btn.dataset.benefitKey) >= 0;
+      btn.dataset.benefitCompatible = compatible ? '1' : '0';
+      btn.style.borderColor = active ? '#C4362A' : (compatible ? '#EEE6E4' : '#E9DEDA');
+      btn.style.background = active ? '#FFF0EE' : (compatible ? '#fff' : '#F4EFEC');
+      btn.style.color = active ? '#C4362A' : (compatible ? '#1A1A1A' : '#9B8F88');
+      btn.style.cursor = compatible ? 'pointer' : 'not-allowed';
+      btn.style.opacity = compatible ? '1' : '.58';
       btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      btn.setAttribute('aria-disabled', compatible ? 'false' : 'true');
     });
 
     document.querySelectorAll('[data-ups-benefit-section]').forEach(function (section) {
       var key = section.getAttribute('data-ups-benefit-section') || '';
       section.style.display = current === key ? 'block' : 'none';
     });
+  }
+
+  function _upsellActiveBenefitValueInput() {
+    var benefit = String(window._upsellBenefit || ((document.getElementById('ups-benefit-type') || {}).value || '')).trim();
+    if (benefit) {
+      var section = document.querySelector('[data-ups-benefit-section="' + benefit + '"]');
+      var activeInput = section ? section.querySelector('#ups-benefit-value') : null;
+      if (activeInput) return activeInput;
+    }
+    return document.getElementById('ups-benefit-value');
   }
 
   function _upsellItemProductId(item) {
@@ -4639,11 +4965,16 @@ Modules.Marketing = (function () {
       profitAfter: totals.costCount > 0 ? totals.profitAfter : null,
       marginBefore: marginBefore,
       marginAfter: marginAfter,
+      markupAfter: totals.cost > 0 && totals.final > 0 ? totals.final / totals.cost : null,
       costCount: totals.costCount,
       missingCost: totals.missingCost,
       hasCost: totals.costCount > 0,
       productsCount: products.length
     };
+  }
+
+  function _upsellMarkupText(value) {
+    return value != null && isFinite(value) ? value.toFixed(2).replace('.', ',') + 'x' : '—';
   }
 
   function _upsellAnalysisStatus(rule, sales, impact) {
@@ -5433,9 +5764,9 @@ Modules.Marketing = (function () {
     var legacyBenefit = rule.benefitType === 'special_price';
     var invalidBenefit = !!current && allowed.indexOf(current) < 0;
     if (current === 'special_price' || invalidBenefit) current = '';
-    var selected = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) {
-      return (_products || []).find(function (p) { return String(p.id) === String(i.dataset.id); }) || null;
-    }).filter(Boolean);
+    var selected = _marketingPromotionProductsByIds(Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) {
+      return i.dataset.id;
+    }));
     if (!selected.length) selected = _upsellRuleProducts(rule);
     var ref = selected[0] || null;
     var selectedBenefit = current;
@@ -5520,7 +5851,7 @@ Modules.Marketing = (function () {
         var giftQty = parseInt(rule.giftQty || rule.giftQuantity || 0, 10) || 0;
         var giftMin = _promoNumber(rule.giftMinCartValue || rule.giftMinValue || 0);
         return '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
-          '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Produto brinde</label><select id="ups-gift-product" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"><option value="">—</option>' + _products.map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (String(rule.giftProductId || '') === String(p.id) ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select></div>' +
+          '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Produto brinde</label><select id="ups-gift-product" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"><option value="">—</option>' + _marketingPromotionProducts().map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (String(rule.giftProductId || '') === String(p.id) ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select></div>' +
           '<div><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Condição para liberar o brinde</label><select id="ups-gift-condition-type" onchange="Modules.Marketing._syncUpsellBenefitDetails()" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;">' +
             '<option value="trigger"' + (giftKind === 'trigger' ? ' selected' : '') + '>Ao comprar o produto gatilho</option>' +
             '<option value="selected"' + (giftKind === 'selected' ? ' selected' : '') + '>Ao levar o produto sugerido</option>' +
@@ -5548,7 +5879,7 @@ Modules.Marketing = (function () {
             '<option value="gift"' + (cartKind === 'gift' ? ' selected' : '') + '>Brinde</option>' +
           '</select></div>' +
           '<div data-ups-cart-extra="value" style="display:' + ((cartKind === 'pct' || cartKind === 'eur') ? 'block' : 'none') + ';"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Valor do benefício</label><input id="ups-cart-benefit-value" type="text" inputmode="decimal" value="' + (cartValue || '') + '" placeholder="' + (cartKind === 'pct' ? 'Ex: 10' : 'Ex: 0,50') + '" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"></div>' +
-          '<div data-ups-cart-extra="gift" style="display:' + (cartKind === 'gift' ? 'block' : 'none') + ';"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Produto brinde</label><select id="ups-cart-gift-product" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"><option value="">—</option>' + _products.map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (String(rule.cartGoalGiftProductId || '') === String(p.id) ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select></div>' +
+          '<div data-ups-cart-extra="gift" style="display:' + (cartKind === 'gift' ? 'block' : 'none') + ';"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Produto brinde</label><select id="ups-cart-gift-product" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"><option value="">—</option>' + _marketingPromotionProducts().map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (String(rule.cartGoalGiftProductId || '') === String(p.id) ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select></div>' +
           '<div style="grid-column:1 / -1;"><label style="font-size:11px;font-weight:700;color:#8A7E7C;display:block;margin-bottom:4px;">Mensagem exibida ao cliente</label><input id="ups-cart-message" type="text" value="' + _esc(rule.cartGoalMessage || rule.message || 'También te puede gustar') + '" placeholder="También te puede gustar" ' + (locked ? 'disabled' : '') + ' style="width:100%;padding:10px 12px;border:1.5px solid #D4C8C6;border-radius:10px;background:' + (locked ? '#F7F4F4' : '#fff') + ';font-size:13px;font-family:inherit;outline:none;"></div>' +
           '<div style="grid-column:1 / -1;background:#fff;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;font-size:12px;color:#1A1A1A;line-height:1.55;">' +
             '<div style="color:#8A7E7C;">' + _esc(_upsellBenefitHelpText('cart_goal')) + '</div>' +
@@ -5562,8 +5893,9 @@ Modules.Marketing = (function () {
 
   function _upsellStatusInfo(rule) {
     var now = Date.now();
-    var start = _promoDateValue(rule && (rule.startDate || rule.startsAt));
+    var start = _promoStartTs(rule);
     var end = _promoDateValue(rule && (rule.endDate || rule.endsAt));
+    if (end) end = _promoEndOfDay(end);
     if (start && start > now) return { key: 'scheduled', label: 'Agendada', color: '#3B82F6', bg: '#EEF4FF' };
     if (end && end < now) return { key: 'expired', label: 'Expirada', color: '#C4362A', bg: '#FFF0EE' };
     if (rule && rule.active === false) return { key: 'paused', label: 'Pausada', color: '#D97706', bg: '#FFF8E8' };
@@ -5620,14 +5952,22 @@ Modules.Marketing = (function () {
       priority: parseInt(rule.priority || 0, 10) || 0,
       displayLimit: parseInt(rule.displayLimit || rule.limit || 0, 10) || 0,
       minMarginPct: parseFloat(rule.minMarginPct || rule.marginMinPct || 0) || 0,
-      benefitValue: parseFloat(rule.benefitValue || rule.discountValue || rule.value || 0) || 0,
+      benefitValue: _promoNumber(rule.benefitValue || rule.discountValue || rule.value || 0) || 0,
       specialPrice: rule.specialPrice != null ? _promoNumber(rule.specialPrice) : (rule.fixedPrice != null ? _promoNumber(rule.fixedPrice) : 0),
       originalPrice: rule.originalPrice != null ? _promoNumber(rule.originalPrice) : 0,
       finalUpsellPrice: rule.finalUpsellPrice != null ? _promoNumber(rule.finalUpsellPrice) : 0,
       giftProductId: rule.giftProductId || rule.giftId || '',
+      giftConditionType: String(rule.giftConditionType || rule.giftCondition || 'trigger').trim() || 'trigger',
+      giftQty: parseInt(rule.giftQty || rule.giftQuantity || 0, 10) || 0,
+      giftMinCartValue: _promoNumber(rule.giftMinCartValue || rule.giftMinValue || 0),
       giftCondition: String(rule.giftCondition || rule.giftConditionText || '').trim(),
+      bundleQty: parseInt(rule.bundleQty || rule.leveQtd || 0, 10) || 0,
+      bundlePay: parseInt(rule.bundlePay || rule.pagueQtd || 0, 10) || 0,
       minCartValue: parseFloat(rule.minCartValue || rule.cartMinValue || rule.cartMin || 0) || 0,
       cartGoalBenefit: String(rule.cartGoalBenefit || rule.cartBenefit || '').trim(),
+      cartGoalBenefitType: String(rule.cartGoalBenefitType || rule.cartGoalBenefit || rule.cartBenefit || '').trim(),
+      cartGoalBenefitValue: _promoNumber(rule.cartGoalBenefitValue || 0),
+      cartGoalGiftProductId: rule.cartGoalGiftProductId || '',
       cartGoalMessage: String(rule.cartGoalMessage || rule.message || '').trim(),
       benefitContextOnly: rule.benefitContextOnly !== false,
       promotionId: rule.promotionId || rule.promoId || '',
@@ -5639,7 +5979,7 @@ Modules.Marketing = (function () {
 
   function _upsellRuleProducts(rule) {
     rule = _upsellRule(rule);
-    return rule.productIds.map(function (id) { return (_products || []).find(function (p) { return String(p.id) === String(id); }); }).filter(Boolean);
+    return _marketingPromotionProductsByIds(rule.productIds);
   }
 
   function _upsellBenefitCalcForProduct(product, rule) {
@@ -5782,13 +6122,22 @@ Modules.Marketing = (function () {
   }
 
   function _upsellRuleTriggerText(rule) {
-    var parts = [];
-    if (rule.triggerLabel) parts.push(rule.triggerLabel);
-    else if (rule.triggerProductIds && rule.triggerProductIds.length) {
-      parts.push(rule.triggerProductIds.map(function (id) { var p = (_products || []).find(function (x) { return String(x.id) === String(id); }); return p ? p.name : ''; }).filter(Boolean).join(' · '));
-    }
-    if (!parts.length) parts.push('Carrinho');
-    return parts.join(' · ');
+    rule = _upsellRule(rule || {});
+    var names = [];
+    if (rule.triggerLabel) names.push(rule.triggerLabel);
+    if (rule.triggerProductName) names.push(rule.triggerProductName);
+    if (Array.isArray(rule.triggerProductNames)) names = names.concat(rule.triggerProductNames);
+    (rule.triggerProductIds || []).forEach(function (id) {
+      var p = (_products || []).find(function (x) { return String(x.id) === String(id); });
+      if (p && p.name) names.push(p.name);
+    });
+    names = names.map(function (name) {
+      return String(name || '').trim();
+    }).filter(Boolean).filter(function (name, pos, arr) {
+      var key = _marketingProductTextKey(name);
+      return arr.map(_marketingProductTextKey).indexOf(key) === pos;
+    });
+    return names.length ? names.join(' · ') : 'Carrinho';
   }
 
   function _upsellRuleLocationText(rule) {
@@ -5797,7 +6146,7 @@ Modules.Marketing = (function () {
 
   function _upsellRuleMomentText(rule) {
     rule = _upsellRule(rule || {});
-    return rule.displayMoment === 'whatsapp' ? 'Ao clicar em enviar pelo WhatsApp' : 'Ao acionar o gatilho';
+    return rule.displayMoment === 'whatsapp' ? 'Ao clicar em enviar pelo WhatsApp' : 'Depois de adicionar ao carrinho';
   }
 
   function _upsellRulePeriodText(rule) {
@@ -5881,9 +6230,12 @@ Modules.Marketing = (function () {
     var periodText = _upsellRulePeriodText(rule);
     var salesGrowth = sales.growth == null ? 'Sem base anterior' : (sales.growth >= 0 ? '+' : '') + sales.growth.toFixed(0) + '% vs. 30 dias anteriores';
     var marginText = impact.hasCost && impact.marginAfter != null ? impact.marginAfter.toFixed(1).replace('.', ',') + '%' : '—';
+    var markupText = _upsellMarkupText(impact.markupAfter);
     var impactText = _upsellOrderImpactText(rule, impact);
     var savingsText = impact.discount > 0 ? UI.fmt(impact.discount) : '—';
     var priceLine = impact.productsCount ? ('De ' + UI.fmt(impact.original) + ' por ' + UI.fmt(impact.final)) : '—';
+    var salesLine = sales.currentOrders > 0 ? ('Vendas vinculadas: ' + sales.currentOrders + ' pedidos · ' + sales.currentItems + ' itens · ' + salesGrowth) : 'Sem base suficiente para analisar vendas.';
+    var showSalesLine = _marketingProductTextKey(salesLine) !== _marketingProductTextKey(alert);
     return '<div class="upsell-card" onclick="Modules.Marketing._openUpsellModal(\'' + _esc(String(rule.id)) + '\', \'view\')" style="display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid #EEE6E4;border-radius:16px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;">' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
@@ -5895,7 +6247,7 @@ Modules.Marketing = (function () {
               '<span style="font-size:10px;font-weight:900;padding:4px 8px;border-radius:999px;background:#FFF0EE;color:#C4362A;">' + _esc(benefitText) + '</span>' +
             '</div>' +
             '<div style="margin-top:8px;font-size:12px;font-weight:800;color:' + analysisTone + ';line-height:1.45;">' + _esc(alert) + '</div>' +
-            '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;line-height:1.45;">' + _esc(sales.currentOrders > 0 ? ('Vendas vinculadas: ' + sales.currentOrders + ' pedidos · ' + sales.currentItems + ' itens · ' + salesGrowth) : 'Sem base suficiente para analisar vendas.') + '</div>' +
+            (showSalesLine ? '<div style="margin-top:4px;font-size:12px;color:#8A7E7C;line-height:1.45;">' + _esc(salesLine) + '</div>' : '') +
           '</div>' +
           '<div style="text-align:right;min-width:150px;">' +
             '<div style="font-size:11px;font-weight:900;color:#8A7E7C;text-transform:uppercase;">Benefício</div>' +
@@ -5930,6 +6282,10 @@ Modules.Marketing = (function () {
           '<div style="background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;">' +
             '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;">Margem após benefício</div>' +
             '<div style="font-size:13px;font-weight:800;color:#1A1A1A;margin-top:4px;">' + _esc(marginText) + '</div>' +
+          '</div>' +
+          '<div style="background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;">' +
+            '<div style="font-size:10px;font-weight:900;color:#8A7E7C;text-transform:uppercase;">Markup após benefício</div>' +
+            '<div style="font-size:13px;font-weight:800;color:#1A1A1A;margin-top:4px;">' + _esc(markupText) + '</div>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -6105,8 +6461,14 @@ Modules.Marketing = (function () {
 
   function _upsellProductOptions(selectedIds, triggerOnly) {
     selectedIds = (selectedIds || []).map(String);
-    return (_products || []).map(function (p) {
+    var selectedByName = {};
+    _marketingPromotionProductsByIds(selectedIds).forEach(function (p) {
+      var key = _marketingProductNameKey(p);
+      if (key) selectedByName[key] = true;
+    });
+    return _marketingPromotionProducts().map(function (p) {
       var selected = selectedIds.indexOf(String(p.id)) >= 0;
+      if (!selected && selectedByName[_marketingProductNameKey(p)]) selected = true;
       var disabled = triggerOnly && selectedIds.length && !selected;
       var hiddenFromMenu = p && p.menuVisible === false;
       var text = [
@@ -6131,7 +6493,7 @@ Modules.Marketing = (function () {
     rule = _upsellRule(rule);
     var ids = (selectedIds || []).map(String);
     if (!ids.length) return '<div style="font-size:13px;color:#8A7E7C;">Selecione produtos do upsell para calcular a margem.</div>';
-    var items = ids.map(function (id) { return (_products || []).find(function (p) { return String(p.id) === String(id); }); }).filter(Boolean);
+    var items = _marketingPromotionProductsByIds(ids);
     if (!items.length) return '<div style="font-size:13px;color:#8A7E7C;">Selecione produtos do upsell para calcular a margem.</div>';
     var msg = items.map(function (p) {
       var calc = _upsellBenefitCalcForProduct(p, rule);
@@ -6144,6 +6506,7 @@ Modules.Marketing = (function () {
       var profitAfter = cost > 0 ? final - cost : null;
       var margin = cost > 0 ? ((price - cost) / price) * 100 : null;
       var marginAfter = cost > 0 && final > 0 ? ((final - cost) / final) * 100 : null;
+      var markupAfter = cost > 0 && final > 0 ? final / cost : null;
       var status = cost <= 0 ? 'Margem não calculada' : marginAfter < minMarginPct ? 'Esse upsell pode gerar prejuízo ou ficar abaixo da margem mínima.' : marginAfter < minMarginPct + 5 ? 'Esse upsell está próximo da margem mínima. Revise antes de ativar.' : 'Esse upsell mantém a margem mínima configurada.';
       return '<div style="background:#fff;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;">' +
         '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(p.name || 'Produto') + '</div>' +
@@ -6153,6 +6516,7 @@ Modules.Marketing = (function () {
         '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Custo: ' + (cost > 0 ? UI.fmt(cost) : '—') + '</div>' +
         '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Lucro estimado antes: ' + (profit != null ? UI.fmt(profit) : '—') + ' · depois: ' + (profitAfter != null ? UI.fmt(profitAfter) : '—') + '</div>' +
         '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Margem estimada antes: ' + (margin != null ? margin.toFixed(1).replace('.', ',') + '%' : '—') + ' · depois: ' + (marginAfter != null ? marginAfter.toFixed(1).replace('.', ',') + '%' : '—') + '</div>' +
+        '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Markup após benefício: ' + _esc(_upsellMarkupText(markupAfter)) + '</div>' +
         '<div style="font-size:12px;color:' + (marginAfter != null && marginAfter < minMarginPct ? '#C4362A' : '#1A9E5A') + ';font-weight:700;margin-top:6px;">' + _esc(status) + '</div>' +
       '</div>';
     }).join('');
@@ -6171,6 +6535,11 @@ Modules.Marketing = (function () {
     var labelStyle = _marketingModalLabelStyle();
     var sectionTitleStyle = 'font-size:15px;font-weight:650;color:#1F1F1F;margin-bottom:5px;line-height:1.25;';
     var sectionDescStyle = 'font-size:12px;color:#6F6860;line-height:1.45;margin:0 0 12px;';
+    var triggerSelectedByName = {};
+    _marketingPromotionProductsByIds(rule.triggerProductIds || []).forEach(function (p) {
+      var key = _marketingProductNameKey(p);
+      if (key) triggerSelectedByName[key] = true;
+    });
     function cardHeader(icon, title, desc) {
       return '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:13px;">' +
         '<span class="mi" style="width:30px;height:30px;max-width:30px;max-height:30px;border-radius:10px;background:#FFF0EE;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1;flex:0 0 30px;overflow:hidden;white-space:nowrap;">' + _esc(icon || 'sell') + '</span>' +
@@ -6209,15 +6578,15 @@ Modules.Marketing = (function () {
           '<div id="ups-rule-help" style="display:none;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:12px;color:#4A403C;line-height:1.55;">' +
             'Use esta área para definir quando o upsell será oferecido ao cliente.<br><br>' +
             '<strong>Produto gatilho</strong><br>' +
-            'Escolha o produto que faz a oferta aparecer. Exemplo: quando a cliente abre ou adiciona uma coxinha, você pode oferecer uma bebida junto.<br><br>' +
+            'Escolha o produto que faz a oferta aparecer depois que ele entra no carrinho. Exemplo: quando a cliente adiciona uma coxinha, você pode oferecer uma bebida junto.<br><br>' +
             '<strong>Momento da exibição</strong><br>' +
-            'Escolha se a oferta aparece quando o produto gatilho for acionado ou antes do pedido ser enviado pelo WhatsApp.<br><br>' +
+            'Escolha se a oferta aparece depois de adicionar o produto ao carrinho ou antes do pedido ser enviado pelo WhatsApp.<br><br>' +
             '<strong>Datas</strong><br>' +
             'Use início e fim para campanhas com prazo definido. A data final precisa ser igual ou posterior à data de início.' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">' +
-            fieldWrap('420px', '<label style="' + labelStyle + '">Produto gatilho</label><select id="ups-trigger-product" style="' + selectStyle + '"><option value="">—</option>' + _products.map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (rule.triggerProductIds.indexOf(String(p.id)) >= 0 ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select>') +
-            fieldWrap('270px', '<div id="ups-moment-wrap"><label style="' + labelStyle + '">Momento da exibição</label><select id="ups-moment" style="' + selectStyle + '"><option value="trigger"' + (String(rule.displayMoment || '').toLowerCase() !== 'whatsapp' ? ' selected' : '') + '>Ao acionar o gatilho</option><option value="whatsapp"' + (String(rule.displayMoment || '').toLowerCase() === 'whatsapp' ? ' selected' : '') + '>Ao clicar em enviar pelo WhatsApp</option></select></div>') +
+            fieldWrap('420px', '<label style="' + labelStyle + '">Produto gatilho</label><select id="ups-trigger-product" style="' + selectStyle + '"><option value="">—</option>' + _marketingPromotionProducts().map(function (p) { return '<option value="' + _esc(String(p.id)) + '"' + (rule.triggerProductIds.indexOf(String(p.id)) >= 0 || triggerSelectedByName[_marketingProductNameKey(p)] ? ' selected' : '') + '>' + _esc(p.name || 'Produto') + '</option>'; }).join('') + '</select>') +
+            fieldWrap('270px', '<div id="ups-moment-wrap"><label style="' + labelStyle + '">Momento da exibição</label><select id="ups-moment" style="' + selectStyle + '"><option value="trigger"' + (String(rule.displayMoment || '').toLowerCase() !== 'whatsapp' ? ' selected' : '') + '>Depois de adicionar ao carrinho</option><option value="whatsapp"' + (String(rule.displayMoment || '').toLowerCase() === 'whatsapp' ? ' selected' : '') + '>Ao clicar em enviar pelo WhatsApp</option></select></div>') +
             fieldWrap('120px', '<label style="' + labelStyle + '">Prioridade</label><input id="ups-priority" type="number" step="1" min="0" value="' + rule.priority + '" style="' + inputStyle + '">') +
             fieldWrap('150px', '<label style="' + labelStyle + '">Limite</label><input id="ups-limit" type="number" step="1" min="0" value="' + rule.displayLimit + '" style="' + inputStyle + '">') +
             fieldWrap('210px', '<label style="' + labelStyle + '">Data de início</label><input id="ups-start" type="date" min="' + _promoTodayIso() + '" value="' + (rule.startDate || '') + '" onchange="Modules.Marketing._syncUpsellDateRules()" style="' + inputStyle + '">') +
@@ -6228,7 +6597,6 @@ Modules.Marketing = (function () {
         '</section>' +
         '<section style="' + sectionStyle + '">' +
           cardHeader('analytics', 'Produtos selecionados para upsell', 'Confira se o benefício continua saudável antes de salvar.') +
-          '<div style="font-size:13px;color:#6F6860;line-height:1.55;margin-bottom:10px;">' + _esc((rule.benefitDesc || '') + ' ' + (rule.benefitExample || '')) + '</div>' +
           '<div id="ups-analysis" style="display:flex;flex-direction:column;gap:8px;">' + _upsellModalAnalysis(rule, selectedIds, parseFloat(rule.minMarginPct || _moneyConfig.minMarginPct || 40) || 40) + '</div>' +
         '</section>' +
       '</div>';
@@ -6242,7 +6610,9 @@ Modules.Marketing = (function () {
       var salesLine = sales.currentOrders > 0
         ? (sales.currentOrders + ' pedidos · ' + sales.currentItems + ' itens · ' + (sales.growth == null ? 'Sem base anterior' : (sales.growth >= 0 ? '+' : '') + sales.growth.toFixed(0) + '% vs. 30 dias anteriores'))
         : 'Sem base suficiente para analisar vendas.';
+      var showSalesLine = _marketingProductTextKey(salesLine) !== _marketingProductTextKey(quality.text);
       var marginText = impact.hasCost && impact.marginAfter != null ? impact.marginAfter.toFixed(1).replace('.', ',') + '%' : '—';
+      var markupText = _upsellMarkupText(impact.markupAfter);
       var impactText = _upsellOrderImpactText(rule, impact);
       var savingsText = impact.discount > 0 ? UI.fmt(impact.discount) : '—';
       function detailTile(label, value, tone) {
@@ -6259,7 +6629,7 @@ Modules.Marketing = (function () {
             '<div style="min-width:0;">' +
               '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span class="mi" style="width:30px;height:30px;border-radius:10px;background:#FFF0EE;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto;">sell</span><div style="font-size:22px;font-weight:650;line-height:1.15;color:#1F1F1F;">' + _esc(rule.name) + '</div></div>' +
               '<div style="font-size:13px;color:#6F6860;line-height:1.45;">' + _esc(quality.text) + '</div>' +
-              '<div style="margin-top:4px;font-size:13px;color:#6F6860;">' + _esc(salesLine) + '</div>' +
+              (showSalesLine ? '<div style="margin-top:4px;font-size:13px;color:#6F6860;">' + _esc(salesLine) + '</div>' : '') +
             '</div>' +
             '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
               '<span style="font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;background:' + _upsellStatusInfo(rule).bg + ';color:' + _upsellStatusInfo(rule).color + ';">' + _esc(_upsellStatusInfo(rule).label) + '</span>' +
@@ -6282,6 +6652,7 @@ Modules.Marketing = (function () {
             detailTile('Impacto estimado', impactText, 'blue') +
             detailTile('Cliente economiza', savingsText, savingsText !== '—' ? 'green' : '') +
             detailTile('Margem após benefício', marginText, impact.marginAfter != null && impact.marginAfter < (parseFloat(rule.minMarginPct || _moneyConfig.minMarginPct || 40) || 0) ? 'red' : 'green') +
+            detailTile('Markup após benefício', markupText, markupText !== '—' ? 'green' : '') +
           '</div>' +
           '<div style="margin-top:12px;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:13px;padding:10px 12px;font-size:12px;color:#6F6860;line-height:1.45;"><span style="font-weight:600;color:#1F1F1F;">Mensagem ao cliente:</span> ' + _esc(rule.message || 'También te puede gustar') + '</div>' +
         '</section>' +
@@ -6314,13 +6685,14 @@ Modules.Marketing = (function () {
     });
     if (editMode) _applySeasonDraftToUpsellForm();
     if (editMode) {
+      _bindUpsellLivePreview();
       setTimeout(function () { _syncUpsellDateRules(); _syncUpsellBenefitUI(); _refreshUpsellAnalysis(); }, 100);
     }
   }
 
   function _currentUpsellLocationSelection() {
     var moment = document.getElementById('ups-moment');
-    return moment && String(moment.value || '').trim().toLowerCase() === 'whatsapp' ? ['cart'] : ['detail'];
+    return ['cart'];
   }
 
   function _syncUpsellMomentByLocations() {
@@ -6361,6 +6733,8 @@ Modules.Marketing = (function () {
       var title = btn.querySelector('div');
       if (title) title.style.color = active ? '#C4362A' : '#1F1F1F';
     });
+    var benefitBlock = document.getElementById('ups-benefit-block');
+    if (benefitBlock) benefitBlock.innerHTML = _upsellBenefitSectionHtml(_currentUpsellDraftForAnalysis());
     _syncUpsellBenefitUI();
     _refreshUpsellAnalysis();
   }
@@ -6399,14 +6773,83 @@ Modules.Marketing = (function () {
     return false;
   }
 
+  function _currentUpsellDraftForAnalysis() {
+    var base = Object.assign({}, window._upsellBase || {});
+    var selected = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) { return i.dataset.id; }).filter(Boolean);
+    var benefitType = String(window._upsellBenefit || ((document.getElementById('ups-benefit-type') || {}).value || base.benefitType || 'none')).trim();
+    var triggerProductId = (document.getElementById('ups-trigger-product') || {}).value || base.triggerProductId || '';
+    var displayMoment = (document.getElementById('ups-moment') || {}).value || base.displayMoment || 'trigger';
+    function numberField(id, fallback) {
+      var el = id === 'ups-benefit-value' ? _upsellActiveBenefitValueInput() : document.getElementById(id);
+      return el ? _promoNumber(el.value) : _promoNumber(fallback || 0);
+    }
+    function intField(id, fallback) {
+      var el = document.getElementById(id);
+      return el ? (parseInt(el.value, 10) || 0) : (parseInt(fallback || 0, 10) || 0);
+    }
+    base.type = String(window._upsellType || base.type || 'complemento').trim();
+    base.benefitType = benefitType || 'none';
+    if (['combo_fixed', 'bundle_less_pay_more', 'gift', 'cart_goal', 'frete'].indexOf(base.benefitType) >= 0) displayMoment = 'whatsapp';
+    base.benefitValue = numberField('ups-benefit-value', base.benefitValue);
+    base.specialPrice = numberField('ups-special-price', base.specialPrice);
+    base.finalUpsellPrice = numberField('ups-final-price', base.finalUpsellPrice);
+    base.bundleQty = intField('ups-bundle-qty', base.bundleQty || base.leveQtd);
+    base.bundlePay = intField('ups-bundle-pay', base.bundlePay || base.pagueQtd);
+    base.giftProductId = (document.getElementById('ups-gift-product') || {}).value || base.giftProductId || '';
+    base.giftConditionType = (document.getElementById('ups-gift-condition-type') || {}).value || base.giftConditionType || 'trigger';
+    base.giftQty = intField('ups-gift-qty', base.giftQty || base.giftQuantity);
+    base.giftMinCartValue = numberField('ups-gift-min-cart', base.giftMinCartValue || base.giftMinValue);
+    base.minCartValue = numberField('ups-cart-min', base.minCartValue || base.cartMinValue || base.cartMin);
+    base.cartGoalBenefit = (document.getElementById('ups-cart-benefit') || {}).value || base.cartGoalBenefit || '';
+    base.cartGoalBenefitType = base.cartGoalBenefit;
+    base.cartGoalBenefitValue = numberField('ups-cart-benefit-value', base.cartGoalBenefitValue);
+    base.cartGoalGiftProductId = (document.getElementById('ups-cart-gift-product') || {}).value || base.cartGoalGiftProductId || '';
+    base.cartGoalMessage = (document.getElementById('ups-cart-message') || {}).value || base.cartGoalMessage || '';
+    base.displayMoment = displayMoment;
+    base.startDate = (document.getElementById('ups-start') || {}).value || base.startDate || '';
+    base.endDate = (document.getElementById('ups-end') || {}).value || base.endDate || '';
+    base.priority = parseInt((document.getElementById('ups-priority') || {}).value, 10) || base.priority || 0;
+    base.displayLimit = parseInt((document.getElementById('ups-limit') || {}).value, 10) || base.displayLimit || 0;
+    base.message = (document.getElementById('ups-message') || {}).value || base.message || 'También te puede gustar';
+    base.triggerProductId = triggerProductId;
+    base.triggerProductIds = triggerProductId ? [triggerProductId] : (base.triggerProductIds || []);
+    base.productIds = selected.length ? selected : (base.productIds || []);
+    base.suggestedProductIds = base.productIds;
+    base.locations = displayMoment === 'whatsapp' ? ['cart'] : ['detail'];
+    base.minMarginPct = parseFloat(base.minMarginPct || _moneyConfig.minMarginPct || 40) || 40;
+    return base;
+  }
+
   function _refreshUpsellAnalysis() {
-    var type = window._upsellType || 'complemento';
-    var selected = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) { return i.dataset.id; });
+    var draft = _currentUpsellDraftForAnalysis();
     var host = document.getElementById('ups-analysis');
-    if (host) host.innerHTML = _upsellModalAnalysis(window._upsellBase || { type: type, benefitType: window._upsellBenefit || 'none' }, selected, parseFloat((window._upsellBase && window._upsellBase.minMarginPct) || _moneyConfig.minMarginPct || 40) || 40);
+    if (host) host.innerHTML = _upsellModalAnalysis(draft, draft.productIds || [], draft.minMarginPct);
     _syncUpsellProductSearch();
     _syncUpsellBenefitDetails();
     _syncUpsellBenefitReference();
+  }
+
+  function _upsellLivePreviewEvent(ev) {
+    var target = ev && ev.target;
+    if (!target || !document.getElementById('ups-analysis')) return;
+    var id = String(target.id || '');
+    var cls = target.classList || { contains: function () { return false; } };
+    var isUpsellField = id.indexOf('ups-') === 0 || cls.contains('ups-prod-check');
+    if (!isUpsellField) return;
+    if (id === 'ups-product-search') {
+      _upsellUi.productQuery = target.value || '';
+      _syncUpsellProductSearch();
+      return;
+    }
+    if (id === 'ups-start' || id === 'ups-end') _syncUpsellDateRules();
+    _refreshUpsellAnalysis();
+  }
+
+  function _bindUpsellLivePreview() {
+    if (window._upsellLivePreviewBound) return;
+    window._upsellLivePreviewBound = true;
+    document.addEventListener('input', _upsellLivePreviewEvent, true);
+    document.addEventListener('change', _upsellLivePreviewEvent, true);
   }
 
   function _setUpsellProductSearch(value) {
@@ -6435,14 +6878,18 @@ Modules.Marketing = (function () {
         '<div style="display:flex;flex-direction:column;gap:8px;">' + selected.map(function (p) {
           var calc = _upsellBenefitCalcForProduct(p, Object.assign({}, rule, { benefitType: current || rule.benefitType }));
           if (!calc) {
-            return '<div style="background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;"><div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(p.name || 'Produto') + '</div><div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Produto sem preço configurado. Não foi possível calcular a margem.</div></div>';
+            return '<div style="position:relative;background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 42px 12px 14px;">' +
+              '<button type="button" title="Remover produto" aria-label="Remover produto" onclick="Modules.Marketing._removeUpsellSelectedProduct(\'' + _esc(String(p.id || '')) + '\')" style="position:absolute;top:9px;right:9px;width:24px;height:24px;border:1px solid #E8DCD7;border-radius:999px;background:#fff;color:#8A7E7C;font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;">×</button>' +
+              '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(p.name || 'Produto') + '</div><div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Produto sem preço configurado. Não foi possível calcular a margem.</div></div>';
           }
-          return '<div style="background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 14px;">' +
+          return '<div style="position:relative;background:#FAF8F8;border:1px solid #EEE6E4;border-radius:12px;padding:12px 42px 12px 14px;">' +
+            '<button type="button" title="Remover produto" aria-label="Remover produto" onclick="Modules.Marketing._removeUpsellSelectedProduct(\'' + _esc(String(p.id || '')) + '\')" style="position:absolute;top:9px;right:9px;width:24px;height:24px;border:1px solid #E8DCD7;border-radius:999px;background:#fff;color:#8A7E7C;font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;">×</button>' +
             '<div style="font-size:13px;font-weight:800;color:#1A1A1A;">' + _esc(p.name || 'Produto') + '</div>' +
             '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Preço original: ' + UI.fmt(calc.original) + '</div>' +
             '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Preço com benefício: ' + UI.fmt(calc.final) + '</div>' +
             '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Economia do cliente: ' + UI.fmt(calc.discount) + '</div>' +
             '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Margem estimada: ' + (calc.marginAfter != null ? calc.marginAfter.toFixed(1).replace('.', ',') + '%' : '—') + '</div>' +
+            '<div style="font-size:12px;color:#8A7E7C;margin-top:4px;">Markup após benefício: ' + _esc(_upsellMarkupText(calc.cost > 0 && calc.final > 0 ? calc.final / calc.cost : null)) + '</div>' +
           '</div>';
         }).join('') + '</div>' +
       '</div>';
@@ -6453,13 +6900,23 @@ Modules.Marketing = (function () {
     return '';
   }
 
+  function _removeUpsellSelectedProduct(productId) {
+    productId = String(productId || '');
+    if (!productId) return;
+    var input = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check')).find(function (item) {
+      return String(item.dataset.id || '') === productId;
+    });
+    if (input) input.checked = false;
+    _refreshUpsellAnalysis();
+    _syncUpsellProductSearch();
+  }
+
   function _syncUpsellBenefitReference() {
     var host = document.getElementById('ups-benefit-reference');
     if (!host) return;
-    var selected = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) {
-      return (_products || []).find(function (p) { return String(p.id) === String(i.dataset.id); }) || null;
-    }).filter(Boolean);
-    host.innerHTML = _upsellBenefitReferenceHtml(window._upsellBase || {}, selected, window._upsellBenefit || '');
+    var draft = _currentUpsellDraftForAnalysis();
+    var selected = _marketingPromotionProductsByIds(draft.productIds || []);
+    host.innerHTML = _upsellBenefitReferenceHtml(draft, selected, window._upsellBenefit || draft.benefitType || '');
   }
 
   function _syncUpsellBenefitDetails() {
@@ -6488,7 +6945,8 @@ Modules.Marketing = (function () {
     var selected = Array.prototype.slice.call(document.querySelectorAll('.ups-prod-check:checked')).map(function (i) { return i.dataset.id; }).filter(Boolean);
     var triggerProductId = (document.getElementById('ups-trigger-product') || {}).value || '';
     var benefitType = String(window._upsellBenefit || ((document.getElementById('ups-benefit-type') || {}).value || '')).trim();
-    var benefitValue = _promoNumber((document.getElementById('ups-benefit-value') || {}).value) || 0;
+    var benefitValueInput = _upsellActiveBenefitValueInput();
+    var benefitValue = _promoNumber(benefitValueInput ? benefitValueInput.value : 0) || 0;
     var specialPrice = _promoNumber((document.getElementById('ups-special-price') || {}).value);
     var finalUpsellPrice = _promoNumber((document.getElementById('ups-final-price') || {}).value);
     var giftProductId = (document.getElementById('ups-gift-product') || {}).value || '';
@@ -6504,6 +6962,7 @@ Modules.Marketing = (function () {
     var bundleQty = parseInt((document.getElementById('ups-bundle-qty') || {}).value, 10) || 0;
     var bundlePay = parseInt((document.getElementById('ups-bundle-pay') || {}).value, 10) || 0;
     var locations = _currentUpsellLocationSelection();
+    if (['combo_fixed', 'bundle_less_pay_more', 'gift', 'cart_goal', 'frete'].indexOf(benefitType) >= 0) displayMoment = 'whatsapp';
     locations = displayMoment === 'whatsapp' ? ['cart'] : ['detail'];
     if (!upsellType) { UI.toast('Tipo de upsell é obrigatório', 'error'); return; }
     if (!benefitType) { UI.toast('Tipo de benefício é obrigatório', 'error'); return; }
@@ -6529,6 +6988,11 @@ Modules.Marketing = (function () {
     if (startDate && startDate < todayIso) { UI.toast('A data de início não pode ser anterior a hoje', 'error'); return; }
     if (endDate && endDate < todayIso) { UI.toast('A data de fim não pode ser anterior a hoje', 'error'); return; }
     if (startDate && endDate && endDate < startDate) { UI.toast('A data de fim deve ser igual ou posterior à data de início', 'error'); return; }
+    var selectedProducts = _marketingPromotionProductsByIds(selected);
+    var selectedProductNames = selectedProducts.map(function (p) { return p.name || ''; }).filter(Boolean);
+    var triggerProduct = _marketingPromotionProductsByIds([triggerProductId])[0] || null;
+    var giftProduct = _marketingPromotionProductsByIds([giftProductId])[0] || null;
+    var cartGoalGiftProduct = _marketingPromotionProductsByIds([cartGoalGiftProductId])[0] || null;
     var data = {
       name: name.trim(),
       title: name.trim(),
@@ -6554,9 +7018,18 @@ Modules.Marketing = (function () {
       productId: selected[0] || '',
       productIds: selected,
       suggestedProductIds: selected,
+      productNames: selectedProductNames,
+      suggestedProductNames: selectedProductNames,
+      productSnapshot: selectedProducts.map(function (p) {
+        return { id: p.id || '', name: p.name || '', price: _promoBasePrice(p), imageUrl: p.imageBase64 || p.imageUrl || p.image || '' };
+      }),
       triggerProductId: triggerProductId,
+      triggerProductName: triggerProduct ? (triggerProduct.name || '') : '',
       triggerCategory: legacyTriggerCategory,
       triggerProductIds: [triggerProductId].filter(Boolean),
+      triggerProductNames: triggerProduct ? [triggerProduct.name || ''].filter(Boolean) : [],
+      giftProductName: giftProduct ? (giftProduct.name || '') : '',
+      cartGoalGiftProductName: cartGoalGiftProduct ? (cartGoalGiftProduct.name || '') : '',
       displayLocations: locations.join(', '),
       locations: locations,
       message: (document.getElementById('ups-message') || {}).value || 'También te puede gustar',
@@ -6703,7 +7176,7 @@ Modules.Marketing = (function () {
     _openCuponModal: _openCuponModal, _saveCupon: _saveCupon, _deleteCupon: _deleteCupon, _copyCouponLink: _copyCouponLink, _refreshCouponValueAdornment: _refreshCouponValueAdornment, _setCouponSearch: _setCouponSearch, _setCouponStatus: _setCouponStatus, _setCouponType: _setCouponType, _setCouponPage: _setCouponPage, _setCouponPageSize: _setCouponPageSize, _clearCouponFilters: _clearCouponFilters,
     _renderUpsell: _renderUpsell, _openUpsellModal: _openUpsellModal, _saveUpsell: _saveUpsell, _deleteUpsell: _deleteUpsell, _toggleUpsellStatus: _toggleUpsellStatus, _duplicateUpsell: _duplicateUpsell, _refreshUpsellAnalysis: _refreshUpsellAnalysis, _selectUpsellType: _selectUpsellType,
     _setUpsellSearch: _setUpsellSearch, _setUpsellStatus: _setUpsellStatus, _setUpsellPeriod: _setUpsellPeriod, _setUpsellPeriodStart: _setUpsellPeriodStart, _setUpsellPeriodEnd: _setUpsellPeriodEnd, _setUpsellPage: _setUpsellPage, _setUpsellPageSize: _setUpsellPageSize, _setUpsellPerfPeriod: _setUpsellPerfPeriod, _setUpsellPerfStart: _setUpsellPerfStart, _setUpsellPerfEnd: _setUpsellPerfEnd, _setUpsellTab: _setUpsellTab, _clearUpsellFilters: _clearUpsellFilters,
-    _setUpsellProductSearch: _setUpsellProductSearch, _syncUpsellProductSearch: _syncUpsellProductSearch, _syncUpsellMomentByLocations: _syncUpsellMomentByLocations, _syncUpsellDateRules: _syncUpsellDateRules, _toggleUpsellRuleHelp: _toggleUpsellRuleHelp, _syncUpsellBenefitDetails: _syncUpsellBenefitDetails,
+    _setUpsellProductSearch: _setUpsellProductSearch, _syncUpsellProductSearch: _syncUpsellProductSearch, _removeUpsellSelectedProduct: _removeUpsellSelectedProduct, _syncUpsellMomentByLocations: _syncUpsellMomentByLocations, _syncUpsellDateRules: _syncUpsellDateRules, _toggleUpsellRuleHelp: _toggleUpsellRuleHelp, _syncUpsellBenefitDetails: _syncUpsellBenefitDetails,
     _selectUpsellBenefit: _selectUpsellBenefit, _pickUpsellBenefit: _pickUpsellBenefit, _approveReview: _approveReview, _rejectReview: _rejectReview, _replyReview: _replyReview, _saveReply: _saveReply, _reviewAction: _reviewAction,
     _openReviewModal: _openReviewModal, _setReviewSearch: _setReviewSearch, _setReviewStatus: _setReviewStatus, _setReviewPeriod: _setReviewPeriod, _setReviewStars: _setReviewStars, _setReviewPeriodStart: _setReviewPeriodStart, _setReviewPeriodEnd: _setReviewPeriodEnd,
     _pointsConfigData: _pointsConfigData, _pointsRefresh: _pointsRefresh, _refreshPoints: _pointsRefresh, _pointsOrderBlockHtml: _pointsOrderBlockHtml, _pointsApplyDiscount: _pointsApplyDiscount, _pointsGrantForOrder: _pointsGrantForOrder, _openPointsConfigModal: _openPointsConfigModal, _savePointsConfig: _savePointsConfig,

@@ -31,7 +31,7 @@ Modules.Performance = (function () {
     var app = document.getElementById('app');
     app.innerHTML = '' +
       '<div class="module-page perf-root perf-page">' +
-        '<div id="perf-content" class="module-content perf-content"><div class="loading-inline">Carregando...</div></div>' +
+        '<div id="perf-content" class="module-content perf-content">' + _loadingCard() + '</div>' +
       '</div>';
 
     _paint();
@@ -86,7 +86,7 @@ Modules.Performance = (function () {
     if (!content) return;
 
     if (_loading) {
-      content.innerHTML = '<div class="loading-inline">Carregando...</div>';
+      content.innerHTML = _loadingCard();
       return;
     }
 
@@ -104,6 +104,17 @@ Modules.Performance = (function () {
     var content = document.getElementById('perf-content');
     if (!content) return;
     content.innerHTML = _safeHtml('<div style="' + _cardStyle() + 'color:#B42318;font-size:13px;">Erro ao carregar a tela: ' + _esc((err && err.message) || err || 'desconhecido') + '</div>');
+  }
+
+  function _loadingCard() {
+    return '<section class="perf-loading-card" aria-label="Carregando tela de Performance">' +
+      '<div class="perf-loading-icon"><span class="mi">query_stats</span></div>' +
+      '<div>' +
+        '<span>Performance</span>' +
+        '<h2>Carregando tela</h2>' +
+        '<p>Organizando vendas, financeiro e rota do mês para mostrar a leitura correta.</p>' +
+      '</div>' +
+    '</section>';
   }
 
   function _setPeriod(value) {
@@ -240,7 +251,8 @@ Modules.Performance = (function () {
     var pending = _num(item.saldoRestante != null ? item.saldoRestante : item.saldo_restante != null ? item.saldo_restante : Math.max(0, totalOriginal - paid));
     var status = _normalizeCashStatus(item, kind, source, item.status || item.state || '', paid, totalOriginal || valueRow);
     var date = _cashDate(item, kind, status);
-    var category = _normalizeCategoryName(item.categoria || item.category || item.cat || item.categoryName || item.tipo || '');
+    var categoryId = String(item.categoriaId || item.categoryId || item.categoriaFinanceiraId || item.financialCategoryId || '');
+    var category = _normalizeCategoryName(item.categoria || item.category || item.cat || item.categoryName || item.categoriaFinanceiraNome || item.financialCategoryName || item.tipo || '');
     var channel = _normalizeChannelKey(item.channel || item.canal || item.source || '');
     var customer = _normalizeText(item.pessoaNome || item.customerName || item.nome || item.fornecedorNome || item.supplierName || '');
     var desc = _normalizeText(item.descricao || item.description || item.nome || item.title || '');
@@ -258,6 +270,7 @@ Modules.Performance = (function () {
       labelDate: UI.fmtDate(date || new Date()),
       description: desc || '—',
       category: category || 'Sem categoria',
+      categoryId: categoryId,
       customer: customer || '—',
       channel: channel || '—',
       status: status || (kind === 'entrada' ? 'efetivado' : 'pago'),
@@ -267,6 +280,7 @@ Modules.Performance = (function () {
       paidValue: paid || 0,
       pendingValue: pending || 0,
       effectiveValue: effective || 0,
+      orderId: String(item.pedidoId || item.orderId || item.origemPedidoId || ''),
       raw: item
     };
   }
@@ -310,6 +324,7 @@ Modules.Performance = (function () {
     var pendingPayables = exits.filter(function (x) { return x.kind === 'saida' && (x.status === 'pendente' || x.status === 'vencido' || x.status === 'parcial'); }).reduce(function (s, x) {
       return s + (x.status === 'parcial' ? x.pendingValue : x.valueRow);
     }, 0);
+    var paidPayables = actualExits;
     var pendingPayableRows = exits.filter(function (x) {
       return x.kind === 'saida' && (x.status === 'pendente' || x.status === 'vencido' || x.status === 'parcial');
     }).sort(function (a, b) {
@@ -382,6 +397,7 @@ Modules.Performance = (function () {
       actualExits: actualExits,
       pendingReceivables: pendingReceivables,
       pendingPayables: pendingPayables,
+      paidPayables: paidPayables,
       pendingPayableRows: pendingPayableRows,
       netCash: netCash,
       marginPct: marginPct,
@@ -729,7 +745,7 @@ Modules.Performance = (function () {
     if (pct >= 115) return { title: 'Seu mês começou mais forte que o esperado', text: 'As vendas já estão ' + _fmtMoney(Math.abs(diff)) + ' acima do que estava previsto para hoje. Vale entender o que está puxando esse resultado para repetir nos próximos dias.', color: '#2563EB', bg: '#EEF4FF', border: '#D6E6FF', icon: 'north_east' };
     if (pct >= 92) return { title: 'Seu mês está caminhando bem', text: 'As vendas estão perto do caminho escolhido. Continue cuidando dos produtos que mais saem, do ticket médio e dos custos para manter essa direção.', color: '#1F6F43', bg: '#F0FAF4', border: '#D9F2E3', icon: 'check_circle' };
     if (pct >= 75) return { title: 'Seu mês pede um pouco mais de atenção', text: 'As vendas estão ' + _fmtMoney(Math.abs(diff)) + ' abaixo do ritmo esperado para hoje. Ainda há tempo para ajustar produtos, canais ou horários.', color: '#B45309', bg: '#FFF7ED', border: '#FED7AA', icon: 'warning' };
-    return { title: 'Seu mês precisa de uma reação', text: 'As vendas estão ' + _fmtMoney(Math.abs(diff)) + ' abaixo do caminho escolhido para hoje. O melhor agora é escolher uma ação simples em Temporadas para trazer pedidos com mais foco.', color: '#B42318', bg: '#FFF0EE', border: '#F3C7C1', icon: 'priority_high' };
+    return { title: 'Seu mês precisa de uma reação', text: 'As vendas estão ' + _fmtMoney(Math.abs(diff)) + ' abaixo do caminho escolhido para hoje. Olhe os produtos que já venderam este mês e puxe uma ação de venda pelo Cardápio ou por clientes conhecidos para recuperar pedidos nos próximos dias.', color: '#B42318', bg: '#FFF0EE', border: '#F3C7C1', icon: 'priority_high' };
   }
 
   function _routeMessages(vm) {
@@ -810,36 +826,39 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Linha do tempo diária', 'Veja vendas, entradas, saídas e a meta diária ajustada pela realidade da rota.') +
+          _sectionTitle('Linha do tempo diária', 'Veja as vendas por dia, o acumulado e a meta diária ajustada pela realidade da rota.') +
           _chip(vm.periodLabel) +
         '</div>' +
         (rows.length ? '' +
           '<div style="overflow-x:auto;">' +
-            '<table style="width:100%;border-collapse:collapse;min-width:1080px;">' +
+            '<table style="width:100%;border-collapse:collapse;min-width:860px;">' +
               '<thead><tr style="background:#FAF8F4;">' +
-                ['Data', 'Vendas', 'Entradas', 'Saídas', 'Acumulado', 'Meta do dia', 'Meta recalculada', 'Saldo do dia'].map(function (h) {
+                ['Data', 'Dia da semana', 'Vendas', 'Acumulado', 'Meta do dia', 'Meta recalculada'].map(function (h) {
                   return '<th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.02em;">' + h + '</th>';
                 }).join('') +
               '</tr></thead>' +
               '<tbody>' +
                 rows.map(function (row) {
-                  var tone = row.delta >= 0 ? '#1F6F43' : '#B42318';
-                  var barPct = row.targetDaily ? Math.min(100, (row.sales / row.targetDaily) * 100) : 0;
+                  var comparisonTarget = _num(row.needPerDay || 0);
+                  var isZeroWeight = _num(row.weight || 0) <= 0;
+                  var hasExtraSale = isZeroWeight && row.sales > 0;
+                  var isNeutralZero = isZeroWeight && row.sales <= 0;
+                  var tone = isNeutralZero ? '#B8AEA6' : (hasExtraSale || row.sales >= comparisonTarget ? '#1F6F43' : '#B42318');
+                  var barPct = comparisonTarget > 0 ? Math.min(100, (row.sales / comparisonTarget) * 100) : (hasExtraSale ? 100 : 0);
+                  var salesPctLabel = comparisonTarget > 0 ? (row.sales / comparisonTarget * 100).toFixed(1) + '%' : (hasExtraSale ? 'extra' : '0%');
                   return '' +
                     '<tr style="border-top:1px solid #EAE4DA;transition:background .15s ease;" onmouseenter="this.style.background=\'#FAF8F4\'" onmouseleave="this.style.background=\'transparent\'">' +
                       '<td style="padding:12px 14px;font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(row.labelDate) + '</td>' +
+                      '<td style="padding:12px 14px;font-size:13px;color:#6F6860;">' + _esc(row.weekdayLabel) + '</td>' +
                       '<td style="padding:12px 14px;font-size:13px;">' +
                         '<div style="display:flex;flex-direction:column;gap:5px;min-width:120px;">' +
-                          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span style="font-weight:700;color:#1F1F1F;">' + _fmtMoney(row.sales) + '</span><span style="font-size:11px;color:#6F6860;">' + (row.salesPct ? row.salesPct.toFixed(1) + '%' : '0%') + '</span></div>' +
+                          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span style="font-weight:700;color:#1F1F1F;">' + _fmtMoney(row.sales) + '</span><span style="font-size:11px;color:#6F6860;">' + _esc(salesPctLabel) + '</span></div>' +
                           '<div style="height:6px;background:#EAE4DA;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:' + barPct.toFixed(1) + '%;background:' + tone + ';border-radius:999px;"></span></div>' +
                         '</div>' +
                       '</td>' +
-                      '<td style="padding:12px 14px;font-size:13px;">' + _fmtMoney(row.entries) + '</td>' +
-                      '<td style="padding:12px 14px;font-size:13px;">' + _fmtMoney(row.exits) + '</td>' +
                       '<td style="padding:12px 14px;font-size:13px;font-weight:800;">' + _fmtMoney(row.accumSales) + '</td>' +
                       '<td style="padding:12px 14px;font-size:13px;">' + _fmtMoney(row.targetDaily) + '</td>' +
                       '<td style="padding:12px 14px;font-size:13px;">' + _fmtMoney(row.needPerDay) + '</td>' +
-                      '<td style="padding:12px 14px;font-size:13px;font-weight:800;color:' + tone + ';">' + _fmtMoney(row.balanceDay) + '</td>' +
                     '</tr>';
                 }).join('') +
               '</tbody>' +
@@ -854,12 +873,10 @@ Modules.Performance = (function () {
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
-          _sectionTitle('Vendas por canal', 'Veja por onde as vendas estão chegando no período selecionado.') +
+          _sectionTitle('Vendas e lucro por canal', 'Compare quanto cada canal vendeu e quanto sobrou depois dos custos e taxas registradas.') +
           _chip('Canal filtrado: ' + _channelLabel(_state.channel, vm.channels)) +
         '</div>' +
-        (rows.length ? _barList(rows, '#6C8777', function (row) {
-          return _fmtMoney(row.value);
-        }) : _emptyState('Sem vendas para os canais deste período', 'No intervalo selecionado não houve pedidos suficientes.')) +
+        (rows.length ? _channelValueProfitChart(rows) : _emptyState('Sem vendas para os canais deste período', 'No intervalo selecionado não houve pedidos suficientes.')) +
       '</section>';
   }
 
@@ -868,6 +885,8 @@ Modules.Performance = (function () {
     var totalExits = vm.actualExits;
     var pendingReceivables = vm.pendingReceivables;
     var pendingPayables = vm.pendingPayables;
+    var paidPayables = vm.paidPayables != null ? vm.paidPayables : totalExits;
+    var marginTone = vm.marginPct >= _data.money.desiredMarginPct ? '#1F6F43' : (vm.marginPct >= _data.money.minMarginPct ? '#B45309' : '#B42318');
     return '' +
       '<section style="' + _cardStyle() + '">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap;">' +
@@ -878,10 +897,11 @@ Modules.Performance = (function () {
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px;">' +
-          _miniMetric('A receber', _fmtMoney(pendingReceivables), '#6C8777') +
-          _miniMetric('Contas a pagar', _fmtMoney(pendingPayables), '#B45309') +
-          _miniMetric('Saldo líquido', _fmtMoney(vm.netCash), vm.netCash >= 0 ? '#1F6F43' : '#B42318') +
-          _miniMetric('Margem operacional', vm.marginPct.toFixed(1) + '%', vm.marginPct >= _data.money.desiredMarginPct ? '#1F6F43' : (vm.marginPct >= _data.money.minMarginPct ? '#B45309' : '#B42318')) +
+          _miniMetric('A receber', _fmtMoney(pendingReceivables), '#6C8777', '#F4F7F2', 'Pendente') +
+          _miniMetric('Contas a pagar', _fmtMoney(pendingPayables), '#B45309', '#FFF7ED', 'Pendente') +
+          _miniMetric('Contas pagas', _fmtMoney(paidPayables), '#B42318', '#FFF0EE', 'Efetivado') +
+          _miniMetric('Saldo líquido', _fmtMoney(vm.netCash), vm.netCash >= 0 ? '#1F6F43' : '#B42318', vm.netCash >= 0 ? '#EDFAF3' : '#FFF0EE', 'Efetivado') +
+          _miniMetric('Margem operacional', vm.marginPct.toFixed(1) + '%', marginTone, marginTone === '#1F6F43' ? '#EDFAF3' : (marginTone === '#B45309' ? '#FFF7ED' : '#FFF0EE'), 'Sobre vendas e contas pagas') +
         '</div>' +
         _pendingPayablesList(vm.pendingPayableRows) +
         '<div style="font-size:12px;color:#6F6860;line-height:1.5;">' +
@@ -1077,6 +1097,53 @@ Modules.Performance = (function () {
       '</div>';
   }
 
+  function _channelValueProfitChart(rows) {
+    rows = (rows || []).filter(function (row) { return _num(row.value) > 0; });
+    var total = rows.reduce(function (sum, row) { return sum + _num(row.value); }, 0);
+    var totalProfit = rows.reduce(function (sum, row) { return sum + _num(row.profit); }, 0);
+    var maxValue = rows.reduce(function (max, row) {
+      return Math.max(max, _num(row.value), Math.max(0, _num(row.profit)));
+    }, 0);
+    if (!rows.length || total <= 0) return _emptyState('Sem vendas para os canais deste período', 'No intervalo selecionado não houve pedidos suficientes.');
+    var colors = ['#6C8777', '#B42318', '#8A6F5A', '#2563EB', '#B45309', '#7C3AED', '#1F6F43', '#64748B'];
+    return '' +
+      '<div class="perf-channel-share">' +
+        '<div class="perf-channel-share-top">' +
+          '<span>Total vendido <strong>' + _fmtMoney(total) + '</strong></span>' +
+          '<span>Lucro estimado <strong class="' + (totalProfit >= 0 ? 'positive' : 'negative') + '">' + _fmtMoney(totalProfit) + '</strong></span>' +
+        '</div>' +
+        '<div class="perf-channel-bars" aria-label="Vendas e lucro por canal">' +
+          rows.map(function (row, idx) {
+            var pct = total > 0 ? (_num(row.value) / total) * 100 : 0;
+            var color = colors[idx % colors.length];
+            var value = _num(row.value);
+            var profit = _num(row.profit);
+            var margin = value > 0 ? (profit / value) * 100 : 0;
+            var valueWidth = maxValue > 0 ? Math.max(2, value / maxValue * 100) : 0;
+            var profitWidth = maxValue > 0 ? Math.max(2, Math.max(0, profit) / maxValue * 100) : 0;
+            return '' +
+              '<article class="perf-channel-bar-item">' +
+                '<div class="perf-channel-bar-head">' +
+                  '<div><span class="perf-channel-dot" style="background:' + color + ';"></span><strong>' + _esc(row.label || 'Canal') + '</strong></div>' +
+                  '<small>' + _esc(row.count + ' pedido(s) · ' + pct.toFixed(1) + '% das vendas') + '</small>' +
+                '</div>' +
+                '<div class="perf-channel-metric-row">' +
+                  '<span>Vendas</span>' +
+                  '<div class="perf-channel-bar-track"><i style="width:' + valueWidth.toFixed(4) + '%;background:' + color + ';"></i></div>' +
+                  '<strong>' + _fmtMoney(value) + '</strong>' +
+                '</div>' +
+                '<div class="perf-channel-metric-row profit">' +
+                  '<span>Lucro</span>' +
+                  '<div class="perf-channel-bar-track"><i class="' + (profit >= 0 ? 'positive' : 'negative') + '" style="width:' + profitWidth.toFixed(4) + '%;"></i></div>' +
+                  '<strong class="' + (profit >= 0 ? 'positive' : 'negative') + '">' + _fmtMoney(profit) + '</strong>' +
+                '</div>' +
+                '<div class="perf-channel-bar-foot">Margem estimada: ' + margin.toFixed(1).replace('.', ',') + '%</div>' +
+              '</article>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+
   function _barList(rows, color, valueFormatter) {
     var max = rows.reduce(function (m, row) { return Math.max(m, row.value || 0); }, 0) || 1;
     return '<div class="perf-bar-list">' + rows.map(function (row) {
@@ -1096,11 +1163,13 @@ Modules.Performance = (function () {
     }).join('') + '</div>';
   }
 
-  function _miniMetric(label, value, tone) {
+  function _miniMetric(label, value, tone, bg, tag) {
+    bg = bg || '#fff';
     return '' +
-      '<div class="perf-mini-metric">' +
+      '<div class="perf-mini-metric" style="background:' + _esc(bg) + ';">' +
         '<span>' + _esc(label) + '</span>' +
         '<strong style="color:' + tone + ';">' + _esc(value) + '</strong>' +
+        (tag ? '<small style="display:block;margin-top:5px;color:#6F6860;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.035em;">' + _esc(tag) + '</small>' : '') +
       '</div>';
   }
 
@@ -1178,14 +1247,81 @@ Modules.Performance = (function () {
     (orders || []).forEach(function (o) {
       var key = _normalizeChannelKey(o.channel || o.source || '');
       if (allowed && !allowed[key]) return;
-      if (!map[key]) map[key] = { key: key, label: _channelDisplay(key), value: 0, count: 0 };
+      if (!map[key]) map[key] = { key: key, label: _channelDisplay(key), value: 0, profit: 0, count: 0 };
       map[key].value += _num(o.value || o.total || o.finalSubtotal || o.subtotal);
+      map[key].profit += _num(o.profit);
       map[key].count += 1;
     });
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.value - a.value; }).map(function (row) {
       row.note = row.count + ' pedido(s)';
+      row.marginPct = row.value > 0 ? (row.profit / row.value) * 100 : 0;
       return row;
     });
+  }
+
+  function _orderEstimatedProfit(order) {
+    order = order || {};
+    var direct = _firstNumber(
+      order.profit,
+      order.lucro,
+      order.orderProfit,
+      order.estimatedProfit,
+      order.profitAmount,
+      order.marginValue,
+      order.grossProfit,
+      order.netProfit
+    );
+    if (direct !== null) return direct;
+    var revenue = _num(order.finalSubtotal != null ? order.finalSubtotal : order.total != null ? order.total : order.subtotal);
+    var explicitCost = _firstNumber(
+      order.totalCost,
+      order.costTotal,
+      order.custoTotal,
+      order.productCostTotal,
+      order.ingredientsCostTotal,
+      order.recipeCostTotal,
+      order.productionCostTotal
+    );
+    var itemCost = explicitCost !== null ? explicitCost : _orderItemsCost(order);
+    var feesTotal = _firstNumber(order.channelFeeTotal, order.channelFeesTotal, order.importedFeeTotal, order.feesTotal);
+    var discountTotal = _firstNumber(order.discountTotal, order.discount);
+    var fees = feesTotal !== null ? feesTotal : _sumNumbers(order.channelCommissionAmount, order.channelCommissionTotal, order.channelFixedFeeAmount);
+    var discounts = discountTotal !== null ? discountTotal : _sumNumbers(order.couponDiscount, order.couponDiscountTotal, order.promotionDiscount, order.promotionDiscountTotal, order.pointsDiscount, order.pointsDiscountTotal);
+    return revenue - itemCost - fees - discounts;
+  }
+
+  function _orderItemsCost(order) {
+    var items = order && (order.items || order.itens || order.products || order.cartItems) || [];
+    if (!Array.isArray(items)) return 0;
+    return items.reduce(function (sum, item) {
+      item = item || {};
+      var qty = _num(item.quantity != null ? item.quantity : item.qty != null ? item.qty : item.quantidade != null ? item.quantidade : 1) || 1;
+      var unitCost = _firstNumber(item.unitCost, item.cost, item.custo, item.recipeCost, item.productionCost, item.averageCost);
+      var totalCost = _firstNumber(item.totalCost, item.costTotal, item.custoTotal);
+      if (totalCost !== null) return sum + totalCost;
+      return sum + (unitCost !== null ? unitCost * qty : 0);
+    }, 0);
+  }
+
+  function _firstNumber() {
+    for (var i = 0; i < arguments.length; i++) {
+      if (arguments[i] === undefined || arguments[i] === null || arguments[i] === '') continue;
+      var raw = arguments[i];
+      if (typeof raw === 'string' && !/[0-9]/.test(raw)) continue;
+      var n = _num(raw);
+      if (!isNaN(n)) return n;
+    }
+    return null;
+  }
+
+  function _sumNumbers() {
+    var sum = 0;
+    for (var i = 0; i < arguments.length; i++) {
+      if (arguments[i] === undefined || arguments[i] === null || arguments[i] === '') continue;
+      if (typeof arguments[i] === 'string' && !/[0-9]/.test(arguments[i])) continue;
+      sum += _num(arguments[i]);
+    }
+    return sum;
   }
 
   function _categoryBreakdown(rows, kind) {
@@ -1226,12 +1362,24 @@ Modules.Performance = (function () {
     var monthFactor = _incomePlanMonthFactor(snapshot);
     var configured = _configuredChannelMetaMap();
     var map = {};
+    var aliases = {};
 
-    function ensure(key, label, note) {
-      key = key || _normalizeCategoryKey(label || 'entradas');
-      if (!map[key]) {
-        map[key] = {
-          key: key,
+    function registerAlias(source, target) {
+      source = _normalizeCategoryKey(source || '');
+      target = _normalizeCategoryKey(target || '');
+      if (source && target) aliases[source] = target;
+    }
+
+    function resolveKey(key) {
+      key = _normalizeCategoryKey(key || '');
+      return aliases[key] || key;
+    }
+
+    function ensure(key, label, note, aliasList) {
+      var canonical = resolveKey(key || label || 'entradas') || _normalizeCategoryKey(label || 'entradas');
+      if (!map[canonical]) {
+        map[canonical] = {
+          key: canonical,
           label: label || 'Entradas',
           planned: 0,
           actual: 0,
@@ -1240,7 +1388,10 @@ Modules.Performance = (function () {
           actualItems: []
         };
       }
-      return map[key];
+      (aliasList || []).concat([key, label]).forEach(function (alias) {
+        registerAlias(alias, canonical);
+      });
+      return map[canonical];
     }
 
     (Array.isArray(snapshot.channels) ? snapshot.channels : []).forEach(function (ch) {
@@ -1250,10 +1401,11 @@ Modules.Performance = (function () {
       var categoryLabel = ch.incomeCategoryName || ch.entradaCategoriaNome || ch.categoriaEntradaNome ||
         meta.incomeCategoryName || meta.entradaCategoriaNome || meta.categoriaEntradaNome ||
         meta.categoryName || meta.categoriaFinanceiraNome || ch.label || ch.name || _channelDisplay(key);
-      var categoryKey = _normalizeCategoryKey(ch.incomeCategoryId || ch.entradaCategoriaId || meta.incomeCategoryId || meta.entradaCategoriaId || categoryLabel);
+      var categoryId = ch.incomeCategoryId || ch.entradaCategoriaId || meta.incomeCategoryId || meta.entradaCategoriaId || '';
+      var categoryKey = _normalizeCategoryKey(categoryId || categoryLabel);
       var planned = _num(ch.baseMonthly) * monthFactor;
       if (!(planned > 0)) return;
-      var row = ensure(categoryKey, _normalizeCategoryName(categoryLabel), 'Previsão de entrada por categoria da rota.');
+      var row = ensure(categoryKey, _normalizeCategoryName(categoryLabel), 'Previsão de entrada por categoria da rota.', [categoryId, categoryLabel, key, ch.label, ch.name, _channelDisplay(key)]);
       row.planned += planned;
       row.plannedItems.push({
         name: ch.label || ch.name || _channelDisplay(key),
@@ -1266,8 +1418,9 @@ Modules.Performance = (function () {
       var amount = _cashFlowAmount(r);
       if (amount <= 0) return;
       var label = r.category && r.category !== 'Sem categoria' ? r.category : _channelDisplay(r.channel || r.source || '');
-      var key = _normalizeCategoryKey(r.category && r.category !== 'Sem categoria' ? r.category : label);
-      var row = ensure(key, label || 'Sem categoria', 'Entrada realizada no período.');
+      var categoryId = r.categoryId || r.categoriaId || r.categoriaFinanceiraId || r.financialCategoryId || '';
+      var key = resolveKey(categoryId || (r.category && r.category !== 'Sem categoria' ? r.category : label));
+      var row = ensure(key, label || 'Sem categoria', 'Entrada realizada no período.', [categoryId, label, r.channel, r.source]);
       row.actual += amount;
       row.actualItems.push({
         name: r.description || r.customer || r.channel || 'Entrada',
@@ -1539,11 +1692,13 @@ Modules.Performance = (function () {
         date: day,
         dateKey: key,
         labelDate: UI.fmtDate(day),
+        weekdayLabel: _weekdayLabel(day),
         sales: daySales,
         entries: dayEntries,
         exits: dayExits,
         accumSales: cumulative,
         targetDaily: targetDaily,
+        weight: _num(planRow.weight),
         expectedUpTo: expectedUpTo,
         needPerDay: needPerDay,
         balanceDay: balanceDay,
@@ -1671,7 +1826,7 @@ Modules.Performance = (function () {
     var totals = {};
     var active = [];
     (orders || []).forEach(function (order) {
-      var date = _dateFromTs(_ts(order.createdAt || order.updatedAt || order.date));
+      var date = _orderPerformanceDate(order);
       if (!date) return;
       var day = date.getDay();
       totals[day] = _num(totals[day]) + _num(order.value || order.total || order.finalSubtotal || order.subtotal);
@@ -1948,19 +2103,22 @@ Modules.Performance = (function () {
   function _ordersInRange(start, end) {
     var channel = _state.channel;
     return (_data.orders || []).filter(function (o) {
-      var ts = _ts(o.createdAt || o.updatedAt || o.date);
+      var date = _orderPerformanceDate(o);
+      var ts = date ? date.getTime() : 0;
       if (!ts) return false;
       if (ts < start.getTime() || ts > end.getTime()) return false;
       if (_isCancelledOrder(o)) return false;
       if (channel !== 'all' && _normalizeChannelKey(o.channel || o.source || '') !== channel) return false;
       return true;
     }).map(function (o) {
+      var date = _orderPerformanceDate(o);
       return {
         id: String(o.id || ''),
-        date: _dateFromTs(_ts(o.createdAt || o.updatedAt || o.date)),
-        dateKey: _dateKey(_dateFromTs(_ts(o.createdAt || o.updatedAt || o.date))),
-        labelDate: UI.fmtDate(_dateFromTs(_ts(o.createdAt || o.updatedAt || o.date))),
+        date: date,
+        dateKey: _dateKey(date),
+        labelDate: UI.fmtDate(date),
         value: _num(o.finalSubtotal != null ? o.finalSubtotal : o.total != null ? o.total : o.subtotal),
+        profit: _orderEstimatedProfit(o),
         channel: _normalizeChannelKey(o.channel || o.source || ''),
         channelLabel: _channelDisplay(_normalizeChannelKey(o.channel || o.source || '')),
         status: _normalizeText(o.status || ''),
@@ -1968,6 +2126,25 @@ Modules.Performance = (function () {
         raw: o
       };
     }).sort(function (a, b) { return b.dateKey.localeCompare(a.dateKey); });
+  }
+
+  function _orderPerformanceDate(order) {
+    order = order || {};
+    return _dateFromOrderField(
+      order.analyticsDate ||
+      order.orderDate ||
+      order.dataPedido ||
+      order.saleDate ||
+      order.createdDate ||
+      order.orderDateTime ||
+      order.data ||
+      order.date ||
+      order.deliveryDate ||
+      order.pickupDate ||
+      order.scheduleDate ||
+      order.createdAt ||
+      order.updatedAt
+    );
   }
 
   function _entriesInRange(start, end) {
@@ -2080,7 +2257,7 @@ Modules.Performance = (function () {
     var seen = {};
     list.forEach(function (ch) {
       var name = ch && (ch.name || ch.label || ch.key);
-      var key = _normalizeChannelKey(name);
+      var key = _normalizeChannelKey(name || ch && (ch.key || ch.value) || '');
       if (!key || seen[key]) return;
       seen[key] = true;
       out.push({
@@ -2131,9 +2308,12 @@ Modules.Performance = (function () {
   }
 
   function _normalizeChannelKey(v) {
-    var key = _normalizeText(v || '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (!key || key === 'template' || key === 'loja-online' || key === 'loja-publica') return 'cardapio';
-    if (key === 'tpv') return 'venda-presencial';
+    var text = _normalizeText(v || '');
+    if (text.normalize) text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var key = text.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (!key || key === 'template' || key === 'store' || key === 'storefront' || key === 'public' || key === 'loja-online' || key === 'loja-publica' || key === 'cardapio-publico') return 'cardapio';
+    if (key === 'cardapio') return 'cardapio';
+    if (key === 'tpv' || key === 'pos' || key === 'balcao' || key === 'venda-presencial') return 'venda-presencial';
     return key;
   }
 
@@ -2213,10 +2393,33 @@ Modules.Performance = (function () {
     return _dateFromTs(_ts(value));
   }
 
+  function _dateFromOrderField(value) {
+    if (!value) return null;
+    if (value instanceof Date) return isFinite(value.getTime()) ? value : null;
+    if (value && typeof value.toDate === 'function') return value.toDate();
+    var raw = String(value || '').trim();
+    var dateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnly) {
+      var local = new Date(parseInt(dateOnly[1], 10), parseInt(dateOnly[2], 10) - 1, parseInt(dateOnly[3], 10));
+      return isFinite(local.getTime()) ? local : null;
+    }
+    return _dateFromTs(_ts(raw));
+  }
+
   function _dateKey(date) {
     var d = date instanceof Date ? date : _dateFromTs(_ts(date));
     if (!d) return '';
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function _weekdayLabel(date) {
+    var d = date instanceof Date ? date : _dateFromTs(_ts(date));
+    if (!d) return '';
+    try {
+      return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+    } catch (_) {
+      return ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][d.getDay()] || '';
+    }
   }
 
   function _currentMonthKey() {

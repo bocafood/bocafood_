@@ -942,7 +942,20 @@ Modules.Catalogo = (function () {
 
     var soldRows = rows.filter(function (row) { return row.currentRevenue > 0 || row.currentQty > 0; });
     var totalCurrentRevenue = soldRows.reduce(function (sum, row) { return sum + row.currentRevenue; }, 0);
-    var averageCurrentRevenue = soldRows.length ? totalCurrentRevenue / soldRows.length : 0;
+    function median(values) {
+      values = (values || []).filter(function (value) { return isFinite(value) && value > 0; }).sort(function (a, b) { return a - b; });
+      if (!values.length) return 0;
+      var mid = Math.floor(values.length / 2);
+      return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+    }
+    soldRows.forEach(function (row) {
+      row.orderCount = Object.keys(row.orderHits || {}).length;
+      row.growthPercent = row.previousRevenue > 0 ? ((row.currentRevenue - row.previousRevenue) / row.previousRevenue) * 100 : (row.currentRevenue > 0 ? 100 : 0);
+    });
+    var dynamicRevenueLine = median(soldRows.map(function (row) { return row.currentRevenue; }));
+    var dynamicQtyLine = median(soldRows.map(function (row) { return row.currentQty; }));
+    var dynamicOrderLine = median(soldRows.map(function (row) { return row.orderCount; }));
+    var dynamicGrowthLine = median(soldRows.map(function (row) { return row.growthPercent > 0 ? row.growthPercent : 0; }));
     var buckets = {
       stars: [],
       cash: [],
@@ -952,16 +965,18 @@ Modules.Catalogo = (function () {
 
     rows.forEach(function (row) {
       var share = totalCurrentRevenue > 0 ? row.currentRevenue / totalCurrentRevenue : 0;
-      var highShare = row.currentRevenue > 0 && (row.currentRevenue >= averageCurrentRevenue || share >= 0.18);
+      var highShare = row.currentRevenue > 0 && row.currentRevenue >= dynamicRevenueLine;
       var growthPercent = row.previousRevenue > 0 ? ((row.currentRevenue - row.previousRevenue) / row.previousRevenue) * 100 : (row.currentRevenue > 0 ? 100 : 0);
-      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || growthPercent >= 10);
+      var highGrowth = row.currentRevenue > 0 && (row.previousRevenue <= 0 || growthPercent >= dynamicGrowthLine);
+      var orderCount = Object.keys(row.orderHits || {}).length;
+      var hasSalesBase = (dynamicQtyLine > 0 && row.currentQty > dynamicQtyLine) || (dynamicOrderLine > 0 && orderCount > dynamicOrderLine);
       var marginInfo = _productMarginInfo(row.product);
       row.share = share;
       row.growthPercent = growthPercent;
       row.marginInfo = marginInfo;
-      row.orderCount = Object.keys(row.orderHits || {}).length;
-      if (highShare && highGrowth) buckets.stars.push(row);
-      else if (highShare) buckets.cash.push(row);
+      row.orderCount = orderCount;
+      if (highShare && highGrowth && hasSalesBase) buckets.stars.push(row);
+      else if (highShare && hasSalesBase) buckets.cash.push(row);
       else if (highGrowth) buckets.bets.push(row);
       else buckets.review.push(row);
     });
@@ -4859,12 +4874,73 @@ Modules.Catalogo = (function () {
   }
 
   function _deleteProduct(id) {
-    UI.confirm('Eliminar este produto?').then(function (yes) {
-      if (!yes) return;
-      DB.remove('products', id).then(function () {
-        UI.toast('Produto eliminado', 'info');
-        _renderProdutos();
-      });
+    _openProductDeleteConfirm(Array.isArray(id) ? id : [id]);
+  }
+
+  function _openProductDeleteConfirm(ids) {
+    ids = (ids || []).map(String).filter(Boolean);
+    if (!ids.length) {
+      UI.toast('Nenhum produto selecionado para excluir.', 'warning');
+      return;
+    }
+    var selected = ids.map(function (id) {
+      return _products.find(function (p) { return String(p.id) === String(id); }) || { id: id, name: 'Produto não encontrado' };
+    });
+    var count = selected.length;
+    var expected = count > 1 ? ('EXCLUIR ' + count) : 'EXCLUIR';
+    var titleText = count > 1 ? 'Essa ação remove ' + count + ' produtos do Cardápio.' : 'Essa ação remove o produto do Cardápio.';
+    var productsHtml = selected.slice(0, 6).map(function (product) {
+      return '<li style="margin:3px 0;">' + _esc(product.name || product.id || 'Produto') + '</li>';
+    }).join('') + (count > 6 ? '<li style="margin:3px 0;color:#7A746B;">+' + (count - 6) + ' produto(s)</li>' : '');
+    var body = '<div style="display:grid;gap:14px;font-family:Manrope,Inter,sans-serif;">' +
+      '<div style="background:#FFF3F1;border:1px solid #F1C3BD;border-radius:14px;padding:13px 14px;color:#7A271A;font-size:13px;line-height:1.45;">' +
+        '<strong style="display:block;color:#B42318;font-size:14px;margin-bottom:4px;">' + _esc(titleText) + '</strong>' +
+        '<ul style="margin:7px 0 8px;padding-left:18px;">' + productsHtml + '</ul>' +
+        'Para confirmar, responda digitando <strong>' + _esc(expected) + '</strong> no campo abaixo.' +
+      '</div>' +
+      '<label style="display:grid;gap:6px;font-size:12px;font-weight:700;color:#6F6860;text-transform:uppercase;letter-spacing:.02em;">Resposta de confirmação' +
+        '<input id="product-delete-confirm-input" autocomplete="off" placeholder="Digite ' + _esc(expected) + '" oninput="Modules.Catalogo._syncProductDeleteConfirm()" style="width:100%;box-sizing:border-box;height:42px;padding:10px 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;color:#1F1F1F;font-size:14px;font-family:inherit;outline:none;">' +
+      '</label>' +
+    '</div>';
+    var footer = '<button type="button" onclick="window._productDeleteConfirmModal && window._productDeleteConfirmModal.close()" style="height:38px;padding:0 14px;border:1px solid #E8DCD7;border-radius:10px;background:#fff;color:#6F6860;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+      '<button type="button" id="product-delete-confirm-btn" disabled onclick="Modules.Catalogo._confirmDeleteProduct()" style="height:38px;padding:0 14px;border:none;border-radius:10px;background:#D8CEC8;color:#fff;font-size:13px;font-weight:700;cursor:not-allowed;font-family:inherit;">' + (count > 1 ? 'Excluir produtos' : 'Excluir produto') + '</button>';
+    window._pendingProductDeleteIds = ids;
+    window._pendingProductDeleteAnswer = expected;
+    window._productDeleteConfirmModal = UI.modal({ title: 'Confirmar exclusão do produto', body: body, footer: footer, maxWidth: '520px' });
+    setTimeout(function () {
+      var input = document.getElementById('product-delete-confirm-input');
+      if (input) input.focus();
+      _syncProductDeleteConfirm();
+    }, 50);
+  }
+
+  function _syncProductDeleteConfirm() {
+    var input = document.getElementById('product-delete-confirm-input');
+    var btn = document.getElementById('product-delete-confirm-btn');
+    if (!btn) return;
+    var expected = String(window._pendingProductDeleteAnswer || 'EXCLUIR').toUpperCase();
+    var ok = String(input && input.value || '').trim().toUpperCase() === expected;
+    btn.disabled = !ok;
+    btn.style.background = ok ? '#B42318' : '#D8CEC8';
+    btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+  }
+
+  function _confirmDeleteProduct() {
+    var ids = (window._pendingProductDeleteIds || []).map(String).filter(Boolean);
+    var input = document.getElementById('product-delete-confirm-input');
+    var expected = String(window._pendingProductDeleteAnswer || 'EXCLUIR').toUpperCase();
+    if (!ids.length || String(input && input.value || '').trim().toUpperCase() !== expected) {
+      UI.toast('Digite ' + expected + ' para confirmar.', 'warning');
+      return;
+    }
+    Promise.all(ids.map(function (id) { return DB.remove('products', id); })).then(function () {
+      if (window._productDeleteConfirmModal && typeof window._productDeleteConfirmModal.close === 'function') window._productDeleteConfirmModal.close();
+      window._pendingProductDeleteIds = [];
+      window._pendingProductDeleteAnswer = '';
+      UI.toast(ids.length > 1 ? 'Produtos eliminados' : 'Produto eliminado', 'info');
+      _renderProdutos();
+    }).catch(function (err) {
+      UI.toast('Erro ao excluir produto: ' + (err && err.message ? err.message : err), 'error');
     });
   }
 
@@ -7009,6 +7085,14 @@ Modules.Catalogo = (function () {
       DB.getAll('promocoes').catch(function () { return []; }),
       DB.getAll('orders').catch(function () { return []; })
     ]).then(function (results) {
+      var requestedTemplateTab = '';
+      try {
+        requestedTemplateTab = window.sessionStorage ? String(sessionStorage.getItem('boca_template_initial_tab') || '') : '';
+        if (requestedTemplateTab) sessionStorage.removeItem('boca_template_initial_tab');
+      } catch (err) {}
+      if ({ identidade: true, vitrine: true, operacao: true, atendimento: true, checkout: true, textos: true }[requestedTemplateTab]) {
+        _templateActiveTab = requestedTemplateTab;
+      }
       if (window.sessionStorage && sessionStorage.getItem('bf_stripe_connect_refresh') === '1') {
         _templateActiveTab = 'checkout';
       }
@@ -8869,11 +8953,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
         (_categories.length === 0 ? '<div class="catalog-config-empty">Nenhuma categoria ainda</div>' :
           '<div id="cat-list" class="catalog-config-list">' +
           _categories.map(function (c) {
+            var subtitle = c.subtitle || c.subtitulo || c.shortDescription || '';
             return '<div draggable="true" data-id="' + c.id + '" class="catalog-config-item">' +
               '<span class="mi catalog-config-drag">drag_indicator</span>' +
               '<div class="catalog-config-copy">' +
                 '<strong>' + _esc(c.name) + '</strong>' +
-                '<small>Categoria visível no cardápio da loja.</small>' +
+                '<small>' + _esc(subtitle || 'Categoria visível no cardápio da loja.') + '</small>' +
               '</div>' +
               '<div class="catalog-config-actions">' +
                 '<button class="catalog-config-icon-btn" onclick="Modules.Catalogo._openCatModal(\'' + c.id + '\')"><span class="mi">edit</span></button>' +
@@ -8898,15 +8983,17 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     }
   }
 
-  function _openCatModal(id) {
-    _editingId = id;
-    var c = id ? (_categories.find(function (x) { return x.id === id; }) || {}) : {};
-    window._catDraftId = id || _newEntityId('cat');
-    var body = '<div class="catalog-config-modal-card">' +
-      '<div class="catalog-config-grid">' +
-        '<label class="catalog-config-field-full" style="display:block;"><span style="' + _labelStyle() + '">Nome da categoria *</span><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></label>' +
-      '</div>' +
-      '</div>';
+	  function _openCatModal(id) {
+	    _editingId = id;
+	    var c = id ? (_categories.find(function (x) { return x.id === id; }) || {}) : {};
+	    window._catDraftId = id || _newEntityId('cat');
+	    var subtitle = c.subtitle || c.subtitulo || c.shortDescription || '';
+	    var body = '<div class="catalog-config-modal-card">' +
+	      '<div class="catalog-config-grid">' +
+	        '<label class="catalog-config-field-full" style="display:block;"><span style="' + _labelStyle() + '">Nome da categoria *</span><input id="cat-name" type="text" value="' + _esc(c.name || '') + '" style="' + _inputStyle() + '"></label>' +
+	        '<label class="catalog-config-field-full" style="display:block;"><span style="' + _labelStyle() + '">Subtítulo opcional</span><input id="cat-subtitle" type="text" maxlength="90" value="' + _esc(subtitle) + '" placeholder="Ex.: Para pedir sem pensar" style="' + _inputStyle() + '"><small style="display:block;margin-top:5px;font-size:11px;color:#8A7E7C;line-height:1.35;">Aparece abaixo do nome da categoria na loja pública.</small></label>' +
+	      '</div>' +
+	      '</div>';
 
     var footer = '<button onclick="Modules.Catalogo._saveCat()" style="height:40px;padding:0 14px;border-radius:10px;border:none;background:#B42318;color:#fff;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 4px 12px rgba(180,35,24,.18);font-family:inherit;">' + (id ? 'Salvar categoria' : 'Adicionar categoria') + '</button>';
     window._catModal = UI.modal({ title: id ? 'Editar categoria' : 'Nova categoria', body: body, footer: footer });
@@ -9051,11 +9138,12 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     return updates;
   }
 
-  function _saveCat() {
-    var name = (document.getElementById('cat-name') || {}).value || '';
-    if (!name) { UI.toast('Nome e obrigatorio', 'error'); return; }
-    var data = { name: name };
-    var catId = _editingId || window._catDraftId || _newEntityId('cat');
+	  function _saveCat() {
+	    var name = (document.getElementById('cat-name') || {}).value || '';
+	    var subtitle = String((document.getElementById('cat-subtitle') || {}).value || '').trim();
+	    if (!name) { UI.toast('Nome e obrigatorio', 'error'); return; }
+	    var data = { name: name, subtitle: subtitle, subtitulo: subtitle, shortDescription: subtitle };
+	    var catId = _editingId || window._catDraftId || _newEntityId('cat');
     data.id = catId;
     var op = _editingId ? DB.update('categories', _editingId, data) : DB.set('categories', catId, data);
     op.then(function () {
@@ -12593,7 +12681,7 @@ address: _val('tpl-address'), number: _val('tpl-number'), numero: _val('tpl-numb
     _uploadStoreImage: _uploadStoreImage, _saveTemplateLoja: _saveTemplateLoja, _saveSeoLoja: _saveSeoLoja,
     _connectCheckoutStripe: _connectCheckoutStripe,
     _clearStoreImage: _clearStoreImage,
-    _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
+    _openProductModal: _openProductModal, _toggleVis: _toggleVis, _saveProduct: _saveProduct, _deleteProduct: _deleteProduct, _syncProductDeleteConfirm: _syncProductDeleteConfirm, _confirmDeleteProduct: _confirmDeleteProduct, _duplicateProduct: _duplicateProduct, _openImportProducts: _openImportProducts, _filterProdutos: _filterProdutos, _setProductFilter: _setProductFilter, _setProductSort: _setProductSort, _setProductPage: _setProductPage, _setProductPageSize: _setProductPageSize, _clearProductFilters: _clearProductFilters, _quickUpdateProduct: _quickUpdateProduct, _moveProductInCategory: _moveProductInCategory,
     _setCatalogSalesFilter: _setCatalogSalesFilter, _setCatalogSalesSearch: _setCatalogSalesSearch, _clearCatalogSalesFilters: _clearCatalogSalesFilters, _setCatalogSalesPage: _setCatalogSalesPage, _setCatalogSalesPageSize: _setCatalogSalesPageSize, _setPerformanceTab: _setPerformanceTab, _openCatalogBcgBucket: _openCatalogBcgBucket,
     _setCatalogForecastFilter: _setCatalogForecastFilter, _clearCatalogForecastFilters: _clearCatalogForecastFilters, _setCatalogForecastPage: _setCatalogForecastPage, _setCatalogForecastPageSize: _setCatalogForecastPageSize, _openCatalogForecastDetails: _openCatalogForecastDetails,
     _openProductsMoreFilters: _openProductsMoreFilters,

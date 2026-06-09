@@ -9,6 +9,7 @@
     "source": "functions"
   },
   "hosting": {
+    "site": "bocado-brasil",
     "public": "public",
     "rewrites": [
       {

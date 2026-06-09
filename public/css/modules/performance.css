@@ -151,6 +151,61 @@
   margin: 18px 24px 0;
 }
 
+.perf-loading-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 138px;
+  padding: 20px;
+  border: 1px solid #EAE4DA;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 252, 248, .92) 100%);
+  box-shadow: 0 14px 36px rgba(31, 31, 31, .055);
+}
+
+.perf-loading-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  color: #B42318;
+  background: #FFF0EE;
+  border: 1px solid #F8D1CC;
+}
+
+.perf-loading-icon .mi {
+  font-size: 24px;
+}
+
+.perf-loading-card span:not(.mi) {
+  display: block;
+  margin-bottom: 4px;
+  color: #8A7E7C;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.perf-loading-card h2 {
+  margin: 0;
+  color: #1F1F1F;
+  font-size: 20px;
+  font-weight: 720;
+  line-height: 1.18;
+}
+
+.perf-loading-card p {
+  margin: 6px 0 0;
+  max-width: 560px;
+  color: #6F6860;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .perf-tabs-wrap {
   display: flex;
   align-items: center;
@@ -635,6 +690,156 @@
   white-space: nowrap;
 }
 
+.perf-channel-share {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.perf-channel-share-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.perf-channel-share-top span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.perf-channel-share-top strong {
+  color: var(--dark);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.perf-channel-share-top strong.positive {
+  color: #1F6F43;
+}
+
+.perf-channel-share-top strong.negative {
+  color: #B42318;
+}
+
+.perf-channel-bars {
+  display: grid;
+  gap: 11px;
+}
+
+.perf-channel-bar-item {
+  display: grid;
+  gap: 9px;
+  border: 1px solid #EAE4DA;
+  background: rgba(255, 255, 255, .84);
+  border-radius: 14px;
+  padding: 12px;
+  min-width: 0;
+}
+
+.perf-channel-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.perf-channel-bar-head > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perf-channel-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.perf-channel-bar-head strong {
+  display: block;
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perf-channel-bar-head small {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.perf-channel-metric-row {
+  display: grid;
+  grid-template-columns: 54px minmax(120px, 1fr) minmax(82px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.perf-channel-metric-row span {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 760;
+}
+
+.perf-channel-metric-row strong {
+  color: var(--dark);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.perf-channel-metric-row strong.positive {
+  color: #1F6F43;
+}
+
+.perf-channel-metric-row strong.negative {
+  color: #B42318;
+}
+
+.perf-channel-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #EFE8DD;
+  overflow: hidden;
+  border: 1px solid rgba(234, 228, 218, .82);
+}
+
+.perf-channel-bar-track i {
+  display: block;
+  min-width: 2px;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.perf-channel-bar-track i.positive {
+  background: #1F6F43;
+}
+
+.perf-channel-bar-track i.negative {
+  background: #B42318;
+}
+
+.perf-channel-bar-foot {
+  color: #8A7E7C;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding-left: 64px;
+}
+
 .perf-empty-state {
   text-align: center;
   padding: 34px 24px;
@@ -732,5 +937,18 @@
 
   .perf-bar-value {
     font-size: 16px;
+  }
+
+  .perf-channel-metric-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .perf-channel-metric-row strong {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .perf-channel-bar-foot {
+    padding-left: 0;
   }
 }

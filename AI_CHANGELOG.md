@@ -1,5 +1,66 @@
 # AI Changelog
 
+## 2026-06-09 — Landing3: seção da fundadora
+- Arquivos alterados: `public/index.html`, `public/landing.html`, `public/landing3.html`, `AI_CHANGELOG.md`.
+- Incluí a seção `Quem está por trás do BocaFood` antes de `Como funciona`, com narrativa da Pathy e espaço lateral para foto.
+- Alinhei `/`, `/landing.html` e `/landing3.html` para carregarem a mesma versão da landing.
+- O bloco usa layout em duas colunas no desktop e reposiciona a imagem no mobile.
+- Impacto esperado: reforçar autoridade e identificação com a história real por trás do BocaFood antes de apresentar os motores do sistema.
+
+## 2026-06-09 — Temporadas: Próxima Jogada por motor simples
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Troquei a geração da Próxima Jogada para um motor local determinístico (`simple-rules-v1`), sem deixar a IA escolher ação, produto ou complemento.
+- A escolha agora usa uma base menor: objetivo, estratégia, dificuldade, produtos vendidos/cadastrados, margem estimada, complemento real e bloqueios ativos.
+- O painel passa a renderizar uma ficha `simplePlay` com ação única, produto, onde fazer, público, passos, métrica e travas da jogada.
+- Removi da visualização da ficha os blocos internos de objetivo, estratégia, dificuldade e travas; esses dados ficam só como regra interna.
+- Ajustei a leitura da semana para não exibir mais objetivo, estratégia ou dificuldade como camada visível.
+- A hierarquia de fontes da jogada ficou técnica e interna: pedidos, catálogo, bloqueios e margem, sem expor os critérios como blocos de decisão na tela.
+- Removi o rótulo `Próxima Jogada` da superfície do módulo e padronizei a navegação e a ajuda para `Leitura da temporada`.
+- Removi a aba separada de leitura/executação e movi o card `Leitura da semana` para a `Visão Geral`.
+- O bloco `Venda do período` saiu de card separado e passou a viver dentro do `Resumo da temporada`.
+- Mantive snapshots, cache de recomendação, bloqueio de produto com jogada aberta e reaproveitamento de recomendação enquanto a jogada segue em leitura.
+- Impacto esperado: reduzir sugestões repetidas ou vagas e tornar a Próxima Jogada mais previsível, auditável e específica.
+
+## 2026-06-09 — Temporadas: bloquear produto já usado na Próxima Jogada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Corrigi a geração de candidatos para bloquear também o produto envolvido em jogada aberta, em leitura ou ação ativa, mesmo quando o tipo da próxima sugestão muda.
+- Ações ativas como promoção, cupom e upsell passam a entrar como bloqueio, não como candidato de nova jogada.
+- Removi o fallback que podia escolher o primeiro produto do catálogo sem passar pela trava de bloqueio.
+- Atualizei o cache-buster de `temporadas.js` no Admin.
+- Impacto esperado: evitar casos como sair de `2x1 em Coxinha` para outra jogada com Coxinha, como combo ou upsell, enquanto a ação atual ainda está aberta.
+
+## 2026-06-09 — Temporadas: candidatos e bloqueios para Próxima Jogada
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `functions/index.js`, `AI_CHANGELOG.md`.
+- Criei uma camada determinística de `actionGuardrails` antes da IA, com `blockedActions` para jogadas já abertas/em leitura e `candidateActions` com caminhos permitidos.
+- A IA passa a receber uma lista curta de candidatos permitidos e instruções para copiar `candidateId`, em vez de decidir livremente a partir de todo o contexto.
+- Promoções, cupons e upsells já usados em jogada aberta ficam bloqueados pelo nome/código mesmo quando o produto varia, evitando repetir casos como `2x1` em outra Coxinha.
+- Combo/Menu e Upsell só entram como candidatos quando existe complemento real identificado; respostas sem `combinationName` específico são rejeitadas.
+- Adicionei validação no frontend e no endpoint `seasonsAiRecommendation` para recusar respostas fora dos candidatos, repetidas por bloqueio ou incompletas.
+- Reduzi parte do contexto sanitizado enviado à IA, priorizando candidatos, bloqueios e poucos produtos/públicos relevantes.
+- Impacto esperado: Próxima Jogada mais específica, menos repetição de ações já em uso e menos respostas abertas para a usuária decidir o complemento.
+
+## 2026-06-08 — Temporadas: evitar novo disparo de IA com jogada aberta
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Investiguei o tenant Bocado Brasil e confirmei que a temporada ativa `YJGzLDqKogA1jal7I6qu` tinha uma tarefa aberta em `result_in_progress`, mas o snapshot diário de `2026-06-08` recebeu nova recomendação de IA.
+- A causa encontrada foi o refresh do snapshot: quando métricas ou tarefas mudavam, o código apagava `aiRecommendation`; em seguida, a rotina interpretava o snapshot como sem recomendação e disparava IA com motivo `first_daily_snapshot`.
+- Ajustei o refresh para preservar a recomendação e os metadados de IA quando a mesma jogada continua aberta, pendente, feita manualmente ou em leitura de resultado.
+- Atualizei o cache-buster de `temporadas.js` no Admin para carregar a correção.
+- Impacto esperado: evitar consumo e troca indevida da Próxima Jogada enquanto a jogada atual ainda está aberta ou em leitura.
+
+## 2026-06-08 — Landing: alinhar página principal com landing3
+- Arquivos alterados: `public/index.html`, `public/landing.html`, `public/landing3.html`, `AI_CHANGELOG.md`.
+- Confirmei que `https://bocado-brasil.web.app/landing3.html` estava igual ao arquivo local, mas a raiz `/` e `/landing.html` ainda serviam a versão de `public/index.html`.
+- Copiei o conteúdo aprovado de `public/landing3.html` para `public/index.html` e `public/landing.html`, deixando as três entradas públicas com a mesma versão da landing.
+- Impacto esperado: a página principal do Hosting, `/landing.html` e `/landing3.html` passam a carregar a mesma landing revisada.
+
+## 2026-06-08 — Landing3: copy, CTA e Google Analytics
+- Arquivos alterados: `public/landing3.html`, `firebase.json`, `AI_CHANGELOG.md`.
+- Ajustei a seção de preços da landing para reduzir repetição, mantendo a explicação do teste, rotina, planilhas e plano completo em uma sequência mais clara.
+- Reposicionei o CTA `Entre para descobrir o que o seu negócio precisa agora` como bloco intermediário após a seção `Além dos motores`, antes da leitura rápida.
+- Adicionei a tag GA4 `G-1BYKQWDDWY` e eventos para cliques em CTAs Hotmart, FAQ, âncoras, contato por e-mail, visualização de seções, profundidade de scroll e interações do quiz.
+- Fixei o Site ID `bocado-brasil` em `firebase.json` para o Firebase Hosting resolver o alvo de deploy corretamente.
+- Impacto esperado: publicar uma versão mais rastreável da landing3, com melhor leitura da jornada e eventos de conversão/engajamento no Google Analytics.
+
 ## 2026-06-06 — Temporadas: jogadas sem critério de horário
 - Arquivos alterados: `public/js/modules/temporadas.js`, `public/js/services/seasons.ai.js`, `public/admin.html`, `AI_CHANGELOG.md`.
 - Removi horário como critério de geração, priorização, explicação e medição das próximas jogadas de Temporadas.
@@ -12368,6 +12429,155 @@
 - Confirmei que a rota salva preserva período inicial/final, dias de trabalho, dias fechados, pesos mensais, canais, custos variáveis, custos/despesas diretas e resumo financeiro.
 - Ajustei copies pontuais para falar em `negócio` em vez de `loja` na leitura do Plano de Voo e atualizei o onboarding para explicar que venda presencial só entra na previsão quando estiver ativada.
 - Impacto esperado: evitar canal indevido na base da rota, preservar melhor o período da rota nos snapshots e deixar a leitura dos campos mais coerente para a usuária.
+
+## 2026-06-09 — Temporadas V1: resumo da temporada mais compacto
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reduzi os espaços verticais e a altura interna do `Resumo da temporada`.
+- O bloco ficou mais compacto, com menos respiro entre linhas e menor altura nos componentes internos.
+- Mantive o gráfico de `Planejado x realizado` e o avanço da meta, mas com composição mais densa.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: usar menos altura na tela sem perder a leitura principal do resumo.
+
+## 2026-06-09 — Temporadas V1: gráfico de venda do período em largura total
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ampliei a área útil do gráfico `Planejado x realizado` dentro do `Resumo da temporada` para usar quase toda a largura do card.
+- Também estreitei a pílula de `Avanço da meta` para liberar espaço ao conteúdo principal.
+- O bloco de venda agora ocupa mais da linha visual do resumo e fica mais fácil de ler.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: o gráfico ficar mais largo e mais integrado ao card de resumo, sem mudar a altura.
+
+## 2026-06-09 — Temporadas V1: avanço da meta mais estreito
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reduzi a largura do bloco de `Avanço da meta` dentro do `Resumo da temporada`.
+- O indicador agora ocupa só o necessário para comportar até três dígitos e o `%`.
+- Mantive a forma arredondada e a leitura limpa, sem espaço sobrando demais na lateral.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: o avanço ficar visualmente mais compacto e proporcional ao conteúdo.
+
+## 2026-06-09 — Temporadas V1: gráfico de venda do período mais largo
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ampliei a largura útil do gráfico `Planejado x realizado` dentro do `Resumo da temporada`.
+- O bloco agora usa melhor a largura disponível do card e o texto acompanha a mesma extensão visual.
+- Também aumentei um pouco o espaçamento e a barra para o gráfico respirar melhor.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: tornar a leitura de venda do período mais clara e mais bem distribuída horizontalmente.
+
+## 2026-06-09 — Temporadas V1: avanço da meta sem linha de contorno
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi a linha/borda interna do bloco de `Avanço da meta` dentro do `Resumo da temporada`.
+- Mantive a forma arredondada e o destaque visual, mas sem o contorno que deixava o bloco mais pesado.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: deixar o avanço mais limpo e mais integrado ao card do resumo.
+
+## 2026-06-09 — Temporadas V1: avanço da meta mais largo
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Aumentei a largura do bloco de `Avanço da meta` dentro do `Resumo da temporada`.
+- O indicador agora ocupa melhor a área horizontal sem ganhar altura.
+- Mantive a forma arredondada e a leitura compacta, só com mais presença visual na largura.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: usar melhor o espaço horizontal disponível no resumo e deixar o avanço mais legível.
+
+## 2026-06-09 — Temporadas V1: avanço da meta mais compacto
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Reduzi a altura do bloco interno de `Avanço da meta` dentro do `Resumo da temporada`.
+- Também aproximei os textos e deixei a moldura mais arredondada, para o indicador parecer mais integrado e menos pesado.
+- Atualizei o cache-buster do CSS no `admin.html` para carregar a versão nova.
+- Impacto esperado: manter o destaque do avanço sem ocupar espaço vertical demais dentro do resumo.
+
+## 2026-06-09 — Temporadas V1: remoção do contêiner branco do avanço
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi a moldura branca externa que envolvia o bloco de `Avanço da meta` dentro do `Resumo da temporada`.
+- O indicador de avanço continua visível, mas agora fica sem um card branco ao redor.
+- Atualizei o cache-buster do CSS no `admin.html` para forçar o carregamento da versão nova.
+- Impacto esperado: deixar o avanço mais integrado ao resumo e eliminar o segundo card branco em volta dele.
+
+## 2026-06-09 — Temporadas V1: restauração do card externo de avanço
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Restaurei o card externo de `Avanço da temporada` na grade da visão geral.
+- O bloco pequeno de avanço dentro do `Resumo da temporada` continua existindo, como leitura compacta do progresso principal.
+- O card externo fica de volta para dar apoio visual sem mexer na estrutura interna do resumo.
+- Atualizei o cache-buster do `admin.html` para carregar a versão restaurada no Admin.
+- Impacto esperado: manter o avanço em dois níveis de leitura, com o card interno e a visão resumida externa.
+
+## 2026-06-09 — Temporadas V1: remoção do card externo de avanço
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o card externo de `Avanço da temporada` da visão geral.
+- O avanço fica apenas no bloco pequeno dentro do `Resumo da temporada`, sem duplicação.
+- Mantive os demais cards e a hierarquia do resumo intactos.
+- Atualizei o cache-buster do `admin.html` para forçar o carregamento da versão nova.
+- Impacto esperado: eliminar a repetição do avanço da meta e liberar espaço na grade de cards.
+
+## 2026-06-09 — Temporadas V1: Restauração do card de avanço
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Restaurei o card externo de `Avanço da temporada` na visão geral.
+- A remoção anterior foi um passo além do que era desejado para a leitura da meta.
+- Mantive o restante da reorganização visual e o avanço continua também destacado no bloco menor do resumo.
+- Atualizei o cache-buster do `admin.html` para carregar a versão restaurada no Admin.
+- Impacto esperado: trazer de volta a comparação visual direta de atual x meta sem mexer no restante da hierarquia.
+
+## 2026-06-09 — Temporadas V1: Remoção do card externo de avanço
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o card externo de `Avanço da temporada` da visão geral.
+- O avanço agora fica concentrado no bloco menor do resumo, sem repetir a mesma ideia em outro card.
+- Isso abre espaço para os demais cards sem perder a leitura do progresso principal.
+- Atualizei o cache-buster do `admin.html` para carregar a versão nova no Admin.
+- Impacto esperado: reduzir redundância e deixar a hierarquia do resumo mais limpa.
+
+## 2026-06-09 — Temporadas V1: Resumo da temporada sem altura extra
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ajustei o `Resumo da temporada` para preencher melhor a largura disponível sem aumentar a altura do card.
+- A coluna lateral voltou de forma compacta, com indicadores organizados hierarquicamente em vez de um bloco alto.
+- Reduzi os tamanhos e os espaçamentos do hero, do bloco de venda e dos cards de leitura para manter a tela mais limpa.
+- Atualizei o cache-buster do `admin.html` para forçar o carregamento da versão nova.
+- Impacto esperado: usar melhor o espaço em branco horizontal e evitar que o resumo ocupe altura demais na página.
+
+## 2026-06-09 — Temporadas V1: Resumo da temporada em escala maior
+- Arquivos alterados: `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Aumentei a área visual do `Resumo da temporada` para ocupar mais espaço e ganhar presença na tela.
+- Subi a escala do título, do texto, do bloco de progresso e do cartão de `Venda do período`.
+- Também ampliei a tipografia e os indicadores dos cards abaixo para o conjunto ficar mais elegante e legível.
+- Atualizei os cache-busters do `admin.html` para carregar a nova folha de estilos e o script atualizados.
+- Impacto esperado: um resumo mais bonito, mais forte visualmente e menos apertado para leitura.
+
+## 2026-06-09 — Temporadas V1: Resumo da temporada sem repetição do HUD
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi a repetição de informações entre o `Resumo da temporada` e os cards do painel.
+- O hero ficou mais enxuto, com leitura principal e venda do período, sem repetir os mesmos números que já aparecem nos cards abaixo.
+- Mantive a composição visual, mas cortei redundâncias para melhorar a densidade útil da área.
+- Atualizei o cache-buster do `admin.html` para carregar a versão nova no Admin.
+- Impacto esperado: deixar o resumo mais claro e evitar a sensação de conteúdo duplicado na visão geral.
+
+## 2026-06-09 — Temporadas V1: Remoção do card Leitura da semana
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o card `Leitura da semana` da visão geral da Temporadas.
+- A visão geral passa a ficar focada em `Resumo da temporada`, métricas, leitura dos sinais e blocos de ajuda/trava.
+- Mantive os auxiliares internos do módulo, mas a superfície principal não exibe mais esse card.
+- Atualizei o cache-buster do `admin.html` para carregar a versão nova no Admin.
+- Impacto esperado: deixar a tela mais limpa e concentrar a leitura no resumo principal da temporada.
+
+## 2026-06-09 — Temporadas V1: Leitura da semana sem bloco lateral
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi o bloco lateral do card `Leitura da semana` que destacava `Ajuda e trava`.
+- O card agora mostra apenas o texto principal da leitura semanal, sem uma coluna extra de destaque.
+- A leitura continua baseada nos sinais da temporada, mas com layout mais limpo e menos ruído visual.
+- Atualizei o cache-buster do `admin.html` para carregar a versão nova no Admin.
+- Impacto esperado: deixar a leitura semanal mais direta e mais alinhada com o formato compacto da V1.
+
+## 2026-06-09 — Temporadas V1: Resumo da temporada mais visual
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/css/modules/temporadas.css`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Ampliei o card `Resumo da temporada` para aproveitar melhor o espaço visual do hero.
+- O card agora tem uma coluna principal de leitura e uma coluna lateral com progresso, score, ritmo, risco e dias restantes.
+- A composição ficou mais aberta e mais informativa, sem trazer linguagem de execução para a V1 de Temporadas.
+- Atualizei o cache-buster do `admin.html` para carregar a versão nova no painel.
+- Impacto esperado: deixar a área principal da leitura mais bonita, mais legível e mais útil para acompanhamento da temporada.
+
+## 2026-06-09 — Temporadas V1: Leitura da semana baseada em sinais
+- Arquivos alterados: `public/js/modules/temporadas.js`, `public/admin.html`, `AI_CHANGELOG.md`.
+- Removi qualquer linguagem de jogada, próxima ação ou execução do card `Leitura da semana`.
+- A leitura semanal agora destaca o que ajudou e o que travou na semana, usando os sinais acumulados ao longo da temporada.
+- O card passou a mostrar um resumo curto do principal apoio e do principal travamento, em vez de orientar uma ação.
+- Ajustei o cache-buster do `admin.html` para forçar o carregamento da versão nova no Admin.
+- Impacto esperado: manter Temporadas como módulo de leitura e aprendizado, sem misturar a área semanal com instruções de execução.
 
 ## 2026-05-31 — Plano de Voo: custo das receitas no cálculo
 - Arquivos alterados: `public/js/modules/plano_voo.js`, `AI_CHANGELOG.md`.

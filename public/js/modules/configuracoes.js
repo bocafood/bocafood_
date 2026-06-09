@@ -1577,12 +1577,13 @@ Modules.Configuracoes = (function () {
       '<div style="display:grid;grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);gap:16px;align-items:start;">' +
         '<div style="display:flex;flex-direction:column;gap:16px;min-width:0;">' +
           '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Visitas e campanhas</h3><p>Use essas integrações para acompanhar visitas, campanhas e conversões.</p></div><span class="mi">query_stats</span></div>' +
-            '<div class="integrations-info-panel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">' +
-              _configInputWithHelp('cfg-ga4', 'Google Analytics 4', ga, 'G-XXXXXXXXXX', 'Código usado para acompanhar visitas e comportamento na página pública.') +
-              _configInputWithHelp('cfg-gtm', 'Google Tag Manager', c.gtmId, 'GTM-XXXXXXX', 'Use se você gerencia tags e scripts pelo GTM.') +
-              _configInputWithHelp('cfg-meta', 'Meta Pixel', meta, '123456789', 'Código usado para medir campanhas do Facebook e Instagram.') +
-            '</div>' +
-          '</section>' +
+	            '<div class="integrations-info-panel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">' +
+	              _configInputWithHelp('cfg-ga4', 'Google Analytics 4', ga, 'G-XXXXXXXXXX', 'Código usado para acompanhar visitas e comportamento na página pública.') +
+	              _configInputWithHelp('cfg-gtm', 'Google Tag Manager', c.gtmId, 'GTM-XXXXXXX', 'Use se você gerencia tags e scripts pelo GTM.') +
+	              _configInputWithHelp('cfg-meta', 'Meta Pixel', meta, '123456789', 'Código usado para medir campanhas do Facebook e Instagram.') +
+	            '</div>' +
+	            '<div style="margin-top:10px;font-size:11.5px;color:#756A64;line-height:1.45;background:#FFFCF8;border:1px solid #EADFD8;border-radius:12px;padding:9px 11px;">Se Google Tag Manager estiver preenchido, ele controla os eventos da loja. O BocaFood não carrega o GA4 direto ao mesmo tempo para evitar visitas e conversões duplicadas.</div>' +
+	          '</section>' +
           '<section style="' + _configCardStyle('18px 20px') + '"><div class="integrations-info-title"><div><h3>Canais de contato</h3><p>Adicione os links que seus clientes usam para falar com você ou acompanhar sua marca.</p></div><span class="mi">share</span></div>' +
             '<div class="integrations-info-panel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">' +
               _integrationPhoneInput('cfg-int-whatsapp-country', 'cfg-whatsapp', 'WhatsApp', countryCode, whatsapp, '912 345 678') +

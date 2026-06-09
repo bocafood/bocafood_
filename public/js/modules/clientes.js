@@ -8,6 +8,7 @@ Modules.Clientes = (function () {
   var _reviews = [];
   var _canais = [];
   var _pointsMovements = [];
+  var _postalHistory = [];
   var _pointsConfig = { earnPerEuro: 1, redeemRate: 10, minimumPointsToUse: 50, maxDiscountPct: 20 };
   var _view = [];
   var _editingId = null;
@@ -32,7 +33,8 @@ Modules.Clientes = (function () {
       DB.getAll('reviews'),
       DB.getDocRoot ? DB.getDocRoot('config', 'canais_venda').catch(function () { return null; }) : Promise.resolve(null),
       DB.getDocRoot ? DB.getDocRoot('config', 'pontos_program').catch(function () { return null; }) : Promise.resolve(null),
-      DB.getAll('points_movements').catch(function () { return []; })
+      DB.getAll('points_movements').catch(function () { return []; }),
+      DB.getAll('postal_history').catch(function () { return []; })
     ]).then(function (r) {
       _clientes = (r[0] || []).map(_withClienteRecordId).sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       _orders = r[1] || [];
@@ -40,6 +42,7 @@ Modules.Clientes = (function () {
       _canais = _normalizeCanais(r[3]);
       _pointsConfig = _normalizePointsConfig(r[4] || {});
       _pointsMovements = Array.isArray(r[5]) ? r[5] : [];
+      _postalHistory = Array.isArray(r[6]) ? r[6] : [];
       _buildView();
       _paint();
     }).catch(function (err) {
@@ -117,14 +120,14 @@ Modules.Clientes = (function () {
 
   function _kpis() {
     var total = _view.length;
-    var recurrent = _view.filter(function (c) { return c._stats.ordersCount >= 2; }).length;
+    var recurrent = _view.filter(function (c) { return (c._stats.recurrenceOrdersCount || 0) >= 2; }).length;
     var inactive = _view.filter(function (c) { return c._stats.segment === 'inativo'; }).length;
     var valid = _view.filter(function (c) { return c._stats.ordersCount > 0; });
     var avgTicket = valid.length ? valid.reduce(function (s, c) { return s + c._stats.avgTicket; }, 0) / valid.length : 0;
     var optIn = _view.filter(function (c) { return c.acceptsMarketing === true; }).length;
     return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
       _kpi('Total de clientes', total, 'base cadastrada', 'groups', '#8A6F5A') +
-      _kpi('Recorrentes', recurrent, '2+ pedidos', 'repeat', '#6C8777') +
+      _kpi('Recorrentes', recurrent, '2+ pedidos identificados', 'repeat', '#6C8777') +
       _kpi('Inativos', inactive, 'sem compra recente', 'person_off', '#A18362') +
       _kpi('Ticket médio', valid.length ? UI.fmt(avgTicket) : 'sem dados', valid.length + ' cliente(s) com pedido', 'payments', '#B42318') +
       _kpi('Aceitam marketing', optIn, 'WhatsApp/campanhas', 'campaign', '#2563EB') +
@@ -137,7 +140,7 @@ Modules.Clientes = (function () {
       '<div class="clientes-filter-grid">' +
         _filterField('Buscar', '<div class="clientes-field"><input id="cli-search" type="search" value="' + _esc(_filters.q) + '" oninput="Modules.Clientes._setFilter(\'q\', this.value)" placeholder="Buscar por nome, telefone ou e-mail" autocomplete="off" autocapitalize="off" spellcheck="false"></div>') +
         _filterField('Status', '<div class="clientes-field"><select id="cli-status-filter" onchange="Modules.Clientes._setFilter(\'status\', this.value)">' + _filterOptions(['', 'ativo', 'recorrente', 'inativo', 'bloqueado'], _filters.status, 'Todos') + '</select></div>') +
-        _filterField('Segmento', '<div class="clientes-field"><select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_pedido'], _filters.segment, 'Todos') + '</select></div>') +
+        _filterField('Segmento', '<div class="clientes-field"><select id="cli-segment-filter" onchange="Modules.Clientes._setFilter(\'segment\', this.value)">' + _filterOptions(['', 'novo', 'recorrente', 'vip', 'inativo', 'sem_segunda_compra', 'com_pontos', 'sem_pedido'], _filters.segment, 'Todos') + '</select></div>') +
         _filterField('Canal principal', '<div class="clientes-field"><select id="cli-origin-filter" onchange="Modules.Clientes._setFilter(\'origin\', this.value)">' + _originOptions(_filters.origin) + '</select></div>') +
       '</div>' +
       (hasFilters ? '<div class="clientes-filter-actions"><button type="button" class="clientes-clear" onclick="Modules.Clientes._clearFilters()">Limpar filtros</button></div>' : '') +
@@ -259,11 +262,16 @@ Modules.Clientes = (function () {
       '.cliente-address-form{margin-top:12px;background:#fff;border:1px solid #EADFD8;border-radius:16px;padding:13px;box-shadow:0 8px 18px rgba(31,31,31,.035);}' +
       '.cliente-address-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px 12px;align-items:end;}' +
       '.cliente-address-form-grid .wide{grid-column:span 2;}' +
+      '.cliente-phone-box{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;align-items:center;background:#FFFCF8;border:1px solid #E8DCD7;border-radius:12px;padding:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}' +
+      '.cliente-phone-box:focus-within{background:#fff;border-color:#D9AAA1;box-shadow:0 0 0 3px rgba(180,35,24,.08);}' +
+      '.cliente-phone-box select,.cliente-phone-box input{width:100%;min-height:34px;border:0;background:transparent;box-shadow:none;border-radius:8px;padding:0 8px;font-size:14px;font-family:inherit;color:#1F1F1F;outline:none;box-sizing:border-box;}' +
+      '.cliente-phone-box select{border-right:1px solid #E8DCD7;border-radius:8px 0 0 8px;padding-right:22px;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url(data:image/svg+xml,%3Csvg%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%236F6860%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E);background-repeat:no-repeat;background-position:right 6px center;background-size:13px;}' +
       '@media(max-width:920px){.cliente-modal-body [style*="grid-template-columns"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}' +
-      '@media(max-width:640px){.cliente-modal-body [style*="grid-template-columns"],.cliente-address-form-grid{grid-template-columns:1fr!important;}.cliente-address-form-grid .wide{grid-column:auto;}.cliente-modal-body .bf-card{padding:13px!important;}.cliente-avatar-box{grid-template-columns:auto minmax(0,1fr);}.cliente-address-card{grid-template-columns:1fr;}.cliente-address-actions{justify-content:flex-start;}}' +
+      '@media(max-width:640px){.cliente-modal-body [style*="grid-template-columns"],.cliente-address-form-grid{grid-template-columns:1fr!important;}.cliente-address-form-grid .wide{grid-column:auto;}.cliente-modal-body .bf-card{padding:13px!important;}.cliente-avatar-box{grid-template-columns:auto minmax(0,1fr);}.cliente-address-card{grid-template-columns:1fr;}.cliente-address-actions{justify-content:flex-start;}.cliente-phone-box{grid-template-columns:86px minmax(0,1fr);}}' +
       '</style>';
     var avatarUrl = c.avatarUrl || c.photoURL || c.photoUrl || '';
-    var body = modalCss + '<div class="cliente-modal-body">' +
+    var phoneParts = _clientPhoneParts(c.phone || c.whatsapp || '');
+    var body = modalCss + _clientePostalDatalistHTML() + '<div class="cliente-modal-body">' +
       '<div class="bf-card" style="padding:16px;">' +
       '<div class="cliente-card-head"><span class="mi">person</span><div><div class="cliente-card-title">Dados do cliente</div><p class="cliente-card-hint">Identifique a cliente e mantenha os principais contatos atualizados.</p></div></div>' +
       '<div class="cliente-avatar-box">' +
@@ -282,7 +290,7 @@ Modules.Clientes = (function () {
       '</div>' +
       '<div style="display:grid;grid-template-columns:1.3fr .8fr .9fr;gap:12px;margin-bottom:12px;">' +
       _field('cli-name', 'Nome completo *', c.name || '') +
-      _field('cli-phone', 'Telefone / WhatsApp', c.phone || '') +
+      _phoneField('cli-phone-prefix', 'cli-phone-number', 'Telefone / WhatsApp', phoneParts) +
       _field('cli-email', 'E-mail', c.email || '', 'email') +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">' +
@@ -293,6 +301,7 @@ Modules.Clientes = (function () {
         '<div id="cli-fiscal-hint" style="font-size:11px;color:#8A7E7C;margin-top:4px;">' + _esc(_cliNifCfg.fiscalDocumentHint) + '</div></div>' +
       _field('cli-bday', 'Aniversário', c.birthday || '', 'date') +
       '</div></div>' +
+      (id ? _clientSegmentationCardHTML(c, true) : '') +
       '<div class="bf-card" style="padding:16px;">' +
       '<div class="cliente-card-head"><span class="mi">location_on</span><div><div class="cliente-card-title">Endereço e entrega</div><p class="cliente-card-hint">Dados usados para localizar a cliente e organizar próximas entregas.</p></div></div>' +
       '<div id="cli-address-book">' + _clienteAddressesBookHTML() + '</div>' +
@@ -351,12 +360,25 @@ Modules.Clientes = (function () {
   function _saveCliente() {
     var name = _val('cli-name').trim();
     if (!name) { UI.toast('Nome é obrigatório', 'error'); return; }
-    if (!_validPhone(_val('cli-phone'))) { UI.toast('Telefone inválido. Use apenas números com DDD/código do país.', 'error'); return; }
+    var phone = _clientPhoneFull(_val('cli-phone-prefix'), _val('cli-phone-number'));
+    if (!_validPhone(phone)) { UI.toast('Telefone inválido. Use apenas números com DDD/código do país.', 'error'); return; }
     if (!_validEmail(_val('cli-email'))) { UI.toast('E-mail inválido', 'error'); return; }
     var current = _editingId ? (_findClienteByRecordId(_editingId) || {}) : {};
     var channel = _val('cli-origin') || _defaultChannel();
     var deliveryAddresses = _normalizeClienteAddresses({ deliveryAddresses: _clienteDeliveryAddresses });
     var primaryAddress = deliveryAddresses[0] || {};
+    var hasDeliveryAddress = !!String([
+      primaryAddress.address,
+      primaryAddress.number,
+      primaryAddress.complement,
+      primaryAddress.neighborhood,
+      primaryAddress.city,
+      primaryAddress.province,
+      primaryAddress.country
+    ].filter(Boolean).join('')).trim();
+    if (hasDeliveryAddress && !String(primaryAddress.postalCode || '').trim()) {
+      UI.toast('Informe a caixa postal do cliente antes de salvar.', 'error'); return;
+    }
     var _sCountry = primaryAddress.country || _val('cli-country') || 'España';
     var _sCode = window.FiscalConfig ? FiscalConfig.countryToCode(_sCountry) : null;
     var _sNifCfg = window.FiscalConfig ? FiscalConfig.get(_sCode || _sCountry || 'ES') : null;
@@ -392,9 +414,15 @@ Modules.Clientes = (function () {
       postalCode: _val('cli-fiscal-postal') || primaryAddress.postalCode || '',
       countryCode: fiscal.countryCode || 'ES'
     };
+    var phoneKey = _phoneMatchKey(phone);
     var data = {
       name: name,
-      phone: _val('cli-phone'),
+      phone: phone,
+      whatsapp: phone,
+      phoneNormalized: phoneKey,
+      whatsappNormalized: phoneKey,
+      phoneDigits: phoneKey,
+      whatsappDigits: phoneKey,
       email: _val('cli-email'),
       status: _val('cli-status') || 'ativo',
       origin: channel,
@@ -432,6 +460,19 @@ Modules.Clientes = (function () {
     var editingId = _clienteRecordId(current) || String(_editingId || '');
     var op = editingId ? DB.update('store_customers', editingId, data).then(function () { return editingId; }) : DB.add('store_customers', data).then(function (ref) { return ref && ref.id ? ref.id : ref; });
     op.then(function (savedId) {
+      _rememberPostalCode(primaryAddress.postalCode || _val('cli-zip'), {
+        source: 'customer',
+        city: primaryAddress.city || '',
+        province: primaryAddress.province || '',
+        country: primaryAddress.country || _defaultCountry,
+        neighborhood: primaryAddress.neighborhood || ''
+      });
+      _rememberPostalCode(fiscal.fiscalAddress && fiscal.fiscalAddress.postalCode, {
+        source: 'customer_fiscal',
+        city: fiscal.fiscalAddress && fiscal.fiscalAddress.city || '',
+        province: fiscal.fiscalAddress && fiscal.fiscalAddress.province || '',
+        country: fiscal.fiscalAddress && fiscal.fiscalAddress.countryCode || _defaultCountry
+      });
       UI.toast(_editingId ? 'Cliente atualizado!' : 'Cliente adicionado!', 'success');
       if (window._clienteModal) window._clienteModal.close();
       if (savedId) _editingId = String(savedId || '');
@@ -553,6 +594,7 @@ Modules.Clientes = (function () {
         _profileMetric('Ticket médio', s.ordersCount ? UI.fmt(s.avgTicket) : '-', 'por pedido') +
         _profileMetric('Último pedido', s.lastOrderLabel || '-', s.segmentLabel) +
       '</section>' +
+      _clientSegmentationCardHTML(c, false) +
       '<section class="cliente-profile-grid cliente-profile-two">' +
         '<div class="cliente-profile-card"><div class="cliente-profile-head"><span class="mi">badge</span><div><div class="cliente-profile-title">Perfil</div><p class="cliente-profile-hint">Dados principais usados no atendimento e relacionamento.</p></div></div>' +
           '<div class="cliente-profile-info">' +
@@ -614,6 +656,8 @@ Modules.Clientes = (function () {
       _ruleRow('Recorrente', '2 ou mais pedidos válidos') +
       _ruleRow('VIP', '5+ pedidos ou €100+ em compras') +
       _ruleRow('Inativo', 'mais de 60 dias sem comprar') +
+      _ruleRow('Sem segunda compra', '1 pedido e 14+ dias sem voltar') +
+      _ruleRow('Com pontos', 'saldo de pontos positivo') +
       _ruleRow('Sem pedido', 'cliente cadastrado sem pedido válido') +
       '</div></div>' +
       '<div style="' + _panel() + '"><h3 style="' + _h3() + '">Fluxo do segmento</h3>' +
@@ -661,12 +705,14 @@ Modules.Clientes = (function () {
 
   function _filtered() {
     var q = (_filters.q || '').toLowerCase();
+    var qDigits = _phone(q);
     return _view.filter(function (c) {
       var s = c._stats || {};
-      var haystack = [c.name, c.phone, c.email, c.nifCif, c.fiscalId, c.neighborhood, c.zone, c.postalCode, c.state, c.province, c.country, c.origin, c.mainChannel, c.channelName, c.channel, c.status, _tags(c.tags).join(' '), c.preferences, c.allergies].join(' ').toLowerCase();
-      if (q && haystack.indexOf(q) < 0) return false;
+      var haystack = [c.name, c.customerName, c.phone, c.whatsapp, c.customerPhone, c.telefone, c.phoneNormalized, c.whatsappNormalized, c.phoneDigits, c.whatsappDigits, c.email, c.customerEmail, c.nifCif, c.fiscalId, c.neighborhood, c.zone, c.postalCode, c.state, c.province, c.country, c.origin, c.mainChannel, c.channelName, c.channel, c.status, _tags(c.tags).join(' '), c.preferences, c.allergies].join(' ').toLowerCase();
+      var phoneHaystack = _phone([c.phone, c.whatsapp, c.customerPhone, c.telefone, c.phoneNormalized, c.whatsappNormalized, c.phoneDigits, c.whatsappDigits].join(' '));
+      if (q && haystack.indexOf(q) < 0 && (!qDigits || phoneHaystack.indexOf(qDigits) < 0)) return false;
       if (_filters.status && String(c.status || s.segment) !== _filters.status) return false;
-      if (_filters.segment && s.segment !== _filters.segment) return false;
+      if (_filters.segment && s.segment !== _filters.segment && !(s.actionSegments || []).some(function (item) { return item.id === _filters.segment; })) return false;
       if (_filters.origin && String(c.mainChannel || c.channelName || c.channel || c.origin || '') !== _filters.origin) return false;
       return true;
     });
@@ -691,27 +737,40 @@ Modules.Clientes = (function () {
       var st = String(o.status || '').toLowerCase();
       return st !== 'cancelado' && st !== 'canceled' && st !== 'cancelled';
     });
+    var recurrenceValid = valid.filter(function (o) { return !_orderChannelHasImportModel(o); });
     var total = valid.reduce(function (s, o) { return s + _num(o.total || o.amount || o.grandTotal); }, 0);
     var count = valid.length;
+    var recurrenceCount = recurrenceValid.length;
     var last = valid[0] || null;
     var days = last ? Math.floor((Date.now() - _dateTs(last)) / 86400000) : null;
     var freq = {};
+    var channelFreq = {};
+    var channelRevenue = {};
     valid.forEach(function (o) {
+      var channel = o.channel || o.source || o.origin || o.salesChannel || o.canal || c.mainChannel || c.channelName || c.channel || c.origin || '';
+      if (channel) {
+        channelFreq[channel] = (channelFreq[channel] || 0) + 1;
+        channelRevenue[channel] = (channelRevenue[channel] || 0) + _num(o.total || o.amount || o.grandTotal);
+      }
       (o.items || []).forEach(function (item) {
         var name = item.name || item.nome || item.title || 'Produto';
         freq[name] = (freq[name] || 0) + (_num(item.qty || item.quantity) || 1);
       });
     });
     var topProducts = Object.keys(freq).map(function (k) { return [k, freq[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+    var topChannels = Object.keys(channelFreq).map(function (k) { return { channel: k, count: channelFreq[k], revenue: channelRevenue[k] || 0 }; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 3);
     var segment = 'sem_pedido';
     if (String(c.status || '') === 'bloqueado') segment = 'bloqueado';
     else if (!count) segment = 'sem_pedido';
     else if (days !== null && days > 60) segment = 'inativo';
     else if (total >= 100 || count >= 5) segment = 'vip';
-    else if (count >= 2) segment = 'recorrente';
+    else if (recurrenceCount >= 2) segment = 'recorrente';
     else segment = 'novo';
+    var points = _pointsBalance(c);
+    var actionSegments = _clientActionSegments(segment, count, days, points);
     return {
       ordersCount: count,
+      recurrenceOrdersCount: recurrenceCount,
       totalSpent: total,
       avgTicket: count ? total / count : 0,
       lastOrderTs: last ? _dateTs(last) : 0,
@@ -719,8 +778,45 @@ Modules.Clientes = (function () {
       daysSinceLast: days,
       segment: segment,
       segmentLabel: _segmentLabel(segment),
-      topProducts: topProducts
+      actionSegments: actionSegments,
+      topProducts: topProducts,
+      topChannels: topChannels,
+      preferredProduct: topProducts[0] && topProducts[0][0] || '',
+      preferredChannel: topChannels[0] && topChannels[0].channel || (c.mainChannel || c.channelName || c.channel || c.origin || ''),
+      pointsBalance: points,
+      recommendedUse: _clientSegmentBestUse(segment, actionSegments, topProducts[0] && topProducts[0][0] || '')
     };
+  }
+
+  function _clientActionSegments(segment, ordersCount, daysSinceLast, points) {
+    var out = [];
+    function add(id, label, reason) { out.push({ id: id, label: label, reason: reason }); }
+    if (segment) add(segment, _segmentLabel(segment), _segmentReasonById(segment));
+    if (ordersCount === 1 && daysSinceLast !== null && daysSinceLast >= 14) add('sem_segunda_compra', 'Sem segunda compra', 'Fez 1 pedido e ainda não voltou depois de 14 dias.');
+    if (_num(points) > 0) add('com_pontos', 'Com pontos', 'Tem saldo de pontos registrado.');
+    return out;
+  }
+
+  function _segmentReasonById(segment) {
+    return ({
+      novo: 'Cliente com primeira compra registrada.',
+      recorrente: 'Cliente com 2 ou mais pedidos válidos.',
+      vip: 'Cliente com maior frequência ou valor acumulado.',
+      inativo: 'Cliente sem compra há mais de 60 dias.',
+      sem_pedido: 'Cliente cadastrado sem pedido válido.',
+      bloqueado: 'Cliente bloqueado no cadastro.'
+    })[segment] || 'Segmento calculado automaticamente.';
+  }
+
+  function _clientSegmentBestUse(segment, actionSegments, product) {
+    var ids = (actionSegments || []).map(function (item) { return item.id; });
+    if (ids.indexOf('com_pontos') >= 0) return 'Recompra com pontos';
+    if (segment === 'vip') return product ? 'Oferta premium ou combo com ' + product : 'Oferta premium ou combo';
+    if (segment === 'inativo') return product ? 'Reativação usando ' + product : 'Reativação';
+    if (ids.indexOf('sem_segunda_compra') >= 0) return 'Segunda compra';
+    if (segment === 'recorrente') return product ? 'Recompra ou upsell com ' + product : 'Recompra ou upsell';
+    if (segment === 'novo') return 'Mensagem de continuidade';
+    return 'Criar histórico de compra';
   }
 
   function _segmentEvents(c, orders) {
@@ -777,6 +873,34 @@ Modules.Clientes = (function () {
     return 'Cliente com primeiro pedido válido registrado.';
   }
 
+  function _clientSegmentationCardHTML(c, compact) {
+    c = c || {};
+    var orders = c._orders || _ordersForClient(c);
+    var s = c._stats || _stats(c, orders);
+    var actionSegments = s.actionSegments || [];
+    var badges = actionSegments.length ? actionSegments.map(function (item) {
+      return _segmentBadge(item.id);
+    }).join('') : _segmentBadge(s.segment);
+    var topProduct = s.preferredProduct || '-';
+    var channel = s.preferredChannel ? _channelLabel(s.preferredChannel) : '-';
+    var cardClass = compact ? 'bf-card' : 'cliente-profile-card';
+    var style = compact ? 'padding:16px;' : '';
+    var headClass = compact ? 'cliente-card-head' : 'cliente-profile-head';
+    var titleClass = compact ? 'cliente-card-title' : 'cliente-profile-title';
+    var hintClass = compact ? 'cliente-card-hint' : 'cliente-profile-hint';
+    return '<div class="' + cardClass + '" style="' + style + '">' +
+      '<div class="' + headClass + '"><span class="mi">hub</span><div><div class="' + titleClass + '">Segmentação BocaFood</div><p class="' + hintClass + '">Classificação automática usada por Clientes e Temporadas para escolher públicos de jogadas.</p></div></div>' +
+      '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;">' + badges + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">' +
+        _miniMetric('Uso indicado', _esc(s.recommendedUse || '-')) +
+        _miniMetric('Produto preferido', _esc(topProduct)) +
+        _miniMetric('Canal principal', _esc(channel)) +
+        _miniMetric('Pontos', _pointsBalance(c) || '-') +
+      '</div>' +
+      '<div style="font-size:12px;color:#8A7E7C;line-height:1.45;margin-top:10px;">' + _esc(_segmentReason(c, s)) + '</div>' +
+    '</div>';
+  }
+
   function _ruleRow(label, text) {
     return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #F2EDED;"><strong style="font-size:13px;">' + _esc(label) + '</strong><span style="font-size:12px;color:#8A7E7C;text-align:right;">' + _esc(text) + '</span></div>';
   }
@@ -831,13 +955,44 @@ Modules.Clientes = (function () {
         return ['createdAt', 'updatedAt', 'id'].indexOf(key) < 0;
       }).map(function (key) { return raw[key]; });
     }
-    var names = ['Cardápio', 'Venda presencial'];
-    list.forEach(function (c) {
+    var fixed = [{ name: 'Cardápio' }, { name: 'Venda presencial' }];
+    var normalized = [];
+    fixed.concat(list || []).forEach(function (c) {
       if (!c || c.active === false || c.enabled === false || c.status === 'inativo') return;
       var name = typeof c === 'string' ? c : (c.name || c.nome || c.label || c.title);
-      if (name && names.indexOf(name) < 0) names.push(name);
+      if (!name) return;
+      var channel = typeof c === 'string' ? { name: name } : Object.assign({}, c, { name: name });
+      channel.key = _channelKey(channel.key || channel.value || name);
+      channel.importModel = _channelImportModel(channel);
+      if (normalized.some(function (item) { return item.key === channel.key || _fold(item.name) === _fold(channel.name); })) return;
+      normalized.push(channel);
     });
-    return names.map(function (name) { return { name: name }; });
+    return normalized;
+  }
+
+  function _channelImportModel(channel) {
+    return String(channel && (channel.importModel || channel.import_model || channel.orderImportModel || channel.importacaoModelo || channel.modeloImportacao || '') || '').trim();
+  }
+
+  function _channelKey(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    raw = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+    raw = raw.replace(/[\s-]+/g, '_');
+    if (['template', 'store', 'loja', 'loja_publica', 'public_store', 'cardapio', 'cardapio_publico'].indexOf(raw) >= 0) return 'cardapio';
+    if (['pos', 'tpv', 'venda_presencial', 'balcao', 'balcão'].indexOf(raw) >= 0) return 'venda_presencial';
+    if (['manual', 'admin', 'pedido_manual', 'painel'].indexOf(raw) >= 0) return 'pedido_manual';
+    if (['whatsapp', 'wpp'].indexOf(raw) >= 0) return 'whatsapp';
+    return raw;
+  }
+
+  function _orderChannelHasImportModel(order) {
+    var key = _channelKey(order && (order.channel || order.source || order.origin || order.salesChannel || order.canal || order.originChannel || order.originSource || ''));
+    var label = _fold(order && (order.channelName || order.salesChannelName || ''));
+    return (_canais || []).some(function (channel) {
+      if (!_channelImportModel(channel)) return false;
+      return channel.key === key || _channelKey(channel.name || '') === key || (label && _fold(channel.name || '') === label);
+    });
   }
 
   function _channelNames() {
@@ -1091,12 +1246,30 @@ Modules.Clientes = (function () {
   }
 
   function _segmentLabel(v) {
-    return ({ novo: 'Novo', recorrente: 'Recorrente', vip: 'VIP', inativo: 'Inativo', sem_pedido: 'Sem pedido', ativo: 'Ativo', bloqueado: 'Bloqueado' })[v] || _title(v || '');
+    return ({ novo: 'Novo', recorrente: 'Recorrente', vip: 'VIP', inativo: 'Inativo', sem_segunda_compra: 'Sem segunda compra', com_pontos: 'Com pontos', sem_pedido: 'Sem pedido', ativo: 'Ativo', bloqueado: 'Bloqueado' })[v] || _title(v || '');
   }
 
   function _segmentBadge(v) {
-    var color = v === 'vip' ? 'orange' : v === 'recorrente' ? 'green' : v === 'inativo' ? 'gray' : v === 'bloqueado' ? 'red' : 'blue';
+    var color = v === 'vip' ? 'orange' : v === 'recorrente' ? 'green' : v === 'inativo' ? 'gray' : v === 'bloqueado' ? 'red' : v === 'com_pontos' ? 'purple' : 'blue';
     return UI.badge(_segmentLabel(v), color);
+  }
+
+  function _channelLabel(value) {
+    var raw = String(value || '').trim();
+    var key = raw.toLowerCase().normalize ? raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw.toLowerCase();
+    key = key.replace(/[\s-]+/g, '_');
+    return ({
+      cardapio: 'Cardápio',
+      cardapio_publico: 'Cardápio',
+      loja_publica: 'Cardápio',
+      whatsapp: 'WhatsApp',
+      wpp: 'WhatsApp',
+      venda_presencial: 'Venda presencial',
+      presencial: 'Venda presencial',
+      pedido_manual: 'Pedido manual',
+      glovo: 'Glovo',
+      uber_eats: 'Uber Eats'
+    })[key] || raw || '-';
   }
 
   function _statusBadge(status) {
@@ -1218,7 +1391,49 @@ Modules.Clientes = (function () {
   function _chip(text) { return '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #EAE4DA;color:#6F6860;font-size:12px;font-weight:500;box-shadow:0 1px 2px rgba(31,31,31,.02);">' + _esc(text) + '</span>'; }
   function _info(label, value) { return '<div style="padding:8px 0;border-top:1px solid #F2EDED;"><div style="font-size:10px;color:#8A7E7C;font-weight:900;text-transform:uppercase;">' + label + '</div><div style="font-size:13px;font-weight:700;">' + _esc(value || '-') + '</div></div>'; }
   function _infoHTML(label, html) { return '<div style="padding:8px 0;border-top:1px solid #F2EDED;"><div style="font-size:10px;color:#8A7E7C;font-weight:900;text-transform:uppercase;">' + label + '</div><div style="font-size:13px;font-weight:700;">' + (html || '-') + '</div></div>'; }
-  function _field(id, label, value, type) { return '<div class="bf-field"><label>' + label + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '" value="' + _esc(value == null ? '' : value) + '"></div>'; }
+  function _field(id, label, value, type) {
+    var postalAttr = (id === 'cli-zip' || id === 'cli-fiscal-postal') ? ' list="clientes-postal-suggestions" autocomplete="postal-code"' : '';
+    return '<div class="bf-field"><label>' + label + '</label><input id="' + id + '" class="bf-input" type="' + (type || 'text') + '"' + postalAttr + ' value="' + _esc(value == null ? '' : value) + '"></div>';
+  }
+  function _phoneField(prefixId, numberId, label, parts) {
+    parts = parts || {};
+    return '<div class="bf-field"><label>' + _esc(label || 'Telefone / WhatsApp') + '</label><div class="cliente-phone-box">' +
+      '<select id="' + _esc(prefixId) + '">' + _phonePrefixOptions(parts.prefix) + '</select>' +
+      '<input id="' + _esc(numberId) + '" type="text" value="' + _esc(parts.number || '') + '" placeholder="Telefone / WhatsApp">' +
+    '</div></div>';
+  }
+  function _clientPhoneParts(value) {
+    var raw = String(value || '').trim();
+    var match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
+    return {
+      prefix: match ? match[1] : '',
+      number: match ? String(match[2] || '').trim() : raw.replace(/^\+/, '')
+    };
+  }
+  function _clientPhoneFull(prefix, number) {
+    var p = String(prefix || '').trim();
+    var n = String(number || '').trim();
+    if (!_phone(n)) return '';
+    return [p, n].filter(Boolean).join(' ').trim();
+  }
+  function _phonePrefixOptions(selected) {
+    var current = String(selected || '');
+    var labels = {
+      '+34': '🇪🇸 +34',
+      '+351': '🇵🇹 +351',
+      '+55': '🇧🇷 +55',
+      '+33': '🇫🇷 +33',
+      '+39': '🇮🇹 +39',
+      '+49': '🇩🇪 +49',
+      '+44': '🇬🇧 +44',
+      '+1': '🇺🇸 +1'
+    };
+    var options = ['+34', '+351', '+55', '+33', '+39', '+49', '+44', '+1'];
+    if (current && options.indexOf(current) < 0) options.unshift(current);
+    return '<option value=""' + (!current ? ' selected' : '') + '>DDI</option>' + options.map(function (value) {
+      return '<option value="' + _esc(value) + '"' + (value === current ? ' selected' : '') + '>' + _esc(labels[value] || value) + '</option>';
+    }).join('');
+  }
   function _textarea(id, label, value) { return '<div class="bf-field"><label>' + label + '</label><textarea id="' + id + '" class="bf-textarea">' + _esc(value || '') + '</textarea></div>'; }
   function _select(id, label, options) { return '<div class="bf-field"><label>' + label + '</label><select id="' + id + '" class="bf-select">' + options + '</select></div>'; }
   function _input() { return 'width:100%;min-height:36px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;background:#FFFCF8;color:#1F1F1F;box-shadow:none;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;'; }
@@ -1299,7 +1514,7 @@ Modules.Clientes = (function () {
       city: addr.city || addr.locality || addr.cidade || '',
       province: addr.province || addr.state || addr.estado || addr.region || '',
       country: addr.country || addr.countryCode || addr.pais || 'España',
-      postalCode: addr.postalCode || addr.zip || addr.codigoPostal || addr.postcode || ''
+      postalCode: _postalCodeValue(addr)
     };
   }
   function _clienteAddressLine(addr) {
@@ -1325,12 +1540,65 @@ Modules.Clientes = (function () {
     var id = _clienteRecordId(cliente);
     return id && !cliente.id ? Object.assign({}, cliente, { id: id }) : cliente;
   }
+  function _postalCodeValue(source) {
+    source = source || {};
+    return [source.postalCode, source.postal, source.zip, source.zipCode, source.postcode, source.postCode, source.codigoPostal, source.codigo_postal, source.caixaPostal, source.caixa_postal, source.cep].map(function (v) {
+      return String(v || '').trim();
+    }).filter(Boolean)[0] || '';
+  }
+  function _postalHistoryId(value) {
+    value = String(value || '').trim().toUpperCase();
+    return value ? 'cp_' + value.replace(/[^A-Z0-9_-]/g, '_').slice(0, 48) : '';
+  }
+  function _rememberPostalCode(value, meta) {
+    value = String(value || '').trim();
+    if (!value || value.length < 3 || !DB || typeof DB.set !== 'function') return;
+    meta = meta || {};
+    var id = _postalHistoryId(value);
+    if (!id) return;
+    var payload = {
+      postalCode: value,
+      source: String(meta.source || 'customer').trim(),
+      city: String(meta.city || '').trim(),
+      province: String(meta.province || '').trim(),
+      country: String(meta.country || '').trim(),
+      neighborhood: String(meta.neighborhood || '').trim(),
+      lastUsedAt: new Date().toISOString()
+    };
+    var idx = (_postalHistory || []).findIndex(function (item) { return String(item.id || '') === id || String(item.postalCode || '').trim() === value; });
+    if (idx >= 0) _postalHistory[idx] = Object.assign({}, _postalHistory[idx], payload, { id: id });
+    else _postalHistory.push(Object.assign({}, payload, { id: id }));
+    DB.set('postal_history', id, payload).catch(function () {});
+  }
+  function _clientePostalDatalistHTML() {
+    var map = {};
+    function add(value) {
+      value = String(value || '').trim();
+      if (value) map[value] = true;
+    }
+    (_postalHistory || []).forEach(function (item) {
+      add(_postalCodeValue(item));
+    });
+    (_clientes || []).forEach(function (customer) {
+      add(_postalCodeValue(customer));
+      _normalizeClienteAddresses(customer).forEach(function (addr) { add(_postalCodeValue(addr)); });
+    });
+    (_orders || []).forEach(function (order) {
+      add(_postalCodeValue(order));
+      if (order && typeof order.deliveryAddress === 'object') add(_postalCodeValue(order.deliveryAddress));
+    });
+    var values = Object.keys(map).sort().slice(0, 80);
+    return '<datalist id="clientes-postal-suggestions">' + values.map(function (value) {
+      return '<option value="' + _esc(value) + '"></option>';
+    }).join('') + '</datalist>';
+  }
   function _findClienteByRecordId(id) {
     var wanted = String(id || '').trim();
     if (!wanted) return null;
     return (_clientes || []).map(_withClienteRecordId).find(function (c) { return _clienteRecordId(c) === wanted; }) || null;
   }
   function _phone(v) { return String(v || '').replace(/\D/g, ''); }
+  function _phoneMatchKey(v) { var digits = _phone(v); return digits.length >= 6 ? digits : ''; }
   function _validPhone(v) { var raw = String(v || '').trim(); if (!raw) return true; var digits = _phone(raw); return digits.length >= 7 && digits.length <= 15; }
   function _validEmail(v) { var raw = String(v || '').trim(); return !raw || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw); }
   function _validFiscalId(v) {
@@ -1436,6 +1704,10 @@ Modules.Clientes = (function () {
     return list.map(function (x) { return '<option value="' + x[0] + '"' + (selected === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('');
   }
   function _clean(v) { return String(v || '').trim().toLowerCase(); }
+  function _fold(v) {
+    var raw = String(v == null ? '' : v).trim().toLowerCase();
+    return raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+  }
   function _title(v) {
     var raw = String(v || '').replace(/_/g, ' ').trim();
     var key = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : raw.toLowerCase();

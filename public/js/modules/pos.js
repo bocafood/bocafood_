@@ -204,7 +204,7 @@ Modules.POS = (function () {
     var tone = _categoryTone(cat);
     var price = _productPrice(product);
     var promoCalc = _bestPromoForProduct(product);
-    var finalPrice = promoCalc ? promoCalc.finalPrice : price;
+    var finalPrice = promoCalc && !(promoCalc.type === 'add1' && promoCalc.bundleMatchMode === 'any_participant') ? promoCalc.finalPrice : price;
     var available = _isProductAvailable(product);
     var image = _productImage(product);
     var promo = _isPromoProduct(product);
@@ -255,12 +255,13 @@ Modules.POS = (function () {
   }
 
   function _cartRow(item) {
-    var subtotal = _num(item.finalPrice) * _num(item.quantity || 1);
+    var subtotal = _cartLineTotal(item);
     var originalSubtotal = _num(item.originalPrice) * _num(item.quantity || 1);
+    var displayUnit = subtotal / Math.max(1, _num(item.quantity || 1));
     var key = item.cartKey || item.productId;
     var choices = _choiceSummary(item.choices || item.selectedOptions || item.variants || []);
     return '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;border:1px solid #EAE4DA;border-radius:12px;padding:10px;background:#fff;">' +
-      '<div style="min-width:0;"><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(item.name) + '</strong>' + (choices ? '<span style="display:block;font-size:11px;color:#5F5752;margin-top:3px;line-height:1.35;">' + _esc(choices) + '</span>' : '') + '<span style="display:block;font-size:11px;color:#6F6860;margin-top:3px;">Unitário ' + (item.promoId ? '<span style="text-decoration:line-through;">' + _fmtMoney(item.originalPrice) + '</span> ' : '') + _fmtMoney(item.finalPrice) + ' · subtotal ' + (item.promoId ? '<span style="text-decoration:line-through;">' + _fmtMoney(originalSubtotal) + '</span> ' : '') + _fmtMoney(subtotal) + '</span>' + (item.promoName ? '<span style="display:block;font-size:11px;color:#B45309;margin-top:3px;">' + _esc(item.promoName) + '</span>' : '') + (item.note ? '<span style="display:block;font-size:11px;color:#8A7E7C;margin-top:3px;">Obs.: ' + _esc(item.note) + '</span>' : '') + '</div>' +
+      '<div style="min-width:0;"><strong style="display:block;font-size:13px;color:#1F1F1F;line-height:1.25;">' + _esc(item.name) + '</strong>' + (choices ? '<span style="display:block;font-size:11px;color:#5F5752;margin-top:3px;line-height:1.35;">' + _esc(choices) + '</span>' : '') + '<span style="display:block;font-size:11px;color:#6F6860;margin-top:3px;">Unitário ' + (item.promoId ? '<span style="text-decoration:line-through;">' + _fmtMoney(item.originalPrice) + '</span> ' : '') + _fmtMoney(displayUnit) + ' · subtotal ' + (item.promoId ? '<span style="text-decoration:line-through;">' + _fmtMoney(originalSubtotal) + '</span> ' : '') + _fmtMoney(subtotal) + '</span>' + (item.promoName ? '<span style="display:block;font-size:11px;color:#B45309;margin-top:3px;">' + _esc(item.promoName) + '</span>' : '') + (item.note ? '<span style="display:block;font-size:11px;color:#8A7E7C;margin-top:3px;">Obs.: ' + _esc(item.note) + '</span>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:6px;">' +
         '<button type="button" onclick="Modules.POS._changeQty(' + _jsArg(key) + ',-1)" title="Diminuir" style="' + _qtyBtnStyle() + '">−</button>' +
         '<strong style="min-width:22px;text-align:center;font-size:13px;color:#1F1F1F;">' + item.quantity + '</strong>' +
@@ -879,7 +880,19 @@ Modules.POS = (function () {
     _saving = true;
     _paint();
     Modules.Pedidos._createTpvOrder({
-      items: _cart.map(function (item) { return Object.assign({}, item); }),
+      items: _cart.map(function (item) {
+        var qty = Math.max(1, _num(item.quantity || 1));
+        var lineTotal = _cartLineTotal(item);
+        var unit = lineTotal / qty;
+        return Object.assign({}, item, {
+          finalPrice: unit,
+          price: unit,
+          unitPrice: unit,
+          total: lineTotal,
+          lineTotal: lineTotal,
+          subtotal: lineTotal
+        });
+      }),
       subtotalOriginal: totals.originalSubtotal,
       subtotal: totals.originalSubtotal,
       subtotalFinal: totals.subtotal,
@@ -1115,9 +1128,46 @@ Modules.POS = (function () {
 
   function _cartTotals() {
     var originalSubtotal = _sum(_cart, function (item) { return _num(item.originalPrice) * _num(item.quantity || 1); });
-    var subtotal = _sum(_cart, function (item) { return _num(item.finalPrice) * _num(item.quantity || 1); });
+    var subtotal = _sum(_cart, function (item) { return _cartLineTotal(item); });
     var discount = Math.max(originalSubtotal - subtotal, 0);
     return { originalSubtotal: originalSubtotal, subtotal: subtotal, discount: discount, total: subtotal };
+  }
+
+  function _cartPromoGroupKey(item) {
+    return item && item.promoId ? String(item.promoId || '') : '';
+  }
+
+  function _cartAnyParticipantLineTotal(item) {
+    if (!item || item.promoType !== 'add1' || item.promoBundleMatchMode !== 'any_participant') return null;
+    var groupKey = _cartPromoGroupKey(item);
+    if (!groupKey) return null;
+    var leve = parseInt(item.promoLeve || 0, 10) || 0;
+    var pague = parseInt(item.promoPague || 0, 10) || 0;
+    if (!(leve > 0 && pague > 0 && leve > pague)) return null;
+    var units = [];
+    _cart.forEach(function (line) {
+      if (!line || line.promoType !== 'add1' || line.promoBundleMatchMode !== 'any_participant' || _cartPromoGroupKey(line) !== groupKey) return;
+      var qty = Math.max(1, _num(line.quantity || 1));
+      var price = _num(line.originalPrice);
+      for (var i = 0; i < qty; i += 1) units.push({ key: line.cartKey || line.productId, price: price });
+    });
+    var freeCount = Math.floor(units.length / leve) * Math.max(0, leve - pague);
+    if (!(freeCount > 0)) return null;
+    units.sort(function (a, b) { return a.price - b.price; });
+    var freeByKey = {};
+    units.slice(0, freeCount).forEach(function (unit) {
+      freeByKey[unit.key] = _num(freeByKey[unit.key]) + _num(unit.price);
+    });
+    var key = item.cartKey || item.productId;
+    var original = _num(item.originalPrice) * Math.max(1, _num(item.quantity || 1));
+    return Math.max(original - _num(freeByKey[key] || 0), 0);
+  }
+
+  function _cartLineTotal(item) {
+    if (!item) return 0;
+    var grouped = _cartAnyParticipantLineTotal(item);
+    if (grouped != null) return grouped;
+    return _num(item.finalPrice) * _num(item.quantity || 1);
   }
 
   function _tpvOrders() {
@@ -1280,10 +1330,11 @@ Modules.POS = (function () {
       item.promoType = '';
       item.promoLeve = 0;
       item.promoPague = 0;
+      item.promoBundleMatchMode = 'same_product';
       item.priceOrigin = 'manual';
       return item;
     }
-    item.finalPrice = calc.finalPrice + extra;
+    item.finalPrice = (calc.bundleMatchMode === 'any_participant' && calc.type === 'add1' ? calc.originalPrice : calc.finalPrice) + extra;
     item.price = item.finalPrice;
     item.unitPrice = item.finalPrice;
     item.promoId = String(calc.promo.id || '');
@@ -1291,6 +1342,7 @@ Modules.POS = (function () {
     item.promoType = calc.type;
     item.promoLeve = calc.leve || 0;
     item.promoPague = calc.pague || 0;
+    item.promoBundleMatchMode = calc.bundleMatchMode || 'same_product';
     item.priceOrigin = 'promo';
     return item;
   }
@@ -1330,7 +1382,7 @@ Modules.POS = (function () {
     else if (type === 'add1' && leve > 0 && pague > 0 && leve > pague) final = Math.max((original * pague) / leve, 0);
     var discount = Math.max(original - final, 0);
     if (!(discount > 0)) return null;
-    return { promo: promo, type: type, value: value || eur || fixedPrice, leve: leve, pague: pague, originalPrice: original, finalPrice: final, discount: discount };
+    return { promo: promo, type: type, value: value || eur || fixedPrice, leve: leve, pague: pague, bundleMatchMode: _promoBundleMatchMode(promo), originalPrice: original, finalPrice: final, discount: discount };
   }
 
   function _promoBenefitLabel(calc) {
@@ -1350,6 +1402,13 @@ Modules.POS = (function () {
     if (t === '2x1' || t === '2por1' || t === 'two_for_one' || t === 'b2x1' || t === 'add1' || t === 'leve_mais' || t === 'promo_leve_mais' || t === 'combo_extra' || t === 'combo_sugerido' || t === 'extra_combo' || t === 'upgrade' || t === 'bundle_less_pay_more' || t === 'pack') return 'add1';
     if (t === 'frete' || t === 'frete_gratis' || t === 'free_shipping' || t === 'shipping_free') return 'frete';
     return t;
+  }
+
+  function _promoBundleMatchMode(promo) {
+    var t = _fold(promo && (promo.bundleMatchMode || promo.bundleScope || promo.benefitProductRule || promo.matchMode || '') || '');
+    return t === 'any_participant' || t === 'any' || t === 'mixed' || t === 'mix' || t === 'todos_participantes' || t === 'qualquer_participante'
+      ? 'any_participant'
+      : 'same_product';
   }
 
   function _promoNumber(value) {

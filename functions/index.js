@@ -436,6 +436,11 @@ function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizePhoneDigits(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 6 ? digits : "";
+}
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -1714,20 +1719,191 @@ async function requireAuthenticatedAdmin(req) {
   return admin.auth().verifyIdToken(match[1]);
 }
 
-function validSeasonAIReading(value) {
+function validSeasonAIReading(value, context = {}) {
   const data = value && typeof value === "object" ? value : {};
   const cleanList = (items) => Array.isArray(items)
     ? items.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
     : [];
+  const cleanSteps = (items) => Array.isArray(items)
+    ? items.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const cleanField = (source, field, max = 260) => String(source && source[field] || "").trim().slice(0, max);
+  const cleanBoolMap = (source, keys) => {
+    const out = {};
+    keys.forEach((key) => { out[key] = source && source[key] === true; });
+    return out;
+  };
   const headline = String(data.headline || "").trim().slice(0, 180);
   const nextAction = String(data.nextAction || "").trim().slice(0, 360);
   if (!headline || !nextAction) throw new Error("invalid_ai_response");
-  return {
+  const result = {
     headline,
     helpingSignals: cleanList(data.helpingSignals),
     blockingSignals: cleanList(data.blockingSignals),
     nextAction
   };
+  if (data.commercialPlay && typeof data.commercialPlay === "object" && !Array.isArray(data.commercialPlay)) {
+    const play = data.commercialPlay;
+    result.commercialPlay = {
+      title: cleanField(play, "title", 180),
+      summary: cleanField(play, "summary", 260),
+      candidateId: cleanField(play, "candidateId", 140),
+      actionKind: cleanField(play, "actionKind", 40),
+      actionType: cleanField(play, "actionType", 80),
+      actionName: cleanField(play, "actionName", 120),
+      productName: cleanField(play, "productName", 120),
+      combinationName: cleanField(play, "combinationName", 120),
+      channelName: cleanField(play, "channelName", 80),
+      customerGroup: cleanField(play, "customerGroup", 120),
+      whereToDo: cleanField(play, "whereToDo", 180),
+      whatToDo: cleanField(play, "whatToDo", 320),
+      whyThis: cleanField(play, "whyThis", 320),
+      afterDo: cleanField(play, "afterDo", 320),
+      expectedResult: cleanField(play, "expectedResult", 220),
+      howBocaFoodReads: cleanField(play, "howBocaFoodReads", 220),
+      ifNoResult: cleanField(play, "ifNoResult", 220),
+      salesPlayExecution: play.salesPlayExecution && typeof play.salesPlayExecution === "object" && !Array.isArray(play.salesPlayExecution)
+        ? {
+            actionType: cleanField(play.salesPlayExecution, "actionType", 80),
+            actionStatus: cleanField(play.salesPlayExecution, "actionStatus", 40),
+            productName: cleanField(play.salesPlayExecution, "productName", 120),
+            channelName: cleanField(play.salesPlayExecution, "channelName", 80),
+            audience: cleanField(play.salesPlayExecution, "audience", 220),
+            benefitType: cleanField(play.salesPlayExecution, "benefitType", 80),
+            benefitValue: cleanField(play.salesPlayExecution, "benefitValue", 80),
+            minimumOrderValue: Number(play.salesPlayExecution.minimumOrderValue || 0),
+            usageLimit: Number(play.salesPlayExecution.usageLimit || 0),
+            validUntil: cleanField(play.salesPlayExecution, "validUntil", 80),
+            distributionChannel: cleanField(play.salesPlayExecution, "distributionChannel", 120),
+            suggestedMessage: cleanField(play.salesPlayExecution, "suggestedMessage", 320),
+            suggestedCode: cleanField(play.salesPlayExecution, "suggestedCode", 80),
+            expectedQuantity: Number(play.salesPlayExecution.expectedQuantity || 0),
+            setupSteps: cleanSteps(play.salesPlayExecution.setupSteps),
+            distributionSteps: cleanSteps(play.salesPlayExecution.distributionSteps).slice(0, 6),
+            guardrails: cleanSteps(play.salesPlayExecution.guardrails).slice(0, 6),
+            afterAction: cleanField(play.salesPlayExecution, "afterAction", 260),
+            primaryButtonLabel: cleanField(play.salesPlayExecution, "primaryButtonLabel", 80),
+            secondaryButtonLabel: cleanField(play.salesPlayExecution, "secondaryButtonLabel", 80),
+            discountDecision: play.salesPlayExecution.discountDecision && typeof play.salesPlayExecution.discountDecision === "object" && !Array.isArray(play.salesPlayExecution.discountDecision)
+              ? {
+                  canDiscount: !!play.salesPlayExecution.discountDecision.canDiscount,
+                  reason: cleanField(play.salesPlayExecution.discountDecision, "reason", 80),
+                  suggestedDiscountType: cleanField(play.salesPlayExecution.discountDecision, "suggestedDiscountType", 40),
+                  suggestedDiscountValue: Number(play.salesPlayExecution.discountDecision.suggestedDiscountValue || 0),
+                  minimumOrderValue: Number(play.salesPlayExecution.discountDecision.minimumOrderValue || 0),
+                  maxSafeDiscountPercent: Number(play.salesPlayExecution.discountDecision.maxSafeDiscountPercent || 0),
+                  marginAfterDiscount: Number(play.salesPlayExecution.discountDecision.marginAfterDiscount || 0),
+                  minimumMarginPct: Number(play.salesPlayExecution.discountDecision.minimumMarginPct || 0),
+                  minimumMarginSource: cleanField(play.salesPlayExecution.discountDecision, "minimumMarginSource", 80),
+                  channelCostPct: Number(play.salesPlayExecution.discountDecision.channelCostPct || 0),
+                  source: cleanField(play.salesPlayExecution.discountDecision, "source", 80)
+                }
+              : {}
+          }
+        : null,
+      systemActionContext: play.systemActionContext && typeof play.systemActionContext === "object" && !Array.isArray(play.systemActionContext)
+        ? {
+            actionKind: cleanField(play.systemActionContext, "actionKind", 40),
+            detectedProblem: cleanField(play.systemActionContext, "detectedProblem", 80),
+            moduleName: cleanField(play.systemActionContext, "moduleName", 80),
+            primaryButtonLabel: cleanField(play.systemActionContext, "primaryButtonLabel", 80),
+            secondaryButtonLabel: cleanField(play.systemActionContext, "secondaryButtonLabel", 80),
+            routeTarget: cleanField(play.systemActionContext, "routeTarget", 120),
+            productReadiness: cleanBoolMap(play.systemActionContext.productReadiness || {}, ["isVisible", "hasPhoto", "hasPrice", "hasCost", "hasRecipe", "hasMargin", "hasStockBase", "isPublishedInMenu"]),
+            salesActionAvailability: {
+              hasCoupons: !!(play.systemActionContext.salesActionAvailability && play.systemActionContext.salesActionAvailability.hasCoupons),
+              hasPromotions: !!(play.systemActionContext.salesActionAvailability && play.systemActionContext.salesActionAvailability.hasPromotions),
+              hasUpsells: !!(play.systemActionContext.salesActionAvailability && play.systemActionContext.salesActionAvailability.hasUpsells),
+              hasCombos: !!(play.systemActionContext.salesActionAvailability && play.systemActionContext.salesActionAvailability.hasCombos),
+              hasPointsProgram: !!(play.systemActionContext.salesActionAvailability && play.systemActionContext.salesActionAvailability.hasPointsProgram),
+              couponCode: cleanField(play.systemActionContext.salesActionAvailability || {}, "couponCode", 80),
+              promotionName: cleanField(play.systemActionContext.salesActionAvailability || {}, "promotionName", 120),
+              upsellName: cleanField(play.systemActionContext.salesActionAvailability || {}, "upsellName", 120),
+              combinationName: cleanField(play.systemActionContext.salesActionAvailability || {}, "combinationName", 120)
+            },
+            discountDecision: play.systemActionContext.discountDecision && typeof play.systemActionContext.discountDecision === "object" && !Array.isArray(play.systemActionContext.discountDecision)
+              ? {
+                  canDiscount: !!play.systemActionContext.discountDecision.canDiscount,
+                  reason: cleanField(play.systemActionContext.discountDecision, "reason", 80),
+                  suggestedDiscountType: cleanField(play.systemActionContext.discountDecision, "suggestedDiscountType", 40),
+                  suggestedDiscountValue: Number(play.systemActionContext.discountDecision.suggestedDiscountValue || 0),
+                  minimumOrderValue: Number(play.systemActionContext.discountDecision.minimumOrderValue || 0),
+                  maxSafeDiscountPercent: Number(play.systemActionContext.discountDecision.maxSafeDiscountPercent || 0),
+                  marginAfterDiscount: Number(play.systemActionContext.discountDecision.marginAfterDiscount || 0),
+                  minimumMarginPct: Number(play.systemActionContext.discountDecision.minimumMarginPct || 0),
+                  minimumMarginSource: cleanField(play.systemActionContext.discountDecision, "minimumMarginSource", 80),
+                  channelCostPct: Number(play.systemActionContext.discountDecision.channelCostPct || 0),
+                  source: cleanField(play.systemActionContext.discountDecision, "source", 80)
+                }
+              : {},
+            availableSystemActions: Array.isArray(play.systemActionContext.availableSystemActions)
+              ? play.systemActionContext.availableSystemActions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 12)
+              : []
+          }
+        : null
+    };
+  }
+  validateSeasonAIRecommendationAgainstGuardrails(result, context);
+  return result;
+}
+
+function validateSeasonAIRecommendationAgainstGuardrails(reading, context = {}) {
+  const guardrails = context && context.operationalData && context.operationalData.salesIntelligence && context.operationalData.salesIntelligence.actionGuardrails || null;
+  const candidates = guardrails && Array.isArray(guardrails.candidateActions) ? guardrails.candidateActions : [];
+  if (!guardrails || !candidates.length || !reading || !reading.commercialPlay) return true;
+  const play = reading.commercialPlay || {};
+  const match = findSeasonAICandidateMatch(play, candidates);
+  if (!match) throw new Error("ai_response_outside_allowed_actions");
+  if (/combo|upsell/i.test(String(match.actionType || play.actionType || "")) && foldText(play.combinationName) !== foldText(match.combinationName)) {
+    throw new Error("ai_response_missing_specific_complement");
+  }
+  const blocked = Array.isArray(guardrails.blockedActions) ? guardrails.blockedActions : [];
+  if (findSeasonAICandidateMatch(play, blocked) || seasonAIBlockedActionNameMatch(play, blocked)) throw new Error("ai_response_repeated_blocked_action");
+  return true;
+}
+
+function findSeasonAICandidateMatch(play, candidates) {
+  const candidateId = String(play && play.candidateId || "").trim();
+  const type = seasonAIActionTypeKey(play && (play.actionType || play.salesPlayExecution && play.salesPlayExecution.actionType) || "");
+  const product = foldText(play && (play.productName || play.salesPlayExecution && play.salesPlayExecution.productName) || "");
+  const action = foldText(play && play.actionName || "");
+  const combo = foldText(play && play.combinationName || "");
+  return (candidates || []).find((candidate) => {
+    if (!candidate) return false;
+    if (candidateId && candidate.candidateId && String(candidate.candidateId) === candidateId) return true;
+    const cType = seasonAIActionTypeKey(candidate.actionType || "");
+    const cProduct = foldText(candidate.productName || "");
+    const cAction = foldText(candidate.actionName || "");
+    const cCombo = foldText(candidate.combinationName || "");
+    if (cType && type && cType !== type) return false;
+    if (cProduct && product && cProduct !== product) return false;
+    if (cAction && action && cAction !== action) return false;
+    if ((cType === "combo" || cType === "upsell") && cCombo && combo && cCombo !== combo) return false;
+    return cType && cProduct && cType === type && cProduct === product;
+  }) || null;
+}
+
+function foldText(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function seasonAIBlockedActionNameMatch(play, blocked = []) {
+  const type = seasonAIActionTypeKey(play && (play.actionType || play.salesPlayExecution && play.salesPlayExecution.actionType) || "");
+  const action = foldText(play && play.actionName || "");
+  if (!/promotion|coupon|upsell/.test(type) || !action) return false;
+  return (blocked || []).some((item) => seasonAIActionTypeKey(item && item.actionType || "") === type && foldText(item && item.actionName || "") === action);
+}
+
+function seasonAIActionTypeKey(value) {
+  const text = foldText(value || "");
+  if (/promoc|promotion/.test(text)) return "promotion";
+  if (/cupom|coupon/.test(text)) return "coupon";
+  if (/upsell|complement/.test(text)) return "upsell";
+  if (/combo|menu/.test(text)) return "combo";
+  if (/ponto|reativ|retention|cliente/.test(text)) return "retention";
+  if (/canal|channel/.test(text)) return "channel";
+  if (/base/.test(text)) return "base_reading";
+  return text;
 }
 
 function safeSeasonAIContext(context) {
@@ -3862,6 +4038,73 @@ exports.createStorefrontStripePaymentIntent = onRequest({ region: REGION, timeou
   }
 });
 
+exports.lookupStoreCustomerByPhone = onRequest({ region: REGION, timeoutSeconds: 20, memory: "256MiB" }, async (req, res) => {
+  try {
+    if (handleCors(req, res)) return;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+    const body = req.body || {};
+    const tenantId = String(body.tenantId || "").trim();
+    const phoneKey = normalizePhoneDigits(body.phone || body.whatsapp || body.customerPhone || "");
+    if (!tenantId || !phoneKey) return res.status(400).json({ ok: false, error: "tenant_phone_required" });
+
+    const col = db.collection("tenants").doc(tenantId).collection("store_customers");
+    const matches = new Map();
+    const addSnap = (snap) => {
+      snap.forEach((doc) => {
+        if (!matches.has(doc.id)) matches.set(doc.id, doc.data() || {});
+      });
+    };
+
+    await Promise.all([
+      col.where("phoneNormalized", "==", phoneKey).limit(3).get().then(addSnap),
+      col.where("whatsappNormalized", "==", phoneKey).limit(3).get().then(addSnap),
+      col.where("phoneDigits", "==", phoneKey).limit(3).get().then(addSnap),
+      col.where("whatsappDigits", "==", phoneKey).limit(3).get().then(addSnap)
+    ]);
+
+    if (!matches.size) {
+      const fallback = await col.limit(500).get();
+      fallback.forEach((doc) => {
+        const data = doc.data() || {};
+        const candidates = [
+          data.phone,
+          data.whatsapp,
+          data.customerPhone,
+          data.telefone,
+          data.phoneNormalized,
+          data.whatsappNormalized,
+          data.phoneDigits,
+          data.whatsappDigits
+        ];
+        if (candidates.some((value) => normalizePhoneDigits(value) === phoneKey)) {
+          matches.set(doc.id, data);
+        }
+      });
+    }
+
+    if (!matches.size) return res.json({ ok: true, found: false });
+    if (matches.size > 1) return res.json({ ok: true, found: false, ambiguous: true });
+
+    const [[id, customer]] = Array.from(matches.entries());
+    return res.json({
+      ok: true,
+      found: true,
+      customer: {
+        id,
+        customerId: id,
+        clientId: id,
+        customerUid: id,
+        name: String(customer.name || customer.customerName || "").trim().slice(0, 120),
+        phone: String(customer.phone || customer.whatsapp || customer.customerPhone || "").trim().slice(0, 40),
+        whatsapp: String(customer.whatsapp || customer.phone || customer.customerPhone || "").trim().slice(0, 40)
+      }
+    });
+  } catch (error) {
+    console.error("[Storefront] lookup customer by phone failed", { error: String(error && error.message ? error.message : error).slice(0, 180) });
+    return res.status(500).json({ ok: false, error: "lookup_failed" });
+  }
+});
+
 exports.stripeWebhook = onRequest({ region: REGION, timeoutSeconds: 45, memory: "256MiB" }, async (req, res) => {
   try {
     if (req.method !== "POST") return res.status(405).send("Method not allowed");
@@ -3932,8 +4175,49 @@ exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60
       "Você é um copiloto operacional para um pequeno negócio de comida.",
       "Use apenas os dados fornecidos no contexto.",
       "Não calcule score, meta, risco ou progresso; esses valores já vêm do BocaFood.",
+      "Não invente a quantidade do resultado esperado. Use expectedQuantity, targetOrders ou measurement recebidos do BocaFood; se não vierem, mantenha a quantidade conservadora do plano determinístico.",
       "Não invente números, clientes, campanhas ou métricas.",
-      "Responda somente JSON válido com headline, helpingSignals, blockingSignals e nextAction."
+      "Priorize os últimos 60 dias de pedidos, clientes, produtos, canais e ações. Se a conta tiver menos histórico, use todo o histórico disponível e reduza a confiança da recomendação.",
+      "Em Temporadas, considere somente Cardápio como canal de venda. Não crie jogada para WhatsApp, Instagram, presencial, Glovo ou outro canal externo.",
+      "WhatsApp pode aparecer apenas como meio de divulgação com link do Cardápio; o canal de venda, medição e resultado da jogada deve ser Cardápio.",
+      "Não escolha canal de venda: use Cardápio. Taxas e outros canais podem aparecer como contexto do negócio, mas não viram canal da jogada em Temporadas.",
+      "A IA só pode escolher uma destas ações de venda do BocaFood: Cupom, Promoção, Upsell, Combo/Menu, Pontos/Reativação de cliente, Ajuste de preço/desconto saudável, Canal de venda, Revisão de produto parado ou Criar base de leitura.",
+      "A Próxima Jogada deve dizer explicitamente qual dessas ações criar, ativar ou usar. Não escreva ação concreta, ação objetiva, ação de venda simples, transforme em ação ou variações genéricas.",
+      "A Próxima Jogada nunca pode ser uma lista de opções. Escolha uma ação principal; não escreva cupom, promoção, upsell ou combo nem crie ou ative.",
+      "Se executionPlan.actions vier genérico, normalize para uma única ação permitida.",
+      "Se faltar clareza comercial, classifique a jogada antes de responder: use unlock quando faltar cadastro/dado operacional como custo, ficha técnica, margem, foto, preço ou visibilidade; use commercial quando houver qualquer histórico recente; use baseline somente quando não houver nenhum pedido/histórico válido nos últimos 30 dias.",
+      "Não use Criar base de leitura para falta de custo, foto, preço, margem, upsell criado, público específico ou pouca base. Esses casos são desbloqueio, primeira ação comercial ou divulgação geral pelo Cardápio.",
+      "Se existir cupom, promoção ou upsell no contexto, use o nome ou código exato. Se não existir, diga explicitamente Crie um cupom, Crie uma promoção, Cadastre um upsell, Monte um combo, Chame clientes com pontos ou Ajuste o preço/desconto conforme o melhor caminho.",
+      "Tudo que o BocaFood consegue ler sozinho deve virar diagnóstico automático, alerta, bloqueio ou ação objetiva. Não peça para a usuária conferir visibilidade, foto, preço, canal, margem ou pedidos.",
+      "Não use como jogada principal frases como Confira se, Verifique se, Veja se ou Acompanhe os pedidos.",
+      "Responda somente JSON válido com headline, helpingSignals, blockingSignals, nextAction e, se houver dados suficientes, commercialPlay.",
+      "Use somente uma ação de salesIntelligence.actionGuardrails.candidateActions. Copie candidateId no commercialPlay.candidateId.",
+      "Nunca transforme salesIntelligence.actionGuardrails.blockedActions em nova jogada. Bloqueado significa que a ação já está em uso ou em leitura.",
+      "commercialPlay é uma ficha guiada curta com title, actionKind, actionType, actionName, productName, combinationName, channelName, customerGroup, whereToDo, whatToDo, whyThis, afterDo, expectedResult, ifNoResult e systemActionContext.",
+      "commercialPlay.title deve ser curto, quase uma CTA, sem repetir o passo a passo: exemplos bons são 'Crie um cupom de recompra', 'Aumente o pedido com upsell', 'Traga clientes de volta' ou 'Complete a leitura do Cardápio'. O detalhe fica em whatToDo, setupSteps, distributionSteps e suggestedMessage.",
+      "Quando for jogada comercial, inclua salesPlayExecution com actionType, actionStatus, productName, channelName, audience, benefitType, benefitValue, minimumOrderValue, usageLimit, validUntil, distributionChannel, suggestedMessage, setupSteps, afterAction, primaryButtonLabel, secondaryButtonLabel e discountDecision.",
+      "Valores de cupom ou promoção não são criados pela IA. Desconto, pedido mínimo, validade, limite de uso, margem mínima, margem após desconto e custo do canal devem vir apenas de discountDecision ou de campos determinísticos enviados pelo BocaFood.",
+      "Se sugerir código de cupom, use apenas quando ele vier do BocaFood ou como código sugerido. Nunca repita código listado em availableActions.usedCouponCodes, cupons cadastrados ou jogadas anteriores.",
+      "discountDecision é decisão do BocaFood: ele verifica preço, custo, ficha técnica, margem mínima desejada pela usuária para o produto/canal e taxas do canal antes de liberar desconto. A IA só formata e explica essa decisão.",
+      "Cupom e promoção só podem aparecer com desconto, pedido mínimo, validade e limite de uso concretos quando discountDecision.canDiscount for true. Se canDiscount for false ou estiver ausente, não recomende desconto.",
+      "Não invente nem arredonde por conta própria valores como 5%, €15, 20 usos, validade, margem, preço, custo ou pedido mínimo. Se esses valores não vierem do BocaFood, escolha jogada sem desconto ou desbloqueio.",
+      "Produto forte não deve virar desconto automaticamente. Antes de cupom/promoção, prefira upsell, combo, clientes recorrentes, pontos, canal direto ou rotina sem desconto conforme o objetivo da temporada.",
+      "Quando customerSignals.recommendedAudiences existir, escolha um único público principal dali. Não amplie o público por conta própria e não misture clientes que compraram produto, produtos parecidos e recorrentes na mesma jogada.",
+      "Cupom em produto forte só pode aparecer com estratégia clara: recompra, reativação, primeira compra pelo Cardápio ou meta de volume. O título deve dizer essa estratégia.",
+      "Quando houver 2 ou 3 jogadas, elas precisam ter papéis diferentes. Não repita cupom, produto, público, canal, mecanismo ou benefício entre jogadas.",
+      "Uma jogada é uma hipótese comercial completa. Não transforme configuração, divulgação, mensagem, validade, pedido mínimo, limite de desconto ou envio de link em jogadas separadas.",
+      "Se houver cupom ou promoção, envio de link, WhatsApp, código, desconto, pedido mínimo, validade e limite de uso devem entrar em salesPlayExecution.setupSteps, distributionSteps ou guardrails da mesma ficha.",
+      "Se uma ação recebida for fraca, genérica, insegura ou parecer subtarefa de outra jogada, normalize para commercial, unlock ou baseline quando houver caminho real; se não houver caminho real, deixe claro que ela não deve ser usada como jogada principal. Quem decide renderizar menos que o limite máximo é a camada determinística.",
+      "A única exceção é código sugerido de cupom: a IA pode sugerir um código curto quando a jogada for criar cupom, mas ele deve aparecer como Código sugerido, nunca como cupom existente.",
+      "A ficha ativa não deve antecipar plano B. Não use bloco visual Se não funcionar; mantenha ifNoResult apenas como dado interno quando vier no contexto.",
+      "Use Resultado esperado em vez de Depois que fizer quando o texto for apenas voltar para Temporadas.",
+      "Nunca escreva benefício pequeno, desconto leve, promoção curta, se a margem permitir, se a margem continuar segura, confira ou verifique.",
+      "A ficha principal da usuária não deve mostrar howBocaFoodReads nem texto técnico de medição. Measurement continua interno.",
+      "Não exponha raciocínio interno, restrições estratégicas ou linguagem de análise em texto para a usuária. Evite frases como produto forte, venda barata, não divulgar para todos, se a margem permitir, estratégia clara, mecanismo, guardrail, pedidos entram automaticamente, único canal usado pela Temporada, como o BocaFood vai observar, como o BocaFood vai medir, leitura, score ou algoritmo. Transforme isso em instrução simples e executável.",
+      "commercialPlay.actionKind deve ser commercial, unlock ou baseline.",
+      "commercialPlay.whatToDo deve começar com Crie, Ative, Use, Cadastre, Monte, Chame, Ajuste, Revise, Adicione, Defina ou Registre e dizer o próximo clique dentro do BocaFood quando systemActionContext existir.",
+      "Para Combo/Menu ou Upsell, commercialPlay.combinationName é obrigatório e precisa ser o nome real do complemento enviado em candidateActions.",
+      "Não invente módulo, botão, rota ou dado. Use apenas módulos, botões e ações disponíveis no contexto."
     ].join("\n"));
     const safeContext = safeSeasonAIContext(context);
     const contextHash = String(context && context.cache && context.cache.hash || body.contextHash || "");
@@ -3957,6 +4241,10 @@ exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60
               "Analise o contexto agregado da temporada abaixo.",
               "A resposta deve ser prática, específica e curta.",
               "Se houver executionPlan.actions, priorize essas jogadas e melhore a clareza sem criar ação inexistente.",
+              "Não substitua a ação por frases genéricas. Diga a ação exata do BocaFood que deve ser criada, ativada ou usada.",
+              "Nunca devolva lista de opções como cupom, promoção, upsell ou combo. Escolha uma ação e classifique como commercial, unlock ou baseline. Use Criar base de leitura apenas quando não houver nenhum pedido/histórico válido nos últimos 30 dias.",
+              "Escolha uma das candidateActions enviadas em salesIntelligence.actionGuardrails e não use blockedActions.",
+              "Se escolher Combo/Menu ou Upsell, informe o complemento exato em commercialPlay.combinationName.",
               "Nunca peça para a usuária conferir dados que já estão no contexto; use os dados recebidos.",
               JSON.stringify(safeContext)
             ].join("\n\n")
@@ -3971,7 +4259,7 @@ exports.seasonsAiRecommendation = onRequest({ region: REGION, timeoutSeconds: 60
     }
     const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     const parsed = JSON.parse(String(content || "{}"));
-    const recommendation = validSeasonAIReading(parsed);
+    const recommendation = validSeasonAIReading(parsed, safeContext);
     const usage = data && data.usage || {};
     await logSeasonAIUsage({
       tenantId: body.tenantId || "",
