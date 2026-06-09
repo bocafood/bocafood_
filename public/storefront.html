@@ -3349,6 +3349,20 @@
       font-weight: 620;
     }
 
+    .modal-production-note {
+      display: none;
+      width: fit-content;
+      margin-top: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(196, 54, 42, .08);
+      border: 1px solid rgba(196, 54, 42, .16);
+      color: #9a3412;
+      font-size: 11.5px;
+      line-height: 1.15;
+      font-weight: 650;
+    }
+
     .modal-note {
       width: 100%;
       min-height: 66px;
@@ -10317,6 +10331,7 @@
                   <span class="modal-price-extra" id="modal-price-extra"></span>
                 </div>
                 <div class="modal-promo-benefit" id="modal-promo-benefit"></div>
+                <div class="modal-production-note" id="modal-production-note"></div>
                 <div class="modal-combo-qty" id="modal-combo-qty">
                   <span class="modal-combo-label" id="modal-combo-label">¿Cuántos quieres?</span>
                   <div class="modal-combo-stepper">
@@ -12033,6 +12048,64 @@
 
       function productMadeToOrder(product) {
         return !!(product && (product.madeToOrder || product.productMadeToOrder || product.sobEncomenda));
+      }
+
+      function productProductionLeadDays(product) {
+        product = product || {};
+        if (!productMadeToOrder(product)) return 0;
+        return Math.max(0, Math.floor(num(product.productionLeadDays != null ? product.productionLeadDays : product.productionLeadTimeDays)));
+      }
+
+      function cartProductionRequirement() {
+        var maxLead = 0;
+        var names = [];
+        cart.forEach(function (item) {
+          var product = findProduct(item && item.id);
+          var lead = Math.max(num(item && (item.productionLeadDays || item.productionLeadTimeDays)), productProductionLeadDays(product));
+          var isMade = !!(item && (item.madeToOrder || item.productMadeToOrder || item.sobEncomenda) || productMadeToOrder(product));
+          if (!isMade) return;
+          if (lead > maxLead) maxLead = lead;
+          names.push(firstText(item && item.name, productName(product), 'Produto'));
+        });
+        return {
+          madeToOrder: names.length > 0,
+          productionLeadDays: maxLead,
+          productNames: names
+        };
+      }
+
+      function cartMadeToOrderText(item) {
+        var product = findProduct(item && item.id);
+        var lead = Math.max(num(item && (item.productionLeadDays || item.productionLeadTimeDays)), productProductionLeadDays(product));
+        var isMade = !!(item && (item.madeToOrder || item.productMadeToOrder || item.sobEncomenda) || productMadeToOrder(product));
+        if (!isMade) return '';
+        return 'Sob encomenda · prazo ' + Math.max(0, Math.floor(lead)) + ' dia(s)';
+      }
+
+      function slotDaysUntil(slotKey) {
+        var parsed = parseSlotKey(slotKey);
+        if (!parsed || !parsed.date) return null;
+        var target = new Date(parsed.date + 'T00:00:00');
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (isNaN(target.getTime())) return null;
+        return Math.max(0, Math.round((target.getTime() - today.getTime()) / 86400000));
+      }
+
+      function madeToOrderLeadWarningText(days) {
+        days = Math.max(0, Math.floor(num(days)));
+        if (currentLanguage().indexOf('es') === 0) return 'Este producto bajo pedido necesita al menos ' + days + ' día(s).';
+        if (currentLanguage().indexOf('en') === 0) return 'This made-to-order product needs at least ' + days + ' day(s).';
+        if (currentLanguage().indexOf('fr') === 0) return 'Ce produit sur commande nécessite au moins ' + days + ' jour(s).';
+        return 'Esse produto sob encomenda precisa de pelo menos ' + days + ' dia(s).';
+      }
+
+      function cartSelectedSlotRespectsLead(slotKey) {
+        var requiredLead = cartProductionRequirement().productionLeadDays || 0;
+        if (!requiredLead) return true;
+        var days = slotDaysUntil(slotKey);
+        if (days == null) return false;
+        return days >= requiredLead;
       }
 
       function allowOutOfStockSales() {
@@ -15177,6 +15250,12 @@
           promoBenefitEl.textContent = benefit;
           promoBenefitEl.style.display = benefit ? 'inline-flex' : 'none';
         }
+        var productionNoteEl = document.getElementById('modal-production-note');
+        if (productionNoteEl) {
+          var productionText = cartMadeToOrderText(modalProduct || {});
+          productionNoteEl.textContent = productionText;
+          productionNoteEl.style.display = productionText ? 'inline-flex' : 'none';
+        }
         updateModalButton();
       }
 
@@ -17125,6 +17204,11 @@
           stockChoices: Array.isArray(options.stockChoices) ? options.stockChoices : [],
           choiceDetails: Array.isArray(options.choiceDetails) ? options.choiceDetails : [],
           menuChoices: Array.isArray(options.menuChoices) ? options.menuChoices : [],
+          madeToOrder: !!(product.madeToOrder || product.productMadeToOrder || product.sobEncomenda),
+          productMadeToOrder: !!(product.madeToOrder || product.productMadeToOrder || product.sobEncomenda),
+          sobEncomenda: !!(product.madeToOrder || product.productMadeToOrder || product.sobEncomenda),
+          productionLeadDays: productProductionLeadDays(product),
+          productionLeadTimeDays: productProductionLeadDays(product),
           addAlsoDiscount: relationDiscount,
           upsellRuleId: upsellRuleId,
           upsellRuleName: options.upsellRuleName || '',
@@ -17892,10 +17976,11 @@
 
       function slotAdvanceRange() {
         var configuredMaxAdvance = cfg.maxAdvanceDays != null ? cfg.maxAdvanceDays : (cfg.advanceDaysLimit != null ? cfg.advanceDaysLimit : cfg.advanceDays);
+        var productionLead = cartProductionRequirement().productionLeadDays || 0;
         var maxAdvanceDays = Math.max(0, num(configuredMaxAdvance != null ? configuredMaxAdvance : 2) || 0);
         return {
-          min: 0,
-          max: maxAdvanceDays
+          min: Math.max(0, productionLead),
+          max: Math.max(maxAdvanceDays, productionLead)
         };
       }
 
@@ -17904,6 +17989,10 @@
         if (storeManuallyClosed()) return [];
         var interval = num(cfg.slotInterval || cfg.orderSlotInterval || 30) || 30;
         var advance = num(cfg.minimumAdvanceMinutes || cfg.advanceMinutes || (type === 'delivery' ? 45 : 25));
+        var productionLead = cartProductionRequirement().productionLeadDays || 0;
+        var configuredMaxAdvance = cfg.maxAdvanceDays != null ? cfg.maxAdvanceDays : (cfg.advanceDaysLimit != null ? cfg.advanceDaysLimit : cfg.advanceDays);
+        var maxAdvanceDays = Math.max(0, num(configuredMaxAdvance != null ? configuredMaxAdvance : 2) || 0);
+        if (productionLead > maxAdvanceDays) return [];
         var range = slotAdvanceRange();
         var now = new Date();
         var slots = [];
@@ -18098,7 +18187,8 @@
       function whatsappItemLine(item) {
         var code = cartItemCode(item);
         var choices = (item.choices || []).map(compactChoiceText).filter(Boolean).join(' / ');
-        return '• ' + item.qty + 'x ' + item.name + (code ? ' [' + code + ']' : '') + (choices ? ' (' + choices + ')' : '') + ' — ' + money(cartLineTotal(item));
+        var madeToOrder = cartMadeToOrderText(item);
+        return '• ' + item.qty + 'x ' + item.name + (code ? ' [' + code + ']' : '') + (choices ? ' (' + choices + ')' : '') + (madeToOrder ? ' · ' + madeToOrder : '') + ' — ' + money(cartLineTotal(item));
       }
 
       function shortOrderReference() {
@@ -18137,6 +18227,7 @@
         if (paymentMethods().length && paymentSelect && !paymentSelect.value) return false;
         var slotSelect = document.getElementById(orderType === 'delivery' ? 'delivery-slot' : 'pickup-slot');
         if (!slotSelect || !slotSelect.value) return false;
+        if (!cartSelectedSlotRespectsLead(slotSelect.value)) return false;
         if (orderType === 'delivery') {
           if (minimumOrder() && cartTotal() < minimumOrder()) return false;
           if (deliveryZones.length && !selectedDeliveryZone) return false;
@@ -18235,6 +18326,7 @@
         document.getElementById('fee-val').textContent = money(fee);
         document.getElementById('delivery-fields').classList.toggle('cart-row-hidden', orderType !== 'delivery');
         document.getElementById('pickup-fields').classList.toggle('cart-row-hidden', orderType !== 'pickup');
+        renderSlots();
         var deliveryExtra = document.getElementById('delivery-extra');
         if (deliveryExtra) deliveryExtra.style.display = orderType === 'delivery' && (!deliveryZones.length || selectedDeliveryZone) ? '' : 'none';
         if (deliveryExtra && deliveryExtra.style.display !== 'none') {
@@ -18288,9 +18380,11 @@
           var promoText = cartLinePromoText(item);
           var choicesHtml = (item.choices || []).map(function (choice) { return cartLineChoiceHtml(choice, item.qty); }).join('');
           var noteHtml = item.note ? '<div class="cart-line-note">' + text(t('noteShort')) + ' ' + text(item.note) + '</div>' : '';
+          var madeToOrderText = cartMadeToOrderText(item);
+          var madeToOrderHtml = madeToOrderText ? '<div class="cart-line-note">' + text(madeToOrderText) + '</div>' : '';
           var lineUnitPrice = cartLineUnitPrice(item);
           var oldPrice = item.originalPrice && item.originalPrice > lineUnitPrice ? '<div class="cart-line-price-old">' + money(item.originalPrice * item.qty) + '</div>' : '';
-          return '<div class="cart-line"><div><div class="cart-line-title-row"><span class="cart-line-name">' + text(item.name) + '</span>' + cartLineBadges(item) + '</div>' + (promoText ? '<div class="cart-line-promo">' + text(promoText) + '</div>' : '') + choicesHtml + noteHtml + '<div class="cart-line-actions"><button type="button" data-dec="' + text(item.key) + '">−</button><span>' + item.qty + '</span><button type="button" data-inc="' + text(item.key) + '">+</button><button class="cart-remove" type="button" data-remove="' + text(item.key) + '">×</button></div></div><div class="cart-line-price">' + oldPrice + '<div class="cart-line-price-current">' + money(cartLineTotal(item)) + '</div></div></div>';
+          return '<div class="cart-line"><div><div class="cart-line-title-row"><span class="cart-line-name">' + text(item.name) + '</span>' + cartLineBadges(item) + '</div>' + (promoText ? '<div class="cart-line-promo">' + text(promoText) + '</div>' : '') + choicesHtml + noteHtml + madeToOrderHtml + '<div class="cart-line-actions"><button type="button" data-dec="' + text(item.key) + '">−</button><span>' + item.qty + '</span><button type="button" data-inc="' + text(item.key) + '">+</button><button class="cart-remove" type="button" data-remove="' + text(item.key) + '">×</button></div></div><div class="cart-line-price">' + oldPrice + '<div class="cart-line-price-current">' + money(cartLineTotal(item)) + '</div></div></div>';
         }).join('') : '<div class="cart-empty">' + text(t('emptyOrder')) + '</div>';
         lines.querySelectorAll('[data-dec]').forEach(function (btn) { btn.onclick = function () { changeLine(btn.getAttribute('data-dec'), -1); }; });
         lines.querySelectorAll('[data-inc]').forEach(function (btn) { btn.onclick = function () { changeLine(btn.getAttribute('data-inc'), 1); }; });
@@ -18679,6 +18773,11 @@
         var payment = document.getElementById('payment-method').value;
         var note = document.getElementById('customer-note').value.trim();
         if (!slotKey) { showCartWarning(t('selectSlotWarn')); return; }
+        if (!cartSelectedSlotRespectsLead(slotKey)) {
+          var leadDays = cartProductionRequirement().productionLeadDays || 0;
+          showCartWarning(madeToOrderLeadWarningText(leadDays));
+          return;
+        }
         if (paymentMethods().length && !payment) { showCartWarning(t('paymentRequired')); return; }
         if (orderType === 'delivery' && min && subtotal < min) { showCartWarning(t('minimumDeliveryWarn', { value: money(min) })); return; }
         if (orderType === 'delivery' && deliveryZones.length && !selectedDeliveryZone) { showCartWarning(t('postalWarn')); return; }
@@ -18920,7 +19019,7 @@
           items: cart.map(function (item) {
             var linePrice = cartLineUnitPrice(item);
             var linePromo = item.promo && cartLinePromoApplies(item) ? item.promo : null;
-            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [], stockChoices: item.stockChoices || [], choiceDetails: item.choiceDetails || [], menuChoices: item.menuChoices || [] };
+            return { id: item.id, name: item.name, qty: item.qty, price: linePrice, originalPrice: item.originalPrice || item.price, promoUnitPrice: linePrice, promoDiscountTotal: cartLinePromoSaving(item), promo: linePromo, addAlsoDiscount: item.addAlsoDiscount || 0, upsellRuleId: item.upsellRuleId || '', upsellRuleName: item.upsellRuleName || '', upsellBenefitType: item.upsellBenefitType || '', relatedToProductId: item.relatedToProductId || '', relatedToProductName: item.relatedToProductName || '', internalNote: item.internalNote || '', productInternalNote: item.productInternalNote || item.internalNote || '', total: cartLineTotal(item), note: item.note || '', choices: item.choices || [], stockChoices: item.stockChoices || [], choiceDetails: item.choiceDetails || [], menuChoices: item.menuChoices || [], madeToOrder: !!(item.madeToOrder || item.productMadeToOrder || item.sobEncomenda), productMadeToOrder: !!(item.madeToOrder || item.productMadeToOrder || item.sobEncomenda), sobEncomenda: !!(item.madeToOrder || item.productMadeToOrder || item.sobEncomenda), productionLeadDays: Math.max(num(item.productionLeadDays || item.productionLeadTimeDays), productProductionLeadDays(findProduct(item.id))), productionLeadTimeDays: Math.max(num(item.productionLeadDays || item.productionLeadTimeDays), productProductionLeadDays(findProduct(item.id))) };
           }),
           subtotal: extra.subtotal,
           originalSubtotal: extra.originalSubtotal || extra.subtotal,
