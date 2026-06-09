@@ -76,6 +76,7 @@ Modules.Pedidos = (function () {
   var _ordersPage = 1;
   var _ordersPageSize = 10;
   var _ordersSelection = {};
+  var _ordersBulkStatus = '';
   var _kitchenPage = 1;
   var _kitchenPageSize = 10;
   var _manualOrderState = {
@@ -1472,6 +1473,14 @@ Modules.Pedidos = (function () {
     _ordersSelection = {};
   }
 
+  function _setOrdersBulkStatus(value) {
+    _ordersBulkStatus = String(value || '').trim();
+  }
+
+  function _getOrdersBulkStatus() {
+    return String(_ordersBulkStatus || '').trim();
+  }
+
   function _selectedOrderIds(pageItems) {
     return (pageItems || []).filter(function (o) {
       return !!_ordersSelection[String(o && o.id || '')];
@@ -2124,8 +2133,9 @@ Modules.Pedidos = (function () {
     var selectedCount = selectedIds.length;
     var hasSelection = selectedCount > 0;
     var allSelected = pageItems.length && selectedCount === pageItems.length;
+    var bulkStatus = String(_ordersBulkStatus || '');
     var statusOptions = COLUMNS.map(function (c) {
-      return '<option value="' + c.key + '">' + _esc(c.label) + '</option>';
+      return '<option value="' + c.key + '"' + (bulkStatus === c.key ? ' selected' : '') + '>' + _esc(c.label) + '</option>';
     }).join('');
     var rows = pageItems.map(function (o) {
       var review = _orderReviewSummary(o);
@@ -2177,11 +2187,11 @@ Modules.Pedidos = (function () {
           '<span style="font-size:12px;color:#6F6860;line-height:1.4;">' + (selectedCount ? selectedCount + ' selecionado(s)' : 'Selecione pedidos para alterar o status em massa.') + '</span>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
-          '<select id="orders-bulk-status" style="min-width:190px;height:36px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+          '<select id="orders-bulk-status" onchange="Modules.Pedidos._setOrdersBulkStatus(this.value)" style="min-width:190px;height:36px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box;">' +
             '<option value="">Alterar status...</option>' +
             statusOptions +
           '</select>' +
-          '<button type="button" onclick="Modules.Pedidos._bulkUpdateOrdersStatus((function(){var ids=' + JSON.stringify(selectedIds) + ';return ids;})(), document.getElementById(\'orders-bulk-status\').value)" ' + (!hasSelection ? 'disabled ' : '') + 'style="height:36px;padding:0 13px;border:none;border-radius:10px;background:' + (hasSelection ? '#B42318' : '#E5E7EB') + ';color:' + (hasSelection ? '#fff' : '#9CA3AF') + ';font-size:12px;font-weight:700;cursor:' + (hasSelection ? 'pointer' : 'not-allowed') + ';font-family:inherit;box-shadow:' + (hasSelection ? '0 10px 22px rgba(180,35,24,.16)' : 'none') + ';">Aplicar em massa</button>' +
+          '<button type="button" onclick="Modules.Pedidos._bulkUpdateOrdersStatus((function(){var ids=' + JSON.stringify(selectedIds) + ';return ids;})(), Modules.Pedidos._getOrdersBulkStatus())" ' + (!hasSelection || !bulkStatus ? 'disabled ' : '') + 'style="height:36px;padding:0 13px;border:none;border-radius:10px;background:' + (hasSelection && bulkStatus ? '#B42318' : '#E5E7EB') + ';color:' + (hasSelection && bulkStatus ? '#fff' : '#9CA3AF') + ';font-size:12px;font-weight:700;cursor:' + (hasSelection && bulkStatus ? 'pointer' : 'not-allowed') + ';font-family:inherit;box-shadow:' + (hasSelection && bulkStatus ? '0 10px 22px rgba(180,35,24,.16)' : 'none') + ';">Aplicar em massa</button>' +
           (hasSelection ? '<button type="button" onclick="Modules.Pedidos._clearOrdersSelection();Modules.Pedidos._paintTodosPanels();" style="height:36px;padding:0 13px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Limpar seleção</button>' : '') +
         '</div>' +
       '</div>' +
@@ -11038,7 +11048,7 @@ Modules.Pedidos = (function () {
     _setClientPage: _setClientPage, _setClientPageSize: _setClientPageSize,
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
     _paintTodosPanels: _paintTodosPanels,
-    _toggleOrderSelection: _toggleOrderSelection, _toggleOrdersPageSelection: _toggleOrdersPageSelection, _clearOrdersSelection: _clearOrdersSelection, _bulkUpdateOrdersStatus: _bulkUpdateOrdersStatus,
+    _toggleOrderSelection: _toggleOrderSelection, _toggleOrdersPageSelection: _toggleOrdersPageSelection, _clearOrdersSelection: _clearOrdersSelection, _setOrdersBulkStatus: _setOrdersBulkStatus, _getOrdersBulkStatus: _getOrdersBulkStatus, _bulkUpdateOrdersStatus: _bulkUpdateOrdersStatus,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
     _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _detailSearchProducts: _detailSearchProducts, _detailAddProduct: _detailAddProduct, _openDetailAddChoicesModal: _openDetailAddChoicesModal, _saveDetailAddChoices: _saveDetailAddChoices, _closeDetailAddChoicesModal: _closeDetailAddChoicesModal, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail, _forceOrderStockReversal: _forceOrderStockReversal,
