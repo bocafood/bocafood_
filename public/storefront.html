@@ -12809,6 +12809,14 @@
         return null;
       }
 
+      function storeManuallyClosed() {
+        var mode = statusModeValue();
+        if (mode === 'manual_closed') return true;
+        var status = String(firstText(cfg.publicStoreStatus, cfg.storeOnlineStatus, cfg.onlineStatus, cfg.status, '')).toLowerCase();
+        if (status === 'closed' || status === 'fechado' || status === 'cerrado' || status === 'fechada' || status === 'desligada' || status === 'offline') return true;
+        return cfg.manualClosed === true;
+      }
+
       function periodCandidates(type, daysAhead) {
         var now = new Date();
         var list = [];
@@ -17878,6 +17886,7 @@
 
       function generateSlots(type) {
         if (!fulfillmentEnabled(type)) return [];
+        if (storeManuallyClosed()) return [];
         var interval = num(cfg.slotInterval || cfg.orderSlotInterval || 30) || 30;
         var advance = num(cfg.minimumAdvanceMinutes || cfg.advanceMinutes || (type === 'delivery' ? 45 : 25));
         var range = slotAdvanceRange();
@@ -18104,6 +18113,7 @@
         if (!cart.length) return false;
         normalizeOrderType();
         if (!orderType) return false;
+        if (storeManuallyClosed()) return false;
         var paymentSelect = document.getElementById('payment-method');
         if (paymentMethods().length && paymentSelect && !paymentSelect.value) return false;
         var slotSelect = document.getElementById(orderType === 'delivery' ? 'delivery-slot' : 'pickup-slot');
