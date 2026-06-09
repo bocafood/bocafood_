@@ -75,6 +75,7 @@ Modules.Pedidos = (function () {
   var _clientPageSize = 10;
   var _ordersPage = 1;
   var _ordersPageSize = 10;
+  var _ordersSelection = {};
   var _kitchenPage = 1;
   var _kitchenPageSize = 10;
   var _manualOrderState = {
@@ -1405,19 +1406,24 @@ Modules.Pedidos = (function () {
   function _setUi(key, value) {
     _ui[key] = value || '';
     if (_activeTab === 'clientes') _clientPage = 1;
-    if (_activeTab === 'lista') _ordersPage = 1;
+    if (_activeTab === 'lista') {
+      _ordersPage = 1;
+      _clearOrdersSelection();
+    }
     if (_activeTab === 'cozinha') _kitchenPage = 1;
     _paintActive();
   }
 
   function _setOrdersPage(page) {
     _ordersPage = Math.max(1, parseInt(page, 10) || 1);
+    _clearOrdersSelection();
     _paintTodosPanels();
   }
 
   function _setOrdersPageSize(value) {
     _ordersPageSize = Math.max(1, parseInt(value, 10) || 10);
     _ordersPage = 1;
+    _clearOrdersSelection();
     _paintTodosPanels();
   }
 
@@ -1458,7 +1464,61 @@ Modules.Pedidos = (function () {
     _ui.status = 'all';
     _ui.channel = 'all';
     _ordersPage = 1;
+    _clearOrdersSelection();
     _paintActive();
+  }
+
+  function _clearOrdersSelection() {
+    _ordersSelection = {};
+  }
+
+  function _selectedOrderIds(pageItems) {
+    return (pageItems || []).filter(function (o) {
+      return !!_ordersSelection[String(o && o.id || '')];
+    }).map(function (o) {
+      return String(o.id || '');
+    });
+  }
+
+  function _toggleOrderSelection(orderId, checked) {
+    var id = String(orderId || '').trim();
+    if (!id) return;
+    if (checked) _ordersSelection[id] = true;
+    else delete _ordersSelection[id];
+  }
+
+  function _toggleOrdersPageSelection(pageItems, checked) {
+    (pageItems || []).forEach(function (item) {
+      _toggleOrderSelection(item, checked);
+    });
+    _paintTodosPanels();
+  }
+
+  function _bulkUpdateOrdersStatus(orderIds, status) {
+    var ids = (orderIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean);
+    var nextStatus = String(status || '').trim();
+    if (!ids.length) {
+      UI.toast('Selecione pelo menos um pedido.', 'info');
+      return Promise.resolve(false);
+    }
+    if (!nextStatus) {
+      UI.toast('Escolha o novo status.', 'info');
+      return Promise.resolve(false);
+    }
+    var done = 0;
+    return ids.reduce(function (chain, id) {
+      return chain.then(function () {
+        return _updateOrderStatus(id, nextStatus, { toast: false, prompt: false, noChangeToast: true }).then(function (ok) {
+          if (ok !== false) done += 1;
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      _clearOrdersSelection();
+      _paintTodosPanels();
+      if (done) UI.toast(done + ' pedido(s) atualizado(s).', 'success');
+      else UI.toast('Nenhum pedido foi atualizado.', 'info');
+      return done > 0;
+    });
   }
 
   function _clearClientFilters() {
@@ -2060,6 +2120,13 @@ Modules.Pedidos = (function () {
     if (_ordersPage < 1) _ordersPage = 1;
     var start = (_ordersPage - 1) * _ordersPageSize;
     var pageItems = orders.slice(start, start + _ordersPageSize);
+    var selectedIds = _selectedOrderIds(pageItems);
+    var selectedCount = selectedIds.length;
+    var hasSelection = selectedCount > 0;
+    var allSelected = pageItems.length && selectedCount === pageItems.length;
+    var statusOptions = COLUMNS.map(function (c) {
+      return '<option value="' + c.key + '">' + _esc(c.label) + '</option>';
+    }).join('');
     var rows = pageItems.map(function (o) {
       var review = _orderReviewSummary(o);
       var customer = review.customer;
@@ -2072,6 +2139,7 @@ Modules.Pedidos = (function () {
       var typeTone = o.type === 'pickup' ? '#059669' : '#2563EB';
       var typeLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
       return '<tr onclick="Modules.Pedidos._openDetail(\'' + _esc(o.id) + '\')" onmouseenter="this.style.background=\'#FBF8F2\'" onmouseleave="this.style.background=\'#fff\'" style="cursor:pointer;background:#fff;border-bottom:1px solid #EAE4DA;transition:background .15s ease;">' +
+        '<td style="padding:13px 12px;vertical-align:middle;width:44px;"><input type="checkbox" ' + (_ordersSelection[String(o.id || '')] ? 'checked ' : '') + 'onclick="event.stopPropagation();Modules.Pedidos._toggleOrderSelection(\'' + _esc(o.id) + '\', this.checked);Modules.Pedidos._paintTodosPanels();" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></td>' +
         '<td style="padding:12px 16px;vertical-align:middle;min-width:280px;">' +
           '<div style="min-width:0;">' +
             '<div style="font-size:15px;font-weight:600;color:#1F1F1F;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(customerLabel) + '</div>' +
@@ -2100,9 +2168,27 @@ Modules.Pedidos = (function () {
       '</tr>';
     }).join('');
     return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid #EAE4DA;background:#fff;">' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;">' +
+          '<label style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#1F1F1F;cursor:pointer;">' +
+            '<input type="checkbox" ' + (allSelected ? 'checked ' : '') + 'onclick="event.stopPropagation();Modules.Pedidos._toggleOrdersPageSelection(' + JSON.stringify(pageItems.map(function (o) { return String(o.id || ''); })) + ', this.checked);" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;">' +
+            'Selecionar página' +
+          '</label>' +
+          '<span style="font-size:12px;color:#6F6860;line-height:1.4;">' + (selectedCount ? selectedCount + ' selecionado(s)' : 'Selecione pedidos para alterar o status em massa.') + '</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<select id="orders-bulk-status" style="min-width:190px;height:36px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+            '<option value="">Alterar status...</option>' +
+            statusOptions +
+          '</select>' +
+          '<button type="button" onclick="Modules.Pedidos._bulkUpdateOrdersStatus((function(){var ids=' + JSON.stringify(selectedIds) + ';return ids;})(), document.getElementById(\'orders-bulk-status\').value)" ' + (!hasSelection ? 'disabled ' : '') + 'style="height:36px;padding:0 13px;border:none;border-radius:10px;background:' + (hasSelection ? '#B42318' : '#E5E7EB') + ';color:' + (hasSelection ? '#fff' : '#9CA3AF') + ';font-size:12px;font-weight:700;cursor:' + (hasSelection ? 'pointer' : 'not-allowed') + ';font-family:inherit;box-shadow:' + (hasSelection ? '0 10px 22px rgba(180,35,24,.16)' : 'none') + ';">Aplicar em massa</button>' +
+          (hasSelection ? '<button type="button" onclick="Modules.Pedidos._clearOrdersSelection();Modules.Pedidos._paintTodosPanels();" style="height:36px;padding:0 13px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#6F6860;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Limpar seleção</button>' : '') +
+        '</div>' +
+      '</div>' +
       '<div style="overflow:auto;">' +
-        '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1060px;">' +
+        '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1104px;">' +
           '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
+            '<th style="width:44px;padding:12px 12px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" ' + (allSelected ? 'checked ' : '') + 'onclick="event.stopPropagation();Modules.Pedidos._toggleOrdersPageSelection(' + JSON.stringify(pageItems.map(function (o) { return String(o.id || ''); })) + ', this.checked);" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedido</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Canal</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
@@ -10951,6 +11037,8 @@ Modules.Pedidos = (function () {
     _setKitchenPage: _setKitchenPage, _setKitchenPageSize: _setKitchenPageSize,
     _setClientPage: _setClientPage, _setClientPageSize: _setClientPageSize,
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
+    _paintTodosPanels: _paintTodosPanels,
+    _toggleOrderSelection: _toggleOrderSelection, _toggleOrdersPageSelection: _toggleOrdersPageSelection, _clearOrdersSelection: _clearOrdersSelection, _bulkUpdateOrdersStatus: _bulkUpdateOrdersStatus,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
     _openDetail: _openDetail, _toggleItem: _toggleItem, _removeDetailItem: _removeDetailItem, _detailSearchProducts: _detailSearchProducts, _detailAddProduct: _detailAddProduct, _openDetailAddChoicesModal: _openDetailAddChoicesModal, _saveDetailAddChoices: _saveDetailAddChoices, _closeDetailAddChoicesModal: _closeDetailAddChoicesModal, _openDetailChoicesModal: _openDetailChoicesModal, _saveDetailChoices: _saveDetailChoices, _closeDetailChoicesModal: _closeDetailChoicesModal, _formatDetailMoneyField: _formatDetailMoneyField, _saveDetail: _saveDetail, _forceOrderStockReversal: _forceOrderStockReversal,
