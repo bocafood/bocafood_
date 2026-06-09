@@ -13674,7 +13674,7 @@
         var benefit = upsellRuleBenefitType(rule);
         if (['none', 'pct', 'eur', 'special_price'].indexOf(benefit) < 0) return false;
         var triggerIds = upsellRuleTriggerIds(rule);
-        if (triggerIds.length && triggerIds.indexOf(String(product.id)) >= 0) return true;
+        if (triggerIds.length) return triggerIds.indexOf(String(product.id)) >= 0;
         var productKey = productTextKey(productName(product));
         if (productKey && upsellRuleTriggerNames(rule).some(function (name) { return productTextKey(name) === productKey; })) return true;
         var triggerCategory = firstText(rule && rule.triggerCategory, rule && rule.trigger_category, rule && rule.categoryTrigger);
@@ -13726,18 +13726,6 @@
         if (type === 'valor_minimo' || type === 'carrinho') return true;
         var triggerIds = upsellRuleTriggerIds(rule);
         if (triggerIds.length && triggerIds.some(cartHasDirectProduct)) return true;
-        var triggerNames = upsellRuleTriggerNames(rule).map(productTextKey);
-        if (triggerNames.length && cart.some(function (item) {
-          var product = findProduct(item && item.id);
-          return product && !item.relatedToProductId && triggerNames.indexOf(productTextKey(productName(product))) >= 0;
-        })) return true;
-        var triggerCategory = firstText(rule.triggerCategory, rule.trigger_category, rule.categoryTrigger);
-        if (triggerCategory) {
-          return cart.some(function (item) {
-            var product = findProduct(item && item.id);
-            return product && !item.relatedToProductId && String(productCategory(product)).toLowerCase() === String(triggerCategory).toLowerCase();
-          });
-        }
         return false;
       }
 
