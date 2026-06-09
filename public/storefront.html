@@ -17734,17 +17734,17 @@
           if (!item) return null;
           if (typeof item === 'string') {
             var stringOnline = paymentMethodIsOnlineCard(item, null);
-            return { name: item, displayName: paymentPublicName(item), instructions: stringOnline ? t('paymentCardOnlineHelp') : '', isOnlineCard: stringOnline };
+            return { name: item, displayName: paymentPublicName(item), instructions: '', isOnlineCard: stringOnline };
           }
           if (typeof item !== 'object') {
             var rawName = firstText(String(item), '');
             var rawOnline = paymentMethodIsOnlineCard(rawName, null);
-            return { name: rawName, displayName: paymentPublicName(rawName), instructions: rawOnline ? t('paymentCardOnlineHelp') : '', isOnlineCard: rawOnline };
+            return { name: rawName, displayName: paymentPublicName(rawName), instructions: '', isOnlineCard: rawOnline };
           }
           if (item && (item.active === false || item.enabled === false)) return null;
           var name = firstText(item.name, item.label, item.title, item.id);
           var onlineCard = paymentMethodIsOnlineCard(name, item);
-          return { name: name, displayName: paymentPublicName(name, item), instructions: onlineCard ? t('paymentCardOnlineHelp') : firstText(item.instructions, item.note, item.description), isOnlineCard: onlineCard };
+          return { name: name, displayName: paymentPublicName(name, item), instructions: onlineCard ? '' : firstText(item.instructions, item.note, item.description), isOnlineCard: onlineCard };
         }).filter(function (item) { return item && item.name; });
       }
 
@@ -17776,7 +17776,7 @@
         }).join('');
         if (buttons) {
           buttons.innerHTML = methods.map(function (item) {
-            var help = item.isOnlineCard ? '<span class="payment-option-help">' + text(t('paymentCardOnlineHelp')) + '</span>' : '';
+            var help = '';
             return '<button class="payment-option" type="button" data-payment-option="' + text(item.name) + '"><span class="payment-option-label">' + text(item.displayName || item.name) + '</span>' + help + '</button>';
           }).join('');
           buttons.querySelectorAll('[data-payment-option]').forEach(function (btn) {
