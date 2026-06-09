@@ -2156,7 +2156,6 @@ Modules.Pedidos = (function () {
     var selectedIds = _selectedOrderIds(pageItems);
     var selectedCount = selectedIds.length;
     var hasSelection = selectedCount > 0;
-    var allSelected = pageItems.length && selectedCount === pageItems.length;
     var bulkStatus = String(_ordersBulkStatus || '');
     var statusOptions = COLUMNS.map(function (c) {
       return '<option value="' + c.key + '"' + (bulkStatus === c.key ? ' selected' : '') + '>' + _esc(c.label) + '</option>';
@@ -2204,11 +2203,7 @@ Modules.Pedidos = (function () {
     return '<div style="background:#fff;border:1px solid #EAE4DA;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid #EAE4DA;background:#fff;">' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;">' +
-          '<label style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#1F1F1F;cursor:pointer;">' +
-            '<input type="checkbox" ' + (allSelected ? 'checked ' : '') + 'onclick="event.stopPropagation();Modules.Pedidos._toggleOrdersPageSelection(' + JSON.stringify(pageItems.map(function (o) { return String(o.id || ''); })) + ', this.checked);" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;">' +
-            'Selecionar página' +
-          '</label>' +
-          '<span style="font-size:12px;color:#6F6860;line-height:1.4;">' + (selectedCount ? selectedCount + ' selecionado(s)' : 'Selecione pedidos para alterar o status em massa.') + '</span>' +
+          (selectedCount ? '<span style="font-size:12px;color:#6F6860;line-height:1.4;">' + selectedCount + ' selecionado(s)</span>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<select id="orders-bulk-status" onchange="Modules.Pedidos._setOrdersBulkStatus(this.value)" style="min-width:190px;height:36px;padding:0 12px;border:1px solid #EAE4DA;border-radius:10px;background:#fff;color:#1F1F1F;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box;">' +
@@ -2222,7 +2217,7 @@ Modules.Pedidos = (function () {
       '<div style="overflow:auto;">' +
         '<table class="bf-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1104px;">' +
           '<thead><tr style="background:#fff;border-bottom:1px solid #EAE4DA;">' +
-            '<th style="width:44px;padding:12px 12px;border-bottom:1px solid #EAE4DA;background:#fff;"><input type="checkbox" ' + (allSelected ? 'checked ' : '') + 'onclick="event.stopPropagation();Modules.Pedidos._toggleOrdersPageSelection(' + JSON.stringify(pageItems.map(function (o) { return String(o.id || ''); })) + ', this.checked);" style="width:16px;height:16px;accent-color:#B42318;cursor:pointer;"></th>' +
+            '<th style="width:44px;padding:12px 12px;border-bottom:1px solid #EAE4DA;background:#fff;"></th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pedido</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Canal</th>' +
             '<th style="text-align:left;padding:12px 16px;border-bottom:1px solid #EAE4DA;background:#fff;font-size:11px;font-weight:600;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Status</th>' +
