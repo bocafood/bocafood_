@@ -112,11 +112,6 @@ Modules.Temporadas = (function () {
           '<div class="seasons-kicker">' + _icon('track_changes') + ' Missões Operacionais</div>' +
           '<h1>Temporadas</h1>' +
           '<p>Use a rota do Plano de Voo para definir as próximas ações da temporada.</p>' +
-          '<div class="seasons-hero-chips">' +
-            '<span>Rota em ação</span>' +
-            '<span>Jogadas práticas</span>' +
-            '<span>Leitura por pedidos reais</span>' +
-          '</div>' +
         '</div>' +
       '</div>' +
       heroAction +
