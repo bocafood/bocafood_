@@ -18356,6 +18356,14 @@
         }
       }
 
+      function openWhatsappDirectSoon(url) {
+        if (!url) return false;
+        setTimeout(function () {
+          openWhatsappDirect(url);
+        }, 120);
+        return true;
+      }
+
       function normalizePaymentToken(value) {
         return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
@@ -18514,12 +18522,12 @@
         return updateOrderStripePaid(context.docRef, paymentIntent).then(function () {
           return applyPointsRedemption(context.orderRef, context.pointsRedemption);
         }).then(function () {
-          openWhatsappDirect(whatsappMessageUrl(context.href, context.lines));
           showCartWarning('');
           clearCart();
           closeStripePaymentModal();
           closeCart();
           openOrderSuccessModal(context.orderRef);
+          openWhatsappDirectSoon(whatsappMessageUrl(context.href, context.lines));
           pendingStorefrontOrderContext = null;
           guestCheckoutApproved = false;
         });
@@ -18795,7 +18803,6 @@
           updateStoreUserUi();
         }
         var pointsRedemption = pointsRedemptionPayload;
-        openWhatsappDirect(whatsappUrl);
         saveOrder({ docRef: pendingOrderDocRef, orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, paymentProvider: '', paymentStatus: 'previsto', paymentState: 'previsto', paid: false, paymentError: '', paymentRetryAvailable: false, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
           return applyPointsRedemption(orderRef, pointsRedemption);
 	        }).then(function () {
@@ -18815,6 +18822,7 @@
           clearCart();
           closeCart();
           openOrderSuccessModal(orderRef);
+          openWhatsappDirectSoon(whatsappUrl);
           pendingStorefrontOrderContext = null;
           guestCheckoutApproved = false;
         }).catch(function (err) {
