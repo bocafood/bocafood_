@@ -6188,6 +6188,24 @@
         flex-direction: column;
       }
 
+      .product-modal .modal-panel.is-simple {
+        width: min(720px, 100%);
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-img-wrap,
+      .product-modal .modal-panel.is-simple .modal-img,
+      .product-modal .modal-panel.is-simple .modal-fallback {
+        width: 100%;
+        height: clamp(220px, 32vh, 320px);
+        min-height: 220px;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-img {
+        object-fit: cover;
+      }
+
       .product-modal .modal-panel.is-combo .modal-img-wrap,
       .product-modal .modal-panel.is-combo .modal-img,
       .product-modal .modal-panel.is-combo .modal-fallback {
@@ -6205,6 +6223,11 @@
         max-height: calc(88vh - 320px);
         margin: 0 auto;
         padding: 24px 0 0;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-body {
+        max-height: none;
+        padding: 22px 22px 0;
       }
 
       .modal-img-wrap,
@@ -9909,6 +9932,12 @@
         overflow: hidden;
       }
 
+      .product-modal .modal-panel.is-simple {
+        width: min(560px, calc(100vw - 56px));
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
       .product-modal .modal-img-wrap,
       .product-modal .modal-img,
       .product-modal .modal-fallback {
@@ -9917,10 +9946,22 @@
         min-height: 270px;
       }
 
+      .product-modal .modal-panel.is-simple .modal-img-wrap,
+      .product-modal .modal-panel.is-simple .modal-img,
+      .product-modal .modal-panel.is-simple .modal-fallback {
+        height: clamp(220px, 30vh, 300px);
+        min-height: 220px;
+      }
+
       .product-modal .modal-body {
         max-height: calc(100vh - 326px);
         padding: 24px 26px 0;
         overflow: auto;
+      }
+
+      .product-modal .modal-panel.is-simple .modal-body {
+        max-height: none;
+        padding: 22px 22px 0;
       }
 
       .product-modal .modal-footer {
@@ -15570,15 +15611,17 @@
 	          content_type: 'product',
 	          items: [marketingItemFromProduct(product, 1, productPrice(product))]
 	        }));
-	        var modal = document.getElementById('product-modal');
+        var modal = document.getElementById('product-modal');
         var panel = modal.querySelector('.modal-panel');
         var body = modal.querySelector('.modal-body');
         var footer = modal.querySelector('.modal-footer');
         var addBtn = document.getElementById('modal-add');
+        var hasExtras = isComboProduct(product) || productVariants(product).length || addAlsoProducts(product).length || !!pairingProduct(product);
         if (body) body.scrollTop = 0;
         if (footer) footer.style.display = '';
         if (addBtn) addBtn.style.display = '';
         if (panel) panel.classList.toggle('is-combo', isComboProduct(product));
+        if (panel) panel.classList.toggle('is-simple', !hasExtras);
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
       }
@@ -15588,6 +15631,7 @@
         var panel = modal ? modal.querySelector('.modal-panel') : null;
         var footer = modal ? modal.querySelector('.modal-footer') : null;
         if (panel) panel.classList.remove('is-combo');
+        if (panel) panel.classList.remove('is-simple');
         if (footer) footer.classList.remove('is-combo-footer');
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
