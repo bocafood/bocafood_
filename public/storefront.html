@@ -10907,6 +10907,7 @@
       var stripeCardElement = null;
       var stripePaymentContext = null;
       var pendingStorefrontOrderContext = null;
+      var whatsappPopupWindow = null;
 
       function tenantIdFromUrl() {
         var params = new URLSearchParams(window.location.search);
@@ -18298,6 +18299,51 @@
         return phone ? 'https://wa.me/' + phone : '';
       }
 
+      function reserveWhatsappPopupWindow() {
+        if (whatsappPopupWindow && !whatsappPopupWindow.closed) return whatsappPopupWindow;
+        try {
+          whatsappPopupWindow = window.open('about:blank', '_blank');
+          if (whatsappPopupWindow) {
+            try {
+              whatsappPopupWindow.document.write('<!doctype html><title>WhatsApp</title><p>Abrindo WhatsApp...</p>');
+              whatsappPopupWindow.document.close();
+            } catch (err) {}
+          }
+        } catch (err) {
+          whatsappPopupWindow = null;
+        }
+        return whatsappPopupWindow;
+      }
+
+      function discardWhatsappPopupWindow() {
+        if (whatsappPopupWindow && !whatsappPopupWindow.closed) {
+          try { whatsappPopupWindow.close(); } catch (err) {}
+        }
+        whatsappPopupWindow = null;
+      }
+
+      function openWhatsappPopupWindow(href, lines) {
+        var url = href ? href + '?text=' + encodeURIComponent((lines || []).join('\n')) : '';
+        var popup = whatsappPopupWindow && !whatsappPopupWindow.closed ? whatsappPopupWindow : null;
+        whatsappPopupWindow = null;
+        if (popup) {
+          try {
+            popup.location.href = url;
+            popup.focus();
+            return true;
+          } catch (err) {
+            try { popup.close(); } catch (closeErr) {}
+          }
+        }
+        if (!url) return false;
+        try {
+          window.open(url, '_blank');
+          return true;
+        } catch (err) {
+          return false;
+        }
+      }
+
       function normalizePaymentToken(value) {
         return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
@@ -18456,7 +18502,7 @@
         return updateOrderStripePaid(context.docRef, paymentIntent).then(function () {
           return applyPointsRedemption(context.orderRef, context.pointsRedemption);
         }).then(function () {
-          if (context.href) window.open(context.href + '?text=' + encodeURIComponent(context.lines.join('\n')), '_blank', 'noopener');
+          openWhatsappPopupWindow(context.href, context.lines);
           showCartWarning('');
           clearCart();
           closeStripePaymentModal();
@@ -18521,15 +18567,19 @@
 
       function sendWhatsapp() {
         if (!cart.length) { showCartWarning(t('addFirst')); return; }
+        reserveWhatsappPopupWindow();
         if (!storeAuthUser() && !guestCheckoutApproved && !publicAuthResolved) {
           waitStoreAuthUser(900).then(function (user) {
             if (user) sendWhatsapp();
-            else openCheckoutChoiceModal();
+            else {
+              discardWhatsappPopupWindow();
+              openCheckoutChoiceModal();
+            }
           });
           return;
         }
         normalizeOrderType();
-        if (!orderType) { showCartWarning(t('noFulfillment')); return; }
+        if (!orderType) { showCartWarning(t('noFulfillment')); discardWhatsappPopupWindow(); return; }
         var subtotal = cartTotal();
         var min = minimumOrder();
         var customerName = document.getElementById('customer-name').value.trim();
@@ -18541,14 +18591,15 @@
         var slotLabelText = slotSelect.options[slotSelect.selectedIndex] ? slotSelect.options[slotSelect.selectedIndex].text : '';
         var payment = document.getElementById('payment-method').value;
         var note = document.getElementById('customer-note').value.trim();
-        if (!slotKey) { showCartWarning(t('selectSlotWarn')); return; }
-        if (paymentMethods().length && !payment) { showCartWarning(t('paymentRequired')); return; }
-        if (orderType === 'delivery' && min && subtotal < min) { showCartWarning(t('minimumDeliveryWarn', { value: money(min) })); return; }
-        if (orderType === 'delivery' && deliveryZones.length && !selectedDeliveryZone) { showCartWarning(t('postalWarn')); return; }
-        if (orderType === 'delivery' && !address) { showCartWarning(t('addressWarn')); return; }
+        if (!slotKey) { showCartWarning(t('selectSlotWarn')); discardWhatsappPopupWindow(); return; }
+        if (paymentMethods().length && !payment) { showCartWarning(t('paymentRequired')); discardWhatsappPopupWindow(); return; }
+        if (orderType === 'delivery' && min && subtotal < min) { showCartWarning(t('minimumDeliveryWarn', { value: money(min) })); discardWhatsappPopupWindow(); return; }
+        if (orderType === 'delivery' && deliveryZones.length && !selectedDeliveryZone) { showCartWarning(t('postalWarn')); discardWhatsappPopupWindow(); return; }
+        if (orderType === 'delivery' && !address) { showCartWarning(t('addressWarn')); discardWhatsappPopupWindow(); return; }
         var authUser = storeAuthUser();
         if (!authUser && !guestCheckoutApproved) {
           showCartWarning('');
+          discardWhatsappPopupWindow();
           openCheckoutChoiceModal();
           return;
         }
@@ -18559,6 +18610,7 @@
         showCartWarning('');
         var whatsappUpsellRule = nextCartUpsellRuleForPrompt('whatsapp');
         if (whatsappUpsellRule) {
+          discardWhatsappPopupWindow();
           openCartUpsellModal(whatsappUpsellRule);
           return;
         }
@@ -18697,8 +18749,9 @@
 	              items: marketingCartItems()
 	            }));
 	            return startStripeCheckout(stripeContext);
-	          }).catch(function (err) {
+          }).catch(function (err) {
             console.warn('Stripe order save error', err);
+            discardWhatsappPopupWindow();
             showCartWarning(t('stripeFailed'));
           });
           return;
@@ -18735,7 +18788,7 @@
 	            discount: promoDiscount + upsellDiscount + discount + pointDiscount,
 	            items: marketingCartItems()
 	          }));
-	          if (href) window.open(href + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
+	          openWhatsappPopupWindow(href, lines);
 	          showCartWarning('');
           clearCart();
           closeCart();
@@ -18744,6 +18797,7 @@
           guestCheckoutApproved = false;
         }).catch(function (err) {
           console.warn('Order save or points redemption error', err);
+          discardWhatsappPopupWindow();
           showCartWarning(t('storeUnavailable'));
         });
       }
