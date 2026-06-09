@@ -13738,7 +13738,7 @@
             return product && !item.relatedToProductId && String(productCategory(product)).toLowerCase() === String(triggerCategory).toLowerCase();
           });
         }
-        return true;
+        return false;
       }
 
       function cartUpsellRuleName(rule) {
