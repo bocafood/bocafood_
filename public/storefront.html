@@ -6446,12 +6446,16 @@
 
     #pickup-closed-msg,
     #delivery-closed-msg {
-      padding: 2px 0 0;
-      background: transparent;
-      border: 0;
-      border-radius: 0;
-      color: #1f1f1f;
-      font-weight: 400;
+      display: none;
+      margin-top: 3px;
+      padding: 4px 7px;
+      background: rgba(250, 244, 236, .72);
+      border: 1px solid rgba(56, 43, 37, .07);
+      border-radius: 10px;
+      color: #5f5650;
+      font-size: 10px;
+      font-weight: 650;
+      line-height: 1.2;
     }
 
     .cart-address-hint {
@@ -17961,24 +17965,28 @@
         var hidden = document.getElementById(type + '-slot');
         if (!dateInput || !timeSelect || !hidden) return;
         var selectedDate = dateInput.value;
-        var allEntries = slotEntries(type);
-        var entries = allEntries.filter(function (entry) { return entry.date === selectedDate; });
-        var current = parseSlotKey(hidden.value);
-        timeSelect.innerHTML = '<option value="">' + text(t('selectTime')) + '</option>' + entries.map(function (entry) {
-          return '<option value="' + text(entry.time) + '">' + text(entry.time) + '</option>';
-        }).join('');
-        timeSelect.disabled = !selectedDate || !entries.length;
-        if (current && current.date === selectedDate && entries.some(function (entry) { return entry.time === current.time; })) {
-          timeSelect.value = current.time;
-        } else {
-          timeSelect.value = '';
-        }
-        var msg = document.getElementById(type + '-closed-msg');
-        if (msg) {
-          msg.textContent = t('noSlots');
-          msg.classList.toggle('show', !allEntries.length || (!!selectedDate && !entries.length));
-        }
+      var allEntries = slotEntries(type);
+      var entries = allEntries.filter(function (entry) { return entry.date === selectedDate; });
+      var current = parseSlotKey(hidden.value);
+      timeSelect.innerHTML = '<option value="">' + text(t('selectTime')) + '</option>' + entries.map(function (entry) {
+        return '<option value="' + text(entry.time) + '">' + text(entry.time) + '</option>';
+      }).join('');
+      timeSelect.disabled = !selectedDate || !entries.length;
+      if (current && current.date === selectedDate && entries.some(function (entry) { return entry.time === current.time; })) {
+        timeSelect.value = current.time;
+      } else {
+        timeSelect.value = '';
       }
+      var msg = document.getElementById(type + '-closed-msg');
+      var timeWrap = timeSelect && timeSelect.parentElement;
+      if (msg) {
+        msg.textContent = t('noSlots');
+        msg.classList.toggle('show', !!selectedDate && !entries.length);
+      }
+      if (timeWrap) {
+        timeWrap.style.display = (!selectedDate || entries.length) ? '' : 'none';
+      }
+    }
 
       function updateHiddenSlotFromFields(type) {
         var dateInput = document.getElementById(type + '-date');
