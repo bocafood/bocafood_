@@ -11415,9 +11415,13 @@
 	          window.dataLayer.push(layerPayload);
 	        }
 	        if (window.fbq) {
-	          if (name === 'add_to_cart') window.fbq('track', 'AddToCart', { content_name: params.item_name || '', value: params.value || 0, currency: params.currency || 'EUR' });
-	          if (name === 'begin_checkout') window.fbq('track', 'InitiateCheckout', { value: params.value || 0, currency: params.currency || 'EUR' });
-	          if (name === 'purchase') window.fbq('track', 'Purchase', { value: params.value || 0, currency: params.currency || 'EUR' });
+	          var metaPayload = marketingMetaPayload(params);
+	          if (name === 'view_item') window.fbq('track', 'ViewContent', metaPayload);
+	          if (name === 'add_to_cart') window.fbq('track', 'AddToCart', metaPayload);
+	          if (name === 'view_cart') window.fbq('track', 'ViewCart', metaPayload);
+	          if (name === 'begin_checkout') window.fbq('track', 'InitiateCheckout', metaPayload);
+	          if (name === 'add_payment_info') window.fbq('track', 'AddPaymentInfo', metaPayload);
+	          if (name === 'purchase') window.fbq('track', 'Purchase', metaPayload);
 	        }
 	      }
 
@@ -11475,6 +11479,41 @@
 	      function marketingCartItems() {
 	        return cart.map(marketingItemFromCartItem);
 	      }
+
+      function marketingMetaContents(items) {
+        return (Array.isArray(items) ? items : []).map(function (item) {
+          item = item || {};
+          return marketingCleanParams({
+            id: String(item.item_id || item.id || ''),
+            quantity: Math.max(1, num(item.quantity != null ? item.quantity : item.qty || 1)),
+            item_price: num(item.price != null ? item.price : item.item_price || 0)
+          });
+        }).filter(function (item) { return !!item.id; });
+      }
+
+      function marketingMetaContentIds(items) {
+        return marketingMetaContents(items).map(function (item) { return item.id; });
+      }
+
+      function marketingMetaPayload(params) {
+        params = params || {};
+        var items = Array.isArray(params.items) ? params.items : [];
+        var contents = marketingMetaContents(items);
+        var contentIds = marketingMetaContentIds(items);
+        var payload = {
+          value: num(params.value || 0),
+          currency: params.currency || 'EUR'
+        };
+        if (params.content_name) payload.content_name = params.content_name;
+        else if (params.item_name) payload.content_name = params.item_name;
+        if (params.content_type) payload.content_type = params.content_type;
+        if (params.item_id) payload.content_ids = [String(params.item_id)];
+        if (contentIds.length) payload.content_ids = contentIds;
+        if (contents.length) payload.contents = contents;
+        if (contentIds.length || contents.length) payload.content_type = params.content_type || 'product';
+        if (items.length) payload.num_items = items.reduce(function (sum, item) { return sum + Math.max(1, num(item.quantity != null ? item.quantity : item.qty || 1)); }, 0);
+        return marketingCleanParams(payload);
+      }
 
       function normalizeHex(value) {
         var raw = String(value || '').trim();
@@ -15354,6 +15393,10 @@
 	        updateModalPrice();
 	        trackMarketingEvent('view_item', marketingBaseParams({
 	          value: productPrice(product),
+	          item_id: String(product.id || product.productId || ''),
+	          item_name: productName(product),
+	          content_name: productName(product),
+	          content_type: 'product',
 	          items: [marketingItemFromProduct(product, 1, productPrice(product))]
 	        }));
 	        var modal = document.getElementById('product-modal');
@@ -17036,6 +17079,8 @@
 	          value: unitPrice * qty,
 	          item_id: String(id),
 	          item_name: productName(product),
+	          content_name: productName(product),
+	          content_type: 'product',
 	          quantity: qty,
 	          items: [marketingItemFromProduct(product, qty, unitPrice)]
 	        }));
@@ -18234,6 +18279,8 @@
 	        if (cart.length) {
 	          trackMarketingEvent('view_cart', marketingBaseParams({
 	            value: cartGrandTotal(),
+	            content_name: 'Cart',
+	            content_type: 'product',
 	            coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
 	            items: marketingCartItems()
 	          }));
@@ -18560,6 +18607,8 @@
         var href = whatsappLink();
 	        trackMarketingEvent('begin_checkout', marketingBaseParams({
 	          value: cartGrandTotal(),
+	          content_name: 'Checkout',
+	          content_type: 'product',
 	          coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
 	          shipping: fee,
 	          delivery_type: orderType,
@@ -18638,6 +18687,8 @@
 	            pendingStorefrontOrderContext = stripeContext;
 	            trackMarketingEvent('add_payment_info', marketingBaseParams({
 	              value: cartGrandTotal(),
+	              content_name: 'Payment',
+	              content_type: 'product',
 	              coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
 	              shipping: fee,
 	              delivery_type: orderType,
@@ -18675,6 +18726,8 @@
 	          trackMarketingEvent('purchase', marketingBaseParams({
 	            transaction_id: orderRef,
 	            value: cartGrandTotal(),
+	            content_name: 'Purchase',
+	            content_type: 'product',
 	            coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
 	            shipping: fee,
 	            delivery_type: orderType,
