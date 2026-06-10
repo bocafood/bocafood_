@@ -2046,6 +2046,31 @@
       page_path: window.location.pathname,
       ...params
     });
+    trackMetaEvent(name, params);
+  }
+
+  function trackMetaEvent(name, params = {}) {
+    if (typeof fbq !== 'function') return;
+    const eventName = String(name || '');
+    const map = {
+      begin_checkout: 'InitiateCheckout',
+      contact_click: 'Contact',
+      quiz_submit: 'Lead'
+    };
+    if (eventName === 'page_view') {
+      fbq('track', 'ViewContent', {
+        content_name: 'Landing BocaFood',
+        content_type: 'product',
+        page_path: window.location.pathname,
+        ...params
+      });
+      return;
+    }
+    if (map[eventName]) {
+      fbq('track', map[eventName], params);
+      return;
+    }
+    fbq('trackCustom', eventName, params);
   }
 
   function getElementLabel(el) {
@@ -2104,6 +2129,17 @@
         cta_position: index + 1,
         link_url: link.href
       });
+      if (typeof fbq === 'function') {
+        fbq('track', 'Lead', {
+          content_name: 'Landing BocaFood',
+          content_type: 'product',
+          value: 29.90,
+          currency: 'EUR',
+          cta_text: getElementLabel(link),
+          cta_position: index + 1,
+          link_url: link.href
+        });
+      }
     });
   });
 
@@ -2247,6 +2283,11 @@
       showSitResult();
     });
   }
+
+  trackMetaEvent('page_view', {
+    content_name: 'Landing BocaFood',
+    content_type: 'product'
+  });
 </script>
 </body>
 </html>
