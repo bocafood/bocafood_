@@ -2945,12 +2945,13 @@ Modules.Receitas = (function () {
     var plannedQty = _num(order.plannedQuantity || snapshot.plannedQuantity) || 1;
     var actualQty = _num(order.actualQuantity);
     var scale = plannedQty > 0 ? actualQty / plannedQty : 1;
+    var isBaseOrder = order.productionMode === 'base_producao' || snapshot.productionMode === 'base_producao';
     var components = snapshot.components || [];
     return components.map(function (comp, idx) {
       if (!(comp.stockControl || comp.controlsStock)) return null;
       var plannedBaseQty = _num(comp.baseYieldQuantity || comp.stockYieldQuantity);
       if (plannedBaseQty <= 0) plannedBaseQty = _num(snapshot.plannedQuantity || order.plannedQuantity || actualQty);
-      var qty = _round(plannedBaseQty * scale);
+      var qty = isBaseOrder ? actualQty : _round(plannedBaseQty * scale);
       if (qty <= 0) return null;
       var compCost = (comp.ingredients || []).reduce(function (sum, ing) {
         return sum + _num(ing.totalCost || ing.plannedTotalCost);
