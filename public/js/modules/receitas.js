@@ -2750,6 +2750,16 @@ Modules.Receitas = (function () {
       patch.stockMovementIngredientCount = movementInfo.ingredientCount || 0;
       patch.stockMovementBaseCount = movementInfo.baseCount || 0;
       patch.stockMovementProductCount = movementInfo.productCount || 0;
+      if (_num(movementInfo.regularizationPendingCount) > 0 || (movementInfo.regularizationPendingItems || []).length) {
+        patch.stockRegularizationPending = !!movementInfo.regularizationPending;
+        patch.stockRegularizationStatus = movementInfo.regularizationStatus || '';
+        patch.stockRegularizationOrigin = movementInfo.regularizationOrigin || '';
+        patch.stockRegularizationDetectedAt = movementInfo.regularizationDetectedAt || new Date().toISOString();
+        patch.stockRegularizationPendingCount = _num(movementInfo.regularizationPendingCount);
+        patch.stockRegularizationPendingItems = movementInfo.regularizationPendingItems || [];
+        patch.stockRegularizationWarning = movementInfo.regularizationWarning || '';
+        if (movementInfo.regularizationAppliedAt) patch.stockRegularizationAppliedAt = movementInfo.regularizationAppliedAt;
+      }
       return DB.update('production_orders', id, patch);
     }).then(function () {
       UI.toast('Produção registrada.', 'success');
@@ -2773,14 +2783,25 @@ Modules.Receitas = (function () {
       return;
     }
     _createStockMovementsForOrder(order).then(function (info) {
-      return DB.update('production_orders', id, {
+      var patch = {
         stockMovementCreated: true,
         stockMovementCreatedAt: new Date().toISOString(),
         stockMovementCount: info.count || 0,
         stockMovementIngredientCount: info.ingredientCount || 0,
         stockMovementBaseCount: info.baseCount || 0,
         stockMovementProductCount: info.productCount || 0
-      });
+      };
+      if (_num(info.regularizationPendingCount) > 0 || (info.regularizationPendingItems || []).length) {
+        patch.stockRegularizationPending = !!info.regularizationPending;
+        patch.stockRegularizationStatus = info.regularizationStatus || '';
+        patch.stockRegularizationOrigin = info.regularizationOrigin || '';
+        patch.stockRegularizationDetectedAt = info.regularizationDetectedAt || new Date().toISOString();
+        patch.stockRegularizationPendingCount = _num(info.regularizationPendingCount);
+        patch.stockRegularizationPendingItems = info.regularizationPendingItems || [];
+        patch.stockRegularizationWarning = info.regularizationWarning || '';
+        if (info.regularizationAppliedAt) patch.stockRegularizationAppliedAt = info.regularizationAppliedAt;
+      }
+      return DB.update('production_orders', id, patch);
     }).then(function () {
       UI.toast('Movimentações geradas.', 'success');
       if (window._productionOrderDetailsModal) window._productionOrderDetailsModal.close();
@@ -2798,21 +2819,72 @@ Modules.Receitas = (function () {
         count: _num(order.stockMovementCount),
         ingredientCount: _num(order.stockMovementIngredientCount),
         baseCount: _num(order.stockMovementBaseCount),
-        productCount: _num(order.stockMovementProductCount)
+        productCount: _num(order.stockMovementProductCount),
+        regularizationPendingCount: _num(order.stockRegularizationPendingCount)
       });
     }
-    return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
+    return Promise.all([
+      DB.getAll('stock_movements').catch(function () { return []; }),
+      DB.getDocRoot ? DB.getDocRoot('config', 'estoque').catch(function () { return {}; }) : Promise.resolve({})
+    ]).then(function (results) {
+      var existing = results[0] || [];
+      var stockConfig = results[1] || {};
+      var regularizationMode = _productionRegularizationMode(stockConfig || {});
       var matches = (existing || []).filter(function (m) { return m.productionOrderId === order.id; });
       if (matches.length) {
-        return _productionMovementCounts(matches);
+        var existingInfo = _productionMovementCounts(matches);
+        existingInfo.regularizationPendingCount = _num(order.stockRegularizationPendingCount);
+        return existingInfo;
       }
       var movements = _buildStockMovementsForOrder(order);
-      if (!movements.length) return { count: 0, ingredientCount: 0, baseCount: 0, productCount: 0 };
-      return Promise.all(movements.map(function (movement, idx) {
+      if (!movements.length) return { count: 0, ingredientCount: 0, baseCount: 0, productCount: 0, regularizationPendingCount: 0 };
+      var balances = _buildSimpleStockBalances(existing || []);
+      var now = new Date().toISOString();
+      var ops = [];
+      var regularizationItems = [];
+      movements.forEach(function (movement, idx) {
         var movementId = String(order.id || 'ordem').replace(/[^\w-]/g, '_') + '_' + idx + '_' + String(movement.type || 'mov').replace(/[^\w-]/g, '_');
-        return DB.doc('stock_movements', movementId).set(Object.assign({}, movement, { id: movementId }), { merge: true });
-      })).then(function () {
-        return _productionMovementCounts(movements);
+        var entry = _simpleStockEntry(movement);
+        if (entry.key && entry.quantity) {
+          var balanceBefore = _round(_num((balances[entry.key] && balances[entry.key].balance) || 0));
+          var balanceAfter = _round(balanceBefore + (entry.direction * entry.quantity));
+          if (movement.type === 'saida_producao' && balanceAfter < 0 && regularizationMode !== 'desligado') {
+            var shortage = _round(Math.min(entry.quantity, Math.abs(balanceAfter)));
+            var regularizationMovementId = _productionRegularizationMovementId(order.id || 'ordem', idx, entry.key);
+            var regularizationItem = _productionRegularizationPendingItem(movement, order, {
+              index: idx,
+              refIndex: 0,
+              key: entry.key,
+              itemId: movement.ingredientId || movement.baseProductionId || movement.fichaTecnicaId || movement.sourceItemId || movement.produtoProntoId || '',
+              stockItemType: movement.stockItemType || movement.itemClass || movement.classe || 'insumo'
+            }, shortage, balanceBefore, balanceAfter, movementId, regularizationMovementId, now, regularizationMode === 'automatico' ? 'aplicada' : 'pendente');
+            regularizationItems.push(regularizationItem);
+            if (regularizationMode === 'automatico') {
+              ops.push(DB.doc('stock_movements', regularizationMovementId).set(Object.assign({}, _productionRegularizationMovementPayload(regularizationItem, order, regularizationMovementId, now), { id: regularizationMovementId }), { merge: true }));
+              balanceAfter = 0;
+            }
+          }
+          balances[entry.key] = { balance: balanceAfter, unit: entry.unit || '' };
+        }
+        ops.push(DB.doc('stock_movements', movementId).set(Object.assign({}, movement, { id: movementId }), { merge: true }));
+      });
+      return Promise.all(ops).then(function () {
+        var info = _productionMovementCounts(movements);
+        var pendingItems = regularizationItems.slice(0, 50);
+        var pendingCount = pendingItems.filter(function (item) { return String(item.status || 'pendente') === 'pendente'; }).length;
+        info.regularizationPendingCount = pendingCount;
+        info.regularizationPendingItems = pendingItems;
+        info.regularizationPending = pendingCount > 0;
+        info.regularizationStatus = pendingCount > 0 ? 'pendente' : (regularizationItems.length ? 'aplicada' : '');
+        info.regularizationOrigin = regularizationItems.length ? 'saldo_negativo_producao' : '';
+        info.regularizationWarning = regularizationItems.length
+          ? (pendingCount > 0
+            ? 'Ordem de produção gerou saída com saldo insuficiente. Revise a regularização em Estoque.'
+            : 'Ordem de produção gerou saída com saldo insuficiente e recebeu entrada automática de regularização.')
+          : '';
+        if (regularizationItems.length && !pendingCount) info.regularizationAppliedAt = now;
+        if (regularizationItems.length) info.regularizationDetectedAt = now;
+        return info;
       });
     });
   }
@@ -2824,6 +2896,83 @@ Modules.Receitas = (function () {
       ingredientCount: movements.filter(function (m) { return m.type === 'saida_producao' && !m.baseProductionId; }).length,
       baseCount: movements.filter(function (m) { return m.type === 'entrada_base_producao' || (m.type === 'saida_producao' && !!m.baseProductionId); }).length,
       productCount: movements.filter(function (m) { return m.type === 'entrada_producao'; }).length
+    };
+  }
+
+  function _productionRegularizationMode(config) {
+    var mode = String(config && (config.regularizationMode || config.stockRegularizationMode) || 'pendencia').trim().toLowerCase();
+    if (mode === 'automatico' || mode === 'desligado') return mode;
+    return 'pendencia';
+  }
+
+  function _productionRegularizationMovementId(orderId, idx, key) {
+    return 'regularizacao_' + String(orderId || 'ordem').replace(/[^\w-]/g, '_') + '_' + idx + '_' + String(key || 'item').replace(/[^\w-]/g, '_');
+  }
+
+  function _productionRegularizationPendingItem(movement, order, stockEntry, shortage, balanceBefore, balanceAfter, movementId, regularizationMovementId, now, status) {
+    var qty = _round(shortage);
+    var unitCost = _num(movement.unitCost);
+    var itemName = movement.ingredientName || movement.baseProductionName || movement.componentName || 'Item';
+    return {
+      itemIndex: stockEntry.index,
+      stockRefIndex: stockEntry.refIndex,
+      movementId: movementId,
+      sourceMovementId: movementId,
+      regularizationMovementId: regularizationMovementId || '',
+      orderId: order.id || '',
+      orderLabel: order.fichaTecnicaNome || order.baseProductionName || order.id || 'Ordem',
+      orderDate: order.actualDate || order.completedAt || now,
+      detectedAt: now,
+      status: status || 'pendente',
+      origin: 'saldo_negativo_producao',
+      stockKey: stockEntry.key,
+      stockItemId: stockEntry.itemId,
+      stockItemType: stockEntry.stockItemType,
+      itemName: itemName,
+      productId: order.fichaTecnicaId || '',
+      productName: order.fichaTecnicaNome || '',
+      stockSource: 'production_order',
+      stockSourceLabel: 'Ordem de produção',
+      requiredQuantity: qty,
+      shortageQuantity: qty,
+      balanceBefore: balanceBefore,
+      balanceAfter: balanceAfter,
+      unit: movement.unit || '',
+      unitCost: unitCost,
+      estimatedTotalCost: unitCost > 0 ? _round(qty * unitCost) : _num(movement.totalCost),
+      regularizationChain: [],
+      regularizationChainCount: 0
+    };
+  }
+
+  function _productionRegularizationMovementPayload(entry, order, movementId, now) {
+    var qty = _round(entry.shortageQuantity);
+    var unitCost = _num(entry.unitCost);
+    return {
+      id: movementId,
+      type: 'entrada_regularizacao',
+      movementGroup: 'stock_regularization',
+      regularizationOrigin: 'saldo_negativo_producao',
+      regularizationStatus: 'aplicada',
+      regularizationEntry: true,
+      regularizationSourceMovementId: entry.sourceMovementId || entry.movementId || '',
+      orderId: order.id || '',
+      orderNumber: order.id || '',
+      orderStatus: order.status || 'concluida',
+      itemName: entry.itemName || 'Item',
+      productId: entry.productId || '',
+      productName: entry.productName || '',
+      stockItemId: entry.stockItemId || '',
+      stockItemType: entry.stockItemType || 'insumo',
+      itemClass: entry.stockItemType || 'insumo',
+      classe: entry.stockItemType || 'insumo',
+      quantity: qty,
+      unit: entry.unit || '',
+      unitCost: unitCost,
+      totalCost: unitCost > 0 ? _round(qty * unitCost) : _num(entry.estimatedTotalCost),
+      movementDate: order.actualDate || order.completedAt || now,
+      createdAt: now,
+      updatedAt: now
     };
   }
 
