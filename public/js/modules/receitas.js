@@ -34,6 +34,7 @@ Modules.Receitas = (function () {
   var _purchaseListPage = { page: 1, perPage: 10 };
   var _purchaseListData = { lists: [], orders: [], recipes: [], movements: [], settings: [], costItems: [] };
   var _productionNeedData = { items: [], recipes: [], movements: [], settings: [] };
+  var _productionPlanningSearch = '';
   var _forecastData = { recipes: [], movements: [], settings: [], costItems: [], products: [], variantGroups: [] };
   var _forecastFilters = { view: 'receitas', q: '', status: 'todos' };
   var _forecastPage = { page: 1, perPage: 10 };
@@ -2188,13 +2189,20 @@ Modules.Receitas = (function () {
   function _openProductionPlanningModal() {
     var needs = (_productionNeedData.items || []).slice();
     var plannedDate = _today();
+    _productionPlanningSearch = '';
     if (!needs.length) {
       UI.toast('Nenhuma receita está abaixo do estoque mínimo agora.', 'info');
       return;
     }
     var rows = needs.map(function (need, idx) {
-      return '<div class="production-plan-row" data-plan-idx="' + idx + '" data-recipe-id="' + _esc(need.recipeId || '') + '">' +
-        '<label class="production-plan-check"><input type="checkbox" data-plan-check="' + idx + '" checked onchange="Modules.Receitas._updateProductionPlanningPreview()" style="accent-color:#B42318;width:16px;height:16px;">' +
+      var searchText = String([
+        need.name || '',
+        need.unit || '',
+        need.stockKind || '',
+        need.baseProductionId || ''
+      ].join(' ')).toLowerCase();
+      return '<div class="production-plan-row" data-plan-idx="' + idx + '" data-recipe-id="' + _esc(need.recipeId || '') + '" data-plan-search="' + _esc(searchText) + '">' +
+        '<label class="production-plan-check"><input type="checkbox" data-plan-check="' + idx + '" onchange="Modules.Receitas._updateProductionPlanningPreview()" style="accent-color:#B42318;width:16px;height:16px;">' +
           '<span><strong>' + _esc(need.name || 'Receita') + '</strong><small>Saldo ' + _esc(_fmtQty(need.balance)) + ' · mínimo ' + _esc(_fmtQty(need.minStock)) + ' ' + _esc(need.unit || '') + '</small></span></label>' +
         '<label><span style="' + _labelStyle() + '">Produzir</span><div class="production-orders-field"><input type="text" data-plan-qty="' + idx + '" value="' + _esc(_fmtQty(need.missing)) + '" oninput="Modules.Receitas._updateProductionPlanningPreview()"></div></label>' +
         '<label><span style="' + _labelStyle() + '">Data prevista</span><div class="production-orders-field"><input type="date" data-plan-date="' + idx + '" value="' + _esc(plannedDate) + '"></div></label>' +
@@ -2204,6 +2212,7 @@ Modules.Receitas = (function () {
       '<section class="production-modal-card">' +
         '<div class="production-modal-head"><span class="mi">assignment_add</span><div><div class="production-modal-card-title">Escolha o que vai produzir</div>' +
         '<div class="production-modal-card-desc">Selecione produtos finais ou bases abaixo do estoque mínimo e ajuste a quantidade antes de gerar as ordens.</div></div></div>' +
+        '<label style="display:block;min-width:0;margin-bottom:12px;"><span style="' + _labelStyle() + '">Buscar produto</span><div class="production-orders-field"><input id="production-plan-search" type="search" value="' + _esc(_productionPlanningSearch) + '" placeholder="Buscar receita, base ou produto" autocomplete="off" oninput="Modules.Receitas._filterProductionPlanningItems(this.value)"></div></label>' +
         '<div class="production-plan-list">' + rows + '</div>' +
       '</section>' +
       '<section class="production-modal-card">' +
@@ -2218,7 +2227,34 @@ Modules.Receitas = (function () {
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" onclick="if(window._productionPlanningModal)window._productionPlanningModal.close()" class="production-orders-secondary">Cancelar</button><button type="button" onclick="Modules.Receitas._createProductionOrdersFromPlanning()" class="production-orders-primary">Gerar ordens</button></div>' +
     '</div>';
     window._productionPlanningModal = UI.modal({ title: 'Gerar planejamento', body: _ordersStyles() + body, footer: footer, maxWidth: '940px' });
+    setTimeout(function () { _filterProductionPlanningItems(''); }, 0);
     setTimeout(_updateProductionPlanningPreview, 0);
+  }
+
+  function _filterProductionPlanningItems(q) {
+    _productionPlanningSearch = String(q || '').trim().toLowerCase();
+    var rows = Array.prototype.slice.call(document.querySelectorAll('[data-plan-idx]'));
+    rows.forEach(function (row) {
+      var text = String(row.getAttribute('data-plan-search') || '').toLowerCase();
+      row.style.display = !_productionPlanningSearch || text.indexOf(_productionPlanningSearch) >= 0 ? '' : 'none';
+    });
+    var visible = rows.some(function (row) { return row.style.display !== 'none'; });
+    var list = document.querySelector('.production-plan-list');
+    if (list) {
+      var empty = list.querySelector('.production-plan-empty');
+      if (!visible) {
+        if (!empty) {
+          empty = document.createElement('div');
+          empty.className = 'production-plan-empty';
+          empty.style.cssText = 'padding:14px 12px;border:1px dashed #EADFD8;border-radius:14px;background:#FFFCF8;color:#8A7E7C;font-size:13px;line-height:1.45;text-align:center;';
+          empty.textContent = 'Nenhum produto encontrado.';
+          list.appendChild(empty);
+        }
+      } else if (empty) {
+        empty.remove();
+      }
+    }
+    _updateProductionPlanningPreview();
   }
 
   function _selectedProductionPlanningItems() {
