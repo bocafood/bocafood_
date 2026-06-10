@@ -12191,6 +12191,10 @@
         };
       }
 
+      function cartRequiresProductionLead() {
+        return !!cartProductionRequirement().madeToOrder;
+      }
+
       function cartMadeToOrderText(item) {
         var product = findProduct(item && item.id);
         var lead = Math.max(num(item && (item.productionLeadDays || item.productionLeadTimeDays)), productProductionLeadDays(product));
@@ -12218,6 +12222,7 @@
       }
 
       function cartSelectedSlotRespectsLead(slotKey) {
+        if (!cartRequiresProductionLead()) return true;
         var requiredLead = cartProductionRequirement().productionLeadDays || 0;
         if (!requiredLead) return true;
         var days = slotDaysUntil(slotKey);
@@ -18150,7 +18155,7 @@
 
       function slotAdvanceRange() {
         var configuredMaxAdvance = cfg.maxAdvanceDays != null ? cfg.maxAdvanceDays : (cfg.advanceDaysLimit != null ? cfg.advanceDaysLimit : cfg.advanceDays);
-        var productionLead = cartProductionRequirement().productionLeadDays || 0;
+        var productionLead = cartRequiresProductionLead() ? (cartProductionRequirement().productionLeadDays || 0) : 0;
         var maxAdvanceDays = Math.max(0, num(configuredMaxAdvance != null ? configuredMaxAdvance : 2) || 0);
         return {
           min: Math.max(0, productionLead),
@@ -18163,7 +18168,7 @@
         if (storeManuallyClosed()) return [];
         var interval = num(cfg.slotInterval || cfg.orderSlotInterval || 30) || 30;
         var advance = num(cfg.minimumAdvanceMinutes || cfg.advanceMinutes || (type === 'delivery' ? 45 : 25));
-        var productionLead = cartProductionRequirement().productionLeadDays || 0;
+        var productionLead = cartRequiresProductionLead() ? (cartProductionRequirement().productionLeadDays || 0) : 0;
         var configuredMaxAdvance = cfg.maxAdvanceDays != null ? cfg.maxAdvanceDays : (cfg.advanceDaysLimit != null ? cfg.advanceDaysLimit : cfg.advanceDays);
         var maxAdvanceDays = Math.max(0, num(configuredMaxAdvance != null ? configuredMaxAdvance : 2) || 0);
         if (productionLead > maxAdvanceDays) return [];
