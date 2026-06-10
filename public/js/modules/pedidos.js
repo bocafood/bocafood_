@@ -792,7 +792,7 @@ Modules.Pedidos = (function () {
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;align-items:start;">' +
         '<section style="' + _performancePremiumPanelStyle() + '">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
-            '<div><span style="' + _performanceLabelStyle() + '">Produtos que sustentam a venda</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Mais vendidos</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">Veja o que merece destaque, estoque protegido e atenção de margem.</p></div>' +
+            '<div><span style="' + _performanceLabelStyle() + '">Pareto da venda</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Concentração de vendas</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">Poucos itens concentram a maior parte do faturamento e pedem mais atenção.</p></div>' +
             '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;">leaderboard</span>' +
           '</div>' +
           '<div style="display:flex;flex-direction:column;">' + rankingHtml + '</div>' +
