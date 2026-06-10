@@ -473,6 +473,7 @@ Modules.Receitas = (function () {
       var metrics = _productionMetrics(order);
       var result = _productionResult(order, metrics);
       var statusClass = order.status === 'concluida' ? ' done' : (order.status === 'cancelada' ? ' cancelled' : '');
+      var canDelete = order.status === 'planejada';
       return '<tr onclick="Modules.Receitas._openProductionOrderDetails(\'' + order.id + '\')">' +
         '<td><div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
           '<div class="production-orders-icon"><span class="mi" style="font-size:20px;">assignment</span></div>' +
@@ -483,7 +484,7 @@ Modules.Receitas = (function () {
         '<td><div class="production-orders-value">' + (order.actualQuantity ? _esc(_fmtQty(order.actualQuantity)) + ' ' + _esc(yieldUnit) : '—') + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtDate(order.plannedDate)) + '</div></td>' +
         '<td><div class="production-orders-value">' + (order.actualQuantity ? '<span class="production-result-badge ' + result.tone + '">' + _esc(result.label) + '</span><div style="margin-top:4px;">' + _esc(_signedQty(metrics.yieldDifference)) + ' · ' + _money(metrics.estimatedRealUnitCost) + '/un.</div>' : _money(order.plannedCost || 0)) + '</div></td>' +
-        '<td style="text-align:right;"><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;"><span class="production-orders-status' + statusClass + '">' + _esc(_statusLabel(order.status)) + '</span><button type="button" title="Excluir" onclick="event.stopPropagation();Modules.Receitas._deleteProductionOrder(\'' + _escJs(order.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button></div></td>' +
+        '<td style="text-align:right;"><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;"><span class="production-orders-status' + statusClass + '">' + _esc(_statusLabel(order.status)) + '</span>' + (canDelete ? '<button type="button" title="Excluir" onclick="event.stopPropagation();Modules.Receitas._deleteProductionOrder(\'' + _escJs(order.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button>' : '') + '</div></td>' +
       '</tr>';
     }).join('');
     content.innerHTML = _ordersStyles() +
@@ -3002,6 +3003,10 @@ Modules.Receitas = (function () {
   function _deleteProductionOrder(id) {
     var order = (_productionOrders || []).find(function (x) { return x.id === id; }) || null;
     if (!order) return;
+    if (order.status !== 'planejada') {
+      UI.toast('Só é possível excluir ordens planejadas.', 'warning');
+      return;
+    }
     UI.confirm('Excluir esta ordem de produção? Se houver movimentações criadas, o sistema vai tentar reverter antes de remover o registro.').then(function (yes) {
       if (!yes) return;
       return _reverseProductionStockMovements(order).then(function () {
