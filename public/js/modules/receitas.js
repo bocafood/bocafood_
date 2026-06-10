@@ -4781,6 +4781,7 @@ Modules.Receitas = (function () {
     _setConfigSearch: _setConfigSearch,
     _openProductionOrderModal: _openProductionOrderModal,
     _openProductionPlanningModal: _openProductionPlanningModal,
+    _filterProductionPlanningItems: _filterProductionPlanningItems,
     _updateProductionPlanningPreview: _updateProductionPlanningPreview,
     _createProductionOrdersFromPlanning: _createProductionOrdersFromPlanning,
     _setProductionOrderFilter: _setProductionOrderFilter,
