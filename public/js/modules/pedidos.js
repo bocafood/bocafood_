@@ -785,6 +785,13 @@ Modules.Pedidos = (function () {
 
   function _performanceSummaryHtml(summary, matrix, rows) {
     var ranking = _performanceParetoRanking(rows).slice(0, 8);
+    var paretoTop = ranking.length ? ranking[ranking.length - 1] : null;
+    var paretoCoverage = paretoTop ? Math.max(0, Math.min(100, paretoTop.cumulative || 0)) : 0;
+    var paretoIndicator = ranking.length ? '<div style="margin:0 0 14px;padding:12px 13px;border:1px solid #E8DCD7;border-radius:16px;background:linear-gradient(135deg,#FFFDFC 0%,#FFF7F1 100%);">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;"><div><div style="font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em;color:#8A6F5A;line-height:1;">Acumulado do top 8</div><div style="font-size:12px;color:#5F554B;line-height:1.35;margin-top:4px;">Mostra quanto da venda já está concentrada nos itens exibidos.</div></div><strong style="font-size:16px;font-weight:850;color:#1F1F1F;white-space:nowrap;">' + _pct(paretoCoverage) + '</strong></div>' +
+        '<div style="height:10px;border-radius:999px;background:#F1E8E2;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.75);"><div style="width:' + _pct(paretoCoverage).replace(',', '.').replace('%', '') + '%;height:100%;border-radius:999px;background:linear-gradient(90deg,#B42318 0%,#DD6B20 100%);box-shadow:0 6px 14px rgba(180,35,24,.18);"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:7px;font-size:10.5px;color:#8A7E7C;line-height:1;"><span>0%</span><span>80%</span><span>100%</span></div>' +
+      '</div>' : '';
     var rankingHtml = ranking.length ? '<div style="overflow:auto;border:1px solid #EAE4DA;border-radius:16px;background:#fff;">' +
       '<table style="width:100%;border-collapse:collapse;min-width:760px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
         '<th style="text-align:left;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pos.</th>' +
@@ -798,12 +805,13 @@ Modules.Pedidos = (function () {
         return _performanceParetoRow(row, idx);
       }).join('') + '</tbody></table></div><div style="margin-top:10px;font-size:11.5px;color:#7A7065;line-height:1.45;">Faixa <strong>A</strong> até 80% do faturamento acumulado, <strong>B</strong> até 95% e <strong>C</strong> acima disso.</div>' : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
     return _performanceExecutiveHero(summary, matrix, rows) +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;align-items:start;">' +
-        '<section style="' + _performancePremiumPanelStyle() + '">' +
+      '<div style="display:block;">' +
+        '<section style="' + _performancePremiumPanelStyle() + ';width:100%;">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
             '<div><span style="' + _performanceLabelStyle() + '">Pareto da venda</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Concentração de vendas</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">Poucos itens concentram a maior parte do faturamento e pedem mais atenção.</p></div>' +
             '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;">leaderboard</span>' +
           '</div>' +
+          paretoIndicator +
           rankingHtml +
         '</section>' +
       '</div>';
