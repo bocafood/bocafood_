@@ -483,7 +483,7 @@ Modules.Receitas = (function () {
         '<td><div class="production-orders-value">' + (order.actualQuantity ? _esc(_fmtQty(order.actualQuantity)) + ' ' + _esc(yieldUnit) : '—') + '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtDate(order.plannedDate)) + '</div></td>' +
         '<td><div class="production-orders-value">' + (order.actualQuantity ? '<span class="production-result-badge ' + result.tone + '">' + _esc(result.label) + '</span><div style="margin-top:4px;">' + _esc(_signedQty(metrics.yieldDifference)) + ' · ' + _money(metrics.estimatedRealUnitCost) + '/un.</div>' : _money(order.plannedCost || 0)) + '</div></td>' +
-        '<td style="text-align:right;"><span class="production-orders-status' + statusClass + '">' + _esc(_statusLabel(order.status)) + '</span></td>' +
+        '<td style="text-align:right;"><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;"><span class="production-orders-status' + statusClass + '">' + _esc(_statusLabel(order.status)) + '</span><button type="button" title="Excluir" onclick="event.stopPropagation();Modules.Receitas._deleteProductionOrder(\'' + _escJs(order.id) + '\')" style="width:30px;height:30px;border-radius:9px;border:1px solid #EADFD8;background:#fff;color:#B42318;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(31,31,31,.03);"><span class="mi" style="font-size:14px;">delete</span></button></div></td>' +
       '</tr>';
     }).join('');
     content.innerHTML = _ordersStyles() +
@@ -512,6 +512,7 @@ Modules.Receitas = (function () {
                     '<th>Data prevista</th>' +
                     '<th>Resultado</th>' +
                     '<th>Status</th>' +
+                    '<th>Ação</th>' +
                   '</tr></thead>' +
                   '<tbody>' + rows + '</tbody>' +
                 '</table>' +
@@ -2998,6 +2999,23 @@ Modules.Receitas = (function () {
     });
   }
 
+  function _deleteProductionOrder(id) {
+    var order = (_productionOrders || []).find(function (x) { return x.id === id; }) || null;
+    if (!order) return;
+    UI.confirm('Excluir esta ordem de produção? Se houver movimentações criadas, o sistema vai tentar reverter antes de remover o registro.').then(function (yes) {
+      if (!yes) return;
+      return _reverseProductionStockMovements(order).then(function () {
+        return DB.remove('production_orders', id);
+      }).then(function () {
+        UI.toast('Ordem excluída.', 'info');
+        if (window._productionOrderDetailsModal) window._productionOrderDetailsModal.close();
+        _renderProductionOrders();
+      }).catch(function (err) {
+        UI.toast('Erro ao excluir ordem: ' + (err && err.message ? err.message : err), 'error');
+      });
+    });
+  }
+
   function _reverseProductionStockMovements(order) {
     if (!order || !order.id || !order.stockMovementCreated || order.stockMovementReversed) return Promise.resolve({});
     return DB.getAll('stock_movements').catch(function () { return []; }).then(function (existing) {
@@ -4798,6 +4816,7 @@ Modules.Receitas = (function () {
     _updateProductionForecastSimulation: _updateProductionForecastSimulation,
     _saveProductionOrder: _saveProductionOrder,
     _openProductionOrderDetails: _openProductionOrderDetails,
+    _deleteProductionOrder: _deleteProductionOrder,
     _updateProductionOrderMode: _updateProductionOrderMode,
     _toggleProductionOrderHelp: _toggleProductionOrderHelp,
     _updateProductionOrderPreview: _updateProductionOrderPreview,
