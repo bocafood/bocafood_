@@ -2807,8 +2807,9 @@ Modules.Receitas = (function () {
       }
       var movements = _buildStockMovementsForOrder(order);
       if (!movements.length) return { count: 0, ingredientCount: 0, baseCount: 0, productCount: 0 };
-      return Promise.all(movements.map(function (movement) {
-        return DB.add('stock_movements', movement);
+      return Promise.all(movements.map(function (movement, idx) {
+        var movementId = String(order.id || 'ordem').replace(/[^\w-]/g, '_') + '_' + idx + '_' + String(movement.type || 'mov').replace(/[^\w-]/g, '_');
+        return DB.doc('stock_movements', movementId).set(Object.assign({}, movement, { id: movementId }), { merge: true });
       })).then(function () {
         return _productionMovementCounts(movements);
       });
