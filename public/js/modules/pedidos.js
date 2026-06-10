@@ -806,13 +806,6 @@ Modules.Pedidos = (function () {
           '</div>' +
           rankingHtml +
         '</section>' +
-        '<section style="' + _performancePremiumPanelStyle() + '">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
-            '<div><span style="' + _performanceLabelStyle() + '">Próxima leitura</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Onde olhar primeiro</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">A matriz separa o cardápio por força de venda e reação recente.</p></div>' +
-            '<button type="button" onclick="Modules.Pedidos._setPerformanceTab(\'matriz\')" style="height:36px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#fff;color:#1F1F1F;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Abrir matriz</button>' +
-          '</div>' +
-          _performanceMatrixCardsHtml(matrix) +
-        '</section>' +
       '</div>';
   }
 
