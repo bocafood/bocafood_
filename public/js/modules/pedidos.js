@@ -784,10 +784,19 @@ Modules.Pedidos = (function () {
   }
 
   function _performanceSummaryHtml(summary, matrix, rows) {
-    var ranking = _performanceRanking(rows).slice(0, 8);
-    var rankingHtml = ranking.length ? ranking.map(function (row, idx) {
-      return _performanceRankingRow(row, idx);
-    }).join('') : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
+    var ranking = _performanceParetoRanking(rows).slice(0, 8);
+    var rankingHtml = ranking.length ? '<div style="overflow:auto;border:1px solid #EAE4DA;border-radius:16px;background:#fff;">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:760px;"><thead><tr style="background:#FFFCF8;border-bottom:1px solid #EAE4DA;">' +
+        '<th style="text-align:left;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Pos.</th>' +
+        '<th style="text-align:left;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Produto</th>' +
+        '<th style="text-align:right;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Qtd.</th>' +
+        '<th style="text-align:right;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Faturamento</th>' +
+        '<th style="text-align:right;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">% total</th>' +
+        '<th style="text-align:right;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">% acum.</th>' +
+        '<th style="text-align:right;padding:12px 14px;font-size:11px;font-weight:700;color:#1F1F1F;text-transform:uppercase;letter-spacing:.04em;">Faixa</th>' +
+      '</tr></thead><tbody>' + ranking.map(function (row, idx) {
+        return _performanceParetoRow(row, idx);
+      }).join('') + '</tbody></table></div><div style="margin-top:10px;font-size:11.5px;color:#7A7065;line-height:1.45;">Faixa <strong>A</strong> até 80% do faturamento acumulado, <strong>B</strong> até 95% e <strong>C</strong> acima disso.</div>' : '<div style="padding:18px;color:#8A7E7C;font-size:13px;text-align:center;">Sem vendas para este filtro.</div>';
     return _performanceExecutiveHero(summary, matrix, rows) +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;align-items:start;">' +
         '<section style="' + _performancePremiumPanelStyle() + '">' +
@@ -795,7 +804,7 @@ Modules.Pedidos = (function () {
             '<div><span style="' + _performanceLabelStyle() + '">Pareto da venda</span><h3 style="margin:5px 0 4px;font-size:17px;font-weight:850;color:#1F1F1F;line-height:1.2;">Concentração de vendas</h3><p style="margin:0;font-size:12.5px;color:#5F554B;line-height:1.45;">Poucos itens concentram a maior parte do faturamento e pedem mais atenção.</p></div>' +
             '<span class="mi" style="width:38px;height:38px;border-radius:14px;background:#FFF3F1;color:#B42318;display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;">leaderboard</span>' +
           '</div>' +
-          '<div style="display:flex;flex-direction:column;">' + rankingHtml + '</div>' +
+          rankingHtml +
         '</section>' +
         '<section style="' + _performancePremiumPanelStyle() + '">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px;">' +
@@ -878,6 +887,12 @@ Modules.Pedidos = (function () {
     var period = String(_performanceFilters.period || '90');
     if (period === 'all') return 'Todo o histórico';
     return 'Últimos ' + (parseInt(period, 10) || 90) + ' dias';
+  }
+
+  function _pct(value) {
+    var num = _num(value);
+    if (!(num >= 0) || !isFinite(num)) return '0,0%';
+    return num.toFixed(1).replace('.', ',') + '%';
   }
 
   function _performanceActiveChannels(rows) {
@@ -1058,6 +1073,39 @@ Modules.Pedidos = (function () {
     return Object.keys(map).map(function (key) { return map[key]; }).sort(function (a, b) {
       return (b.revenue - a.revenue) || (b.qty - a.qty) || String(a.name).localeCompare(String(b.name));
     });
+  }
+
+  function _performanceParetoRanking(rows) {
+    var ranking = _performanceRanking(rows);
+    var totalRevenue = ranking.reduce(function (sum, row) { return sum + _num(row.revenue); }, 0);
+    if (!(totalRevenue > 0)) return [];
+    var running = 0;
+    return ranking.map(function (row, idx) {
+      running += _num(row.revenue);
+      var share = (row.revenue / totalRevenue) * 100;
+      var cumulative = (running / totalRevenue) * 100;
+      var band = cumulative <= 80 ? 'A' : (cumulative <= 95 ? 'B' : 'C');
+      return Object.assign({}, row, {
+        rank: idx + 1,
+        share: share,
+        cumulative: cumulative,
+        band: band
+      });
+    });
+  }
+
+  function _performanceParetoRow(row, idx) {
+    var bandTone = row.band === 'A' ? '#16735B' : (row.band === 'B' ? '#2F6F9F' : '#8A5A18');
+    var bandBg = row.band === 'A' ? '#F1FBF7' : (row.band === 'B' ? '#F1F7FC' : '#FFF7ED');
+    return '<tr style="border-top:' + (idx ? '1px solid #F4ECE7' : '0') + ';background:#fff;">' +
+      '<td style="padding:11px 14px;font-size:12px;font-weight:800;color:#1F1F1F;white-space:nowrap;">' + row.rank + '</td>' +
+      '<td style="padding:11px 14px;min-width:0;"><div style="font-size:13px;font-weight:750;color:#1F1F1F;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(row.name) + '</div><div style="font-size:11.5px;color:#6F6860;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;">' + _esc(row.typeLabel || '') + '</div></td>' +
+      '<td style="padding:11px 14px;text-align:right;font-size:12.5px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _roundQty(row.qty) + '</td>' +
+      '<td style="padding:11px 14px;text-align:right;font-size:12.5px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + UI.fmt(row.revenue) + '</td>' +
+      '<td style="padding:11px 14px;text-align:right;font-size:12.5px;font-weight:650;color:#1F1F1F;white-space:nowrap;">' + _pct(row.share) + '</td>' +
+      '<td style="padding:11px 14px;text-align:right;font-size:12.5px;font-weight:700;color:#1F1F1F;white-space:nowrap;">' + _pct(row.cumulative) + '</td>' +
+      '<td style="padding:11px 14px;text-align:right;white-space:nowrap;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 9px;border-radius:999px;background:' + bandBg + ';color:' + bandTone + ';font-size:11px;font-weight:800;border:1px solid rgba(31,31,31,.04);">' + row.band + '</span></td>' +
+    '</tr>';
   }
 
   function _performanceMatrix(rows) {
