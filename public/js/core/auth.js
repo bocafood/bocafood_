@@ -44,6 +44,19 @@ window.Auth = (function () {
     return next;
   }
 
+  function isTrialExpired(profile) {
+    var data = profile || {};
+    var billing = data.billing || {};
+    var billingStatus = String(data.billingStatus || billing.status || '').toLowerCase();
+    if (billingStatus !== 'trial') return false;
+    var trialEndsAt = data.trialEndsAt || billing.trialEndsAt || '';
+    if (!trialEndsAt) return false;
+    var trialDate = trialEndsAt && typeof trialEndsAt.toDate === 'function' ? trialEndsAt.toDate() : new Date(trialEndsAt);
+    if (isNaN(trialDate.getTime())) return false;
+    var formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return formatter.format(trialDate) < formatter.format(new Date());
+  }
+
   function tenantScore(candidate) {
     var data = candidate && candidate.data ? candidate.data : {};
     var store = data.store || {};
@@ -272,6 +285,17 @@ window.Auth = (function () {
           }
           var data = resolved.selected.data || {};
           var status = String(data.status || data.accountStatus || '').toLowerCase();
+          if (isTrialExpired(data)) {
+            console.warn('[Auth] bootstrap access denied', {
+              email: user.email || '',
+              uid: user.uid,
+              masterTenantId: resolved.selected.id,
+              reason: 'trial_expired'
+            });
+            return firebase.auth().signOut().then(function () {
+              if (window.AdminApp && AdminApp.showAccessDenied) AdminApp.showAccessDenied('trial_expired');
+            });
+          }
           if (status !== 'active') {
             console.warn('[Auth] bootstrap access denied', {
               email: user.email || '',
@@ -329,6 +353,7 @@ window.Auth = (function () {
         var normalizedRole = data ? normalizeRole(role) : '';
         var status = data ? (data.status || '') : '';
         var deniedReason = '';
+        var expiredTrial = data ? isTrialExpired(data) : false;
 
         console.info('[Auth] lookup result', {
           email: user.email || '',
@@ -341,6 +366,8 @@ window.Auth = (function () {
 
         if (!snap.exists) {
           deniedReason = 'missing_master';
+        } else if (expiredTrial) {
+          deniedReason = 'trial_expired';
         } else if ((status || '').toLowerCase() !== 'active') {
           deniedReason = 'inactive';
         } else if (normalizedRole === 'store_customer') {

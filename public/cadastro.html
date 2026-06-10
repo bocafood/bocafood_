@@ -417,6 +417,7 @@
       loading: false,
       authCreated: false,
       purchaseFound: previewHasPurchase || previewDone,
+      accessMode: previewHasPurchase || previewDone ? 'hotmart' : '',
       legalAccepted: previewDone,
       legalSigned: previewDone,
       termsUrl: 'https://bocafood.app/termosdeuso',
@@ -555,6 +556,12 @@
     var weeklyTimeLabels = weeklyTimes.map(function(item){ return { value: item, label: item }; });
 
     function esc(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch];});}
+    function formatShortDate(value){
+      if(!value) return '';
+      var d=new Date(value);
+      if(Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
+    }
     function options(items, selected){return items.map(function(item){return '<option value="'+esc(item[0])+'" '+(item[0]===selected?'selected':'')+'>'+esc(item[1])+'</option>';}).join('');}
     function choiceOptions(name, items, selected){
       return '<div class="choice-grid">'+items.map(function(item){
@@ -759,18 +766,21 @@
     }
     function signupFinishedHtml(){
       var email = state.data.email || 'seu e-mail';
+      var trialMode = state.accessMode === 'trial';
+      var trialEndsText = trialMode && state.trialEndsAt ? formatShortDate(state.trialEndsAt) : '';
       return '<div class="final-step signup-finished-step-wrap"><div class="signup-finished-card">'
-        +'<p class="signup-finished-kicker">Cadastro recebido</p>'
-        +'<h3 class="signup-finished-title">Agora é só abrir o link que vai chegar no seu e-mail.</h3>'
-        +'<p class="signup-finished-text">Seu cadastro foi finalizado. Vamos enviar o acesso do Painel BocaFood para o e-mail abaixo, para você entrar com segurança quando estiver pronta.</p>'
+        +'<p class="signup-finished-kicker">'+(trialMode ? 'Teste grátis liberado' : 'Cadastro recebido')+'</p>'
+        +'<h3 class="signup-finished-title">'+(trialMode ? 'Seu acesso gratuito de 30 dias já está pronto.' : 'Agora é só abrir o link que vai chegar no seu e-mail.')+'</h3>'
+        +'<p class="signup-finished-text">'+(trialMode ? 'Você já pode entrar no BocaFood sem depender de compra pela Hotmart. O acesso fica liberado por 30 dias e, se não houver plano pago depois disso, ele é bloqueado automaticamente.' : 'Seu cadastro foi finalizado. Vamos enviar o acesso do Painel BocaFood para o e-mail abaixo, para você entrar com segurança quando estiver pronta.')+'</p>'
         +'<div class="signup-finished-email">'+esc(email)+'</div>'
+        +(trialMode && trialEndsText ? '<div class="signup-finished-email" style="margin-top:8px;">Teste grátis termina em '+esc(trialEndsText)+'</div>' : '')
         +'<div class="signup-finished-grid">'
           +'<div class="signup-finished-step"><div class="signup-finished-step-icon">1</div><div><strong>Confira seu e-mail</strong><span>Procure a mensagem do BocaFood. Se não aparecer em alguns minutos, veja também spam, promoções ou lixo eletrônico.</span></div></div>'
           +'<div class="signup-finished-step"><div class="signup-finished-step-icon">2</div><div><strong>Abra pelo computador quando puder</strong><span>O cadastro foi feito para funcionar no celular, mas a primeira configuração do Painel BocaFood fica mais confortável em uma tela maior.</span></div></div>'
           +'<div class="signup-finished-step"><div class="signup-finished-step-icon">3</div><div><strong>Comece pela base do negócio</strong><span>Depois de entrar, o BocaFood vai te guiar pelos primeiros passos: dados da loja, canais, produtos, Plano de Voo e Temporada.</span></div></div>'
           +'<div class="signup-finished-step"><div class="signup-finished-step-icon">4</div><div><strong>Use o celular na rotina</strong><span>Você pode acompanhar pedidos, loja online e ações do dia a dia pelo celular. O computador é só a melhor escolha para configurar com calma.</span></div></div>'
         +'</div>'
-        +'<div class="signup-finished-note"><strong>Não precisa entrar agora.</strong> O próximo passo está no seu e-mail. Se precisar de ajuda, fale com <strong>teajudo@bocafood.app</strong>.</div>'
+        +'<div class="signup-finished-note"><strong>'+(trialMode ? 'Seu acesso já está liberado.' : 'Não precisa entrar agora.')+'</strong> '+(trialMode ? 'O período grátis começa agora. Se precisar de ajuda, fale com <strong>teajudo@bocafood.app</strong>.' : 'O próximo passo está no seu e-mail. Se precisar de ajuda, fale com <strong>teajudo@bocafood.app</strong>.')+'</div>'
         +'</div></div>';
     }
     function render(){
@@ -778,7 +788,7 @@
       renderPills();
       var previewBanner=document.getElementById('preview-banner');
       previewBanner.className='preview-banner '+(isPreview?'show':'');
-      if(isPreview) previewBanner.textContent=previewDone?'Modo prévia ativo: tela final do cadastro. Nenhum dado será salvo.':(previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando e-mail sem compra ativa. Use ?preview=1&purchase=1 para ver a finalização com aceite.');
+      if(isPreview) previewBanner.textContent=previewDone?'Modo prévia ativo: tela final do cadastro. Nenhum dado será salvo.':(previewHasPurchase?'Modo prévia ativo: simulando compra ativa para visualizar a finalização com aceite dos termos. Nenhum dado será salvo.':'Modo prévia ativo: simulando o caminho do teste grátis. Use ?preview=1&purchase=1 para ver a finalização com aceite da compra ativa.');
       document.getElementById('step-title').textContent=state.legalSigned?'Cadastro finalizado':steps[state.step][0];
       document.getElementById('step-hint').textContent=state.legalSigned?'O acesso do Painel BocaFood será enviado para o e-mail usado no cadastro.':steps[state.step][1];
       var panel=document.querySelector('.panel');
@@ -795,7 +805,7 @@
       if(state.legalSigned){
         body=signupFinishedHtml();
       }else if(state.step===0){
-        body='<div class="access-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Boas-vindas</div><h3 class="access-welcome-title">Vamos começar pelo seu acesso</h3><p class="access-welcome-text">Em poucos minutos você entra no BocaFood e prepara a base da sua loja.</p></div><div class="access-welcome-mark">✓</div></div><div class="purchase-email-notice"><span><strong>Importante</strong>O acesso só será liberado se o e-mail for o mesmo usado na compra.</span></div>'+(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou crie acesso com e-mail e senha</div>')+'<div class="form-grid"><label class="full"><span>E-mail usado na compra</span><input id="email" type="email" autocomplete="email" placeholder="exemplo@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'Já criou seu acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div></div>';
+        body='<div class="access-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Boas-vindas</div><h3 class="access-welcome-title">Vamos começar pelo seu acesso</h3><p class="access-welcome-text">Em poucos minutos você entra no BocaFood e prepara a base da sua loja.</p></div><div class="access-welcome-mark">✓</div></div><div class="purchase-email-notice"><span><strong>Importante</strong>Se não houver compra ativa, seu acesso começa com 30 dias grátis.</span></div>'+(isPreview?'':'<button class="google-btn" id="google-signup-btn" type="button"><svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>Continuar com Google</button><div class="divider">ou crie acesso com e-mail e senha</div>')+'<div class="form-grid"><label class="full"><span>E-mail usado no cadastro</span><input id="email" type="email" autocomplete="email" placeholder="exemplo@email.com" value="'+esc(d.email)+'"></label><label><span>Senha</span><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" value="'+esc(d.password)+'"></label><label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" value="'+esc(d.confirmPassword)+'"></label></div><div class="mini-note">'+(isPreview?'Modo prévia: estes dados não serão salvos.':'Já criou seu acesso? <a href="/admin.html" style="color:#C4362A;font-weight:800;text-decoration:none;">Entrar no Centro de Controle</a>')+'</div></div>';
       }else if(state.step===1){
         body='<div class="responsible-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Responsável</div><h3 class="access-welcome-title">Agora precisamos saber quem administra a conta</h3><p class="access-welcome-text">Esses dados ajudam o BocaFood a identificar a pessoa responsável pelo acesso e pelas comunicações importantes.</p></div><div class="access-welcome-mark">✓</div></div><div class="form-grid responsible-grid"><div class="responsible-block"><div class="responsible-block-title">Dados do responsável</div><label class="full"><span>Nome completo do responsável</span><input id="ownerName" value="'+esc(d.ownerName)+'"></label><div class="responsible-inline"><label><span>WhatsApp do responsável</span><div class="signup-phone-box"><select id="whatsappCountryCode" aria-label="Código do país">'+options(phoneCodes,d.whatsappCountryCode)+'</select><input id="whatsappNumber" inputmode="tel" autocomplete="tel-national" value="'+esc(d.whatsappNumber)+'" placeholder="600 000 000"></div><small class="field-note">Usaremos esse número apenas para suporte, segurança e comunicações importantes da conta.</small></label></div></div></div><div class="step-soft-note">Você poderá alterar esses dados depois em Configurações.</div></div>';
       }else if(state.step===2){
@@ -810,7 +820,7 @@
         if(state.purchaseFound){
           body='<div class="final-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Tudo pronto</div><h3 class="access-welcome-title">Seu Centro de Controle já pode ser aberto</h3><p class="access-welcome-text">Antes de entrar, confirme os documentos e suas preferências de comunicação.</p></div><div class="access-welcome-mark">✓</div></div><div class="success-box"><div class="success-head"><div class="success-icon">✓</div><div><h3 class="success-title">Seu acesso está pronto.</h3><p class="success-text">Salvamos os dados principais e criamos a base inicial da sua loja como rascunho.</p></div></div><div class="success-list"><div class="success-item">Acesso criado</div><div class="success-item">Dados principais salvos</div><div class="success-item">Loja criada como rascunho</div></div><div class="legal-sign-box"><strong class="legal-sign-title">Confirme os termos para continuar</strong><p class="legal-sign-text">Para entrar no BocaFood, leia e aceite os documentos abaixo.</p><div class="legal-sign-links"><a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a><a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a></div><label class="legal-sign-check"><input id="legal-acceptance" type="checkbox" '+(state.legalAccepted?'checked':'')+'> <span>Li e aceito os <a href="'+esc(state.termsUrl)+'" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="'+esc(state.privacyUrl)+'" target="_blank" rel="noopener">Política de Privacidade</a> do BocaFood.</span></label></div><div class="communication-pref-box"><strong class="communication-pref-title">Preferências de comunicação</strong><p class="communication-pref-subtitle">Quer continuar recebendo ideias, melhorias e oportunidades para vender mais com o BocaFood?</p><div class="communication-pref-list"><label class="communication-pref-check"><input id="communication-pref-commercialCampaigns" type="checkbox" '+(state.communicationPreferences.commercialCampaigns?'checked':'')+'> <span>Quero receber novidades, conteúdos e campanhas comerciais</span></label><label class="communication-pref-check"><input id="communication-pref-growthTips" type="checkbox" '+(state.communicationPreferences.growthTips?'checked':'')+'> <span>Quero receber dicas práticas para melhorar minha loja</span></label><label class="communication-pref-check"><input id="communication-pref-upgradeOffers" type="checkbox" '+(state.communicationPreferences.upgradeOffers?'checked':'')+'> <span>Quero receber ofertas, promoções e convites para upgrade</span></label></div><p class="communication-pref-note">Mesmo que você desative essas opções, ainda enviaremos comunicações essenciais sobre conta, segurança, cobrança, senha, plano e obrigações legais.</p></div></div></div>';
         }else{
-          body='<div class="final-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Atenção</div><h3 class="access-welcome-title">Precisamos confirmar sua compra</h3><p class="access-welcome-text">O acesso ao painel depende de uma compra ativa vinculada ao mesmo e-mail.</p></div><div class="access-welcome-mark">!</div></div><div class="purchase-alert"><div class="purchase-alert-head"><div class="purchase-alert-icon">!</div><div><h3 class="purchase-alert-title">Não encontramos uma compra ativa para este e-mail</h3><p class="purchase-alert-text">Use o mesmo e-mail da compra para liberar seu acesso. Se precisar, fale com o suporte: <strong>teajudo@bocafood.app</strong></p></div></div><div class="purchase-alert-actions"><button class="secondary" id="retry-email-btn" type="button">Tentar outro e-mail</button><a href="mailto:teajudo@bocafood.app">Falar com suporte</a></div></div></div>';
+          body='<div class="final-step"><div class="access-welcome"><div><div class="access-welcome-kicker">Atenção</div><h3 class="access-welcome-title">Não foi possível concluir seu cadastro</h3><p class="access-welcome-text">Revise seus dados ou tente novamente em instantes.</p></div><div class="access-welcome-mark">!</div></div><div class="purchase-alert"><div class="purchase-alert-head"><div class="purchase-alert-icon">!</div><div><h3 class="purchase-alert-title">Não conseguimos liberar seu acesso agora</h3><p class="purchase-alert-text">Se o problema continuar, fale com o suporte: <strong>teajudo@bocafood.app</strong></p></div></div><div class="purchase-alert-actions"><button class="secondary" id="retry-email-btn" type="button">Tentar novamente</button><a href="mailto:teajudo@bocafood.app">Falar com suporte</a></div></div></div>';
         }
       }
       document.getElementById('step-body').innerHTML=body;
@@ -881,7 +891,9 @@
       if(isPreview){
         sync();
         state.authCreated=true;
-        state.purchaseFound=previewHasPurchase;
+        state.purchaseFound=true;
+        state.accessMode=previewHasPurchase?'hotmart':'trial';
+        state.trialEndsAt=previewHasPurchase?'':new Date(Date.now()+30*24*60*60*1000).toISOString();
         state.step=1;
         render();
         return Promise.resolve();
@@ -892,6 +904,8 @@
         state.authCreated=true;
         return completeSignup({stage:'account_created',email:cred.user.email}).then(function(result){
           state.purchaseFound=!!(result.data&&result.data.purchaseFound);
+          state.accessMode=(result.data&&result.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
+          if(result.data&&result.data.trialEndsAt) state.trialEndsAt=result.data.trialEndsAt;
           state.step=1;render();
         });
       }).catch(function(err){
@@ -915,6 +929,8 @@
         if(user&&user.displayName&&!state.data.ownerName) state.data.ownerName=user.displayName;
         return completeSignup({stage:'account_created',email:state.data.email}).then(function(response){
           state.purchaseFound=!!(response.data&&response.data.purchaseFound);
+          state.accessMode=(response.data&&response.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
+          if(response.data&&response.data.trialEndsAt) state.trialEndsAt=response.data.trialEndsAt;
           state.step=1;
           render();
         });
@@ -947,6 +963,8 @@
         setMsg('Google conectado. Preparando seu cadastro...','info');
         return completeSignup({stage:'account_created',email:state.data.email}).then(function(response){
           state.purchaseFound=!!(response.data&&response.data.purchaseFound);
+          state.accessMode=(response.data&&response.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
+          if(response.data&&response.data.trialEndsAt) state.trialEndsAt=response.data.trialEndsAt;
           state.step=1;
           render();
         }).finally(function(){setLoading(false);});
@@ -959,12 +977,14 @@
     function finish(){
       sync();
       if(isPreview){
-        state.purchaseFound=previewHasPurchase;
+        state.purchaseFound=true;
+        state.accessMode=previewHasPurchase?'hotmart':'trial';
+        state.trialEndsAt=previewHasPurchase?'':new Date(Date.now()+30*24*60*60*1000).toISOString();
         state.legalAccepted=false;
         state.legalSigned=false;
         state.step=6;
         render();
-        setMsg(previewHasPurchase?'Prévia de compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.':'Prévia sem compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
+        setMsg(previewHasPurchase?'Prévia de compra ativa concluída. Nenhuma conta foi criada e nenhum dado foi salvo.':'Prévia do teste grátis concluída. Nenhuma conta foi criada e nenhum dado foi salvo.','info');
         return Promise.resolve();
       }
       setLoading(true);
@@ -978,6 +998,8 @@
       return completeSignup(payload).then(function(result){
         var data=result.data||{};
         state.purchaseFound=!!data.purchaseFound;
+        state.accessMode=data.accessMode || (state.purchaseFound ? 'hotmart' : '');
+        if(data.trialEndsAt) state.trialEndsAt=data.trialEndsAt;
         state.legalAccepted=false;
         state.legalSigned=false;
         if(data.ok){

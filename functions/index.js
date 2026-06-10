@@ -25,10 +25,23 @@ const HOTMART_OFFER_PLANS = {
   kah1d2ne: { planSlug: "compromisso_anual", billingCycle: "annual", trialDays: 15 },
   woavlwrh: { planSlug: "fundadoras", billingCycle: "monthly", trialDays: 0 }
 };
+const HOTMART_PLAN_LINKS = {
+  monthly: {
+    url: "https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn",
+    name: "Plano mensal",
+    price: "€29,90"
+  },
+  annual: {
+    url: "https://pay.hotmart.com/J105828298T?checkoutMode=2&off=kah1d2ne",
+    name: "Plano anual",
+    price: "€299,90"
+  }
+};
 const PLAN_DISPLAY_NAMES = {
   essencial: "Plano Essencial",
   compromisso_anual: "Plano Compromisso Anual",
   fundadoras: "Plano Fundadoras",
+  trial_30_days: "Teste grátis de 30 dias",
   starter: "Plano Essencial"
 };
 const TENANT_TAG_KEYS = [
@@ -45,6 +58,7 @@ const TENANT_TAG_KEYS = [
 ];
 
 const HOTMART_BLOCKED_STATUSES = ["canceled", "refunded", "chargeback"];
+const FREE_TRIAL_DAYS = 30;
 
 function normalizeBocaFoodBrandLogoUrl(value) {
   const url = String(value || "").trim();
@@ -355,11 +369,11 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     description: "Aviso enviado quando o periodo de teste esta perto do fim.",
     subject: "Seu teste do {{brandName}} acaba em breve",
     preheader: "Faltam poucos dias para terminar seu periodo de teste.",
-    body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p><p>Entre no Centro de Controle para revisar sua loja e manter o acesso ativo.</p>",
-    ctaLabel: "Abrir BocaFood",
-    ctaUrl: "{{appBaseUrl}}",
+    body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p><p>Se quiser continuar sem interrupcao, escolha um plano abaixo:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div><p style=\"margin-top:14px;\">Enquanto o trial estiver ativo, o acesso continua normal.</p>",
+    ctaLabel: "Escolher plano mensal",
+    ctaUrl: "{{hotmartMonthlyUrl}}",
     enabled: true,
-    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName"]
+    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },
   trial_ends_today: {
     key: "trial_ends_today",
@@ -367,23 +381,23 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     description: "Aviso enviado no dia final do periodo de teste.",
     subject: "Seu teste do {{brandName}} acaba hoje",
     preheader: "Hoje e o ultimo dia do seu periodo de teste.",
-    body: "<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p><p>Se precisar de ajuda para continuar, fale com o suporte.</p>",
-    ctaLabel: "Abrir BocaFood",
-    ctaUrl: "{{appBaseUrl}}",
+    body: "<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p><p>Escolha um plano para manter o acesso ativo sem pausa:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div>",
+    ctaLabel: "Escolher plano mensal",
+    ctaUrl: "{{hotmartMonthlyUrl}}",
     enabled: true,
-    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName"]
+    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },
   trial_expired: {
     key: "trial_expired",
     name: "Trial expirado",
     description: "Aviso enviado quando o periodo de teste terminou.",
     subject: "Seu teste do {{brandName}} terminou",
-    preheader: "Seu periodo de teste chegou ao fim.",
-    body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou. Para continuar usando o BocaFood, regularize seu acesso ou fale com o suporte.</p>",
-    ctaLabel: "Falar com suporte",
-    ctaUrl: "mailto:{{supportEmail}}",
+    preheader: "Seu periodo de teste chegou ao fim. Escolha um plano para continuar.",
+    body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou.</p><p>Para continuar usando o BocaFood, escolha um dos planos abaixo:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div><p style=\"margin-top:14px;\">Se preferir, fale com o suporte para revisar seu acesso.</p>",
+    ctaLabel: "Escolher plano mensal",
+    ctaUrl: "{{hotmartMonthlyUrl}}",
     enabled: true,
-    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName"]
+    availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },
   store_not_published: {
     key: "store_not_published",
@@ -803,6 +817,33 @@ function planDisplayName(planSlug) {
   const normalized = String(planSlug || "").trim();
   if (!normalized) return "Plano BocaFood";
   return PLAN_DISPLAY_NAMES[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function blockExpiredTrialTenant(tenantUid, trialEndsAt) {
+  if (!tenantUid || !trialEndsAt) return false;
+  const ref = db.collection("system_tenants").doc(tenantUid);
+  const snap = await ref.get();
+  if (!snap.exists) return false;
+  const tenant = snap.data() || {};
+  const billing = tenant.billing || {};
+  const now = nowIso();
+  const patch = {
+    accountStatus: "blocked",
+    status: "blocked",
+    billingStatus: "expired",
+    blockedAt: now,
+    blockedReason: "trial_expired",
+    billing: {
+      ...billing,
+      status: "expired",
+      blockedAt: now,
+      blockedReason: "trial_expired",
+      trialEndsAt
+    },
+    updatedAt: now
+  };
+  await ref.set(patch, { merge: true });
+  return true;
 }
 
 function mapHotmartCycle(payload) {
@@ -1681,13 +1722,25 @@ function tenantEmailVariables(tenant, tagKey) {
     billingCycle: billing.billingCycle || tenant.billingCycle || "",
     trialEndsAt: billing.trialEndsAt || tenant.trialEndsAt || "",
     storeName: store.name || tenant.businessName || "",
-    tagKey
+    tagKey,
+    ...hotmartPlanVariables()
   };
 }
 
 function tenantMeetsStoreReady(tenant) {
   const store = tenant.store || {};
   return !!(store.name && store.slug && store.country && store.language);
+}
+
+function hotmartPlanVariables() {
+  return {
+    hotmartMonthlyUrl: HOTMART_PLAN_LINKS.monthly.url,
+    hotmartMonthlyName: HOTMART_PLAN_LINKS.monthly.name,
+    hotmartMonthlyPrice: HOTMART_PLAN_LINKS.monthly.price,
+    hotmartAnnualUrl: HOTMART_PLAN_LINKS.annual.url,
+    hotmartAnnualName: HOTMART_PLAN_LINKS.annual.name,
+    hotmartAnnualPrice: HOTMART_PLAN_LINKS.annual.price
+  };
 }
 
 async function requireMaster(req) {
@@ -4519,7 +4572,8 @@ function hotmartEmailVariables({ buyer, settings, status, eventAt = "" }) {
     canceledAt: hotmartBlocksAccess(status) ? eventAt : "",
     trialEndsAt: buyer.trialEndsAt || "",
     hotmartTransaction: buyer.hotmartTransaction || "",
-    hotmartOfferCode: buyer.hotmartOfferCode || ""
+    hotmartOfferCode: buyer.hotmartOfferCode || "",
+    ...hotmartPlanVariables()
   };
 }
 
@@ -4668,7 +4722,9 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     const tenantData = tenantSnap.exists ? (tenantSnap.data() || {}) : {};
     const billing = tenantData.billing || {};
     const activeAccount = tenantData.accountStatus === "active" || tenantData.status === "active" || billing.status === "active";
-    if (!activeAccount) {
+    const trialEndsAt = tenantData.trialEndsAt || billing.trialEndsAt || "";
+    const trialExpired = daysUntilMadrid(trialEndsAt) != null && daysUntilMadrid(trialEndsAt) < 0 && String(billing.status || tenantData.billingStatus || "").toLowerCase() === "trial";
+    if (!activeAccount || trialExpired) {
       throw new HttpsError("failed-precondition", "Assinatura de termos disponível apenas para contas com acesso liberado.");
     }
     const termsUrl = cleanSignupText(data.termsUrl || "https://bocafood.app/termosdeuso", 240);
@@ -4823,6 +4879,25 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     patch.billingCycle = billing.billingCycle || "";
     patch.activatedAt = billing.activatedAt || now;
     if (billing.trialEndsAt) patch.trialEndsAt = billing.trialEndsAt;
+  } else {
+    const trialEndsAt = addDaysIso(now, FREE_TRIAL_DAYS);
+    patch.billing = {
+      provider: "internal",
+      status: "trial",
+      planSlug: "trial_30_days",
+      billingCycle: "trial",
+      activatedAt: now,
+      trialEndsAt,
+      updatedAt: now
+    };
+    patch.plan = "trial_30_days";
+    patch.billingStatus = "trial";
+    patch.billingCycle = "trial";
+    patch.trialEndsAt = trialEndsAt;
+    patch.accountStatus = "active";
+    patch.status = "active";
+    patch.origin = "signup_trial";
+    patch.blockedReason = "";
   }
 
   await tenantRef.set(patch, { merge: true });
@@ -4838,16 +4913,18 @@ exports.completeSignupOnboarding = onCall({ region: REGION }, async (request) =>
     }, { merge: true });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_hotmart_linked", summary: "Compra Hotmart vinculada ao cadastro.", metadata: { pendingId: pending.id, planSlug: billing.planSlug, billingCycle: billing.billingCycle } });
     await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_completed", summary: "Cadastro BocaFood concluído com compra ativa.", metadata: { origin: "hotmart" } });
-    return { ok: true, purchaseFound: true, accountStatus: "active", redirectUrl: "/admin.html#dashboard" };
+    return { ok: true, purchaseFound: true, accessMode: "hotmart", accountStatus: "active", redirectUrl: "/admin.html#dashboard" };
   }
 
-  await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_without_purchase", summary: "Cadastro concluído sem compra ativa localizada.", severity: "warning", metadata: { origin: "signup" } });
+  await recordSignupLog({ tenantUid: uid, email: authEmail, action: "signup_without_purchase", summary: "Cadastro concluído com teste grátis de 30 dias.", metadata: { origin: "signup_trial", trialEndsAt: patch.trialEndsAt } });
   return {
-    ok: false,
-    code: "NO_ACTIVE_PURCHASE",
-    purchaseFound: false,
-    accountStatus: "pending",
-    message: "Não encontramos uma compra ativa para este e-mail. Use o mesmo e-mail da compra ou fale com o suporte: teajudo@bocafood.app."
+    ok: true,
+    purchaseFound: true,
+    accessMode: "trial",
+    accountStatus: "active",
+    trialEndsAt: patch.trialEndsAt,
+    message: "Teste grátis de 30 dias liberado com sucesso.",
+    redirectUrl: "/admin.html#dashboard"
   };
 });
 
@@ -5095,7 +5172,10 @@ exports.dailyTenantTagCheck = onSchedule(
       if (days === 0) jobs.push(applyTenantTag(uid, "trial_ends_today", { source: "dailyTenantTagCheck", reason: "trial_ends_today", metadata: { trialEndsAt } }));
       else jobs.push(removeTenantTag(uid, "trial_ends_today", { source: "dailyTenantTagCheck", reason: "trial_not_today" }));
 
-      if (days != null && days < 0 && billingStatus !== "active") jobs.push(applyTenantTag(uid, "trial_expired", { source: "dailyTenantTagCheck", reason: "trial_expired_without_active_subscription", metadata: { trialEndsAt, billingStatus } }));
+      if (days != null && days < 0 && billingStatus !== "active") {
+        jobs.push(applyTenantTag(uid, "trial_expired", { source: "dailyTenantTagCheck", reason: "trial_expired_without_active_subscription", metadata: { trialEndsAt, billingStatus } }));
+        jobs.push(blockExpiredTrialTenant(uid, trialEndsAt));
+      }
       else jobs.push(removeTenantTag(uid, "trial_expired", { source: "dailyTenantTagCheck", reason: "trial_not_expired" }));
 
       if (String(store.status || "") !== "published") jobs.push(applyTenantTag(uid, "store_not_published", { source: "dailyTenantTagCheck", reason: "store_not_published", metadata: { storeStatus: store.status || "" } }));
