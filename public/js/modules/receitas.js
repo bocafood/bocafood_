@@ -478,7 +478,7 @@ Modules.Receitas = (function () {
         '<td><div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
           '<div class="production-orders-icon"><span class="mi" style="font-size:20px;">assignment</span></div>' +
           '<div style="min-width:0;"><div class="production-orders-row-title">' + _esc(orderName) + '</div>' +
-          '<div class="production-orders-row-text">' + (isBaseOrder ? 'Base para montagem dos produtos.' : 'Planejamento criado a partir da receita.') + '</div></div>' +
+          '<div class="production-orders-row-text">' + (isBaseOrder ? 'Base para montagem dos produtos.' : 'Planejamento criado a partir da receita.') + ' · ID ' + _esc(String(order.id || '').slice(-6).toUpperCase()) + '</div></div>' +
         '</div></td>' +
         '<td><div class="production-orders-value">' + _esc(_fmtQty(order.plannedQuantity)) + ' ' + _esc(yieldUnit) + '</div></td>' +
         '<td><div class="production-orders-value">' + (order.actualQuantity ? _esc(_fmtQty(order.actualQuantity)) + ' ' + _esc(yieldUnit) : '—') + '</div></td>' +
@@ -2574,6 +2574,7 @@ Modules.Receitas = (function () {
         '<div class="production-modal-card-desc">' + (isBaseOrder ? 'Planejamento de uma base intermediária para usar depois na montagem dos produtos.' : 'Planejamento salvo a partir da receita escolhida no momento da criação.') + '</div></div></div>' +
         (order.status === 'concluida' ? '<div class="production-result-panel"><div><div class="production-orders-label">Resultado do lote</div><div class="production-result-message">' + _esc(result.message) + '</div></div><span class="production-result-badge ' + result.tone + '">' + _esc(result.label) + '</span></div>' : '') +
         '<div class="production-detail-grid">' +
+          _detailTile('ID da ordem', String(order.id || '—')) +
           _detailTile('Status', _statusLabel(order.status)) +
           _detailTile('Data prevista', _fmtDate(order.plannedDate)) +
           _detailTile(isBaseOrder ? 'Base planejada' : 'Quantidade planejada', _fmtQty(order.plannedQuantity) + ' ' + (snapshot.yieldUnit || 'unidades')) +
