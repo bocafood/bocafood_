@@ -4543,6 +4543,8 @@ Modules.Pedidos = (function () {
     var total = +(unit * qty).toFixed(2);
     var itemKey = _manualOrderChoiceKey(id, choices);
     var name = _firstText(product && product.name, product && product.title, product && product.nome, 'Produto');
+    var unitCost = _orderItemStockUnitCost(null, product);
+    var totalCost = +(unitCost * qty).toFixed(2);
     return {
       itemKey: itemKey,
       productId: id,
@@ -4563,6 +4565,14 @@ Modules.Pedidos = (function () {
       lineTotal: total,
       originalTotal: +(Math.max(originalUnit, unit) * qty).toFixed(2),
       originalSubtotal: +(Math.max(originalUnit, unit) * qty).toFixed(2),
+      stockUnitCost: unitCost,
+      unitCost: unitCost,
+      cost: unitCost,
+      totalCost: totalCost,
+      costTotal: totalCost,
+      custoTotal: totalCost,
+      estimatedUnitCost: unitCost,
+      estimatedTotalCost: totalCost,
       choices: choices,
       selectedOptions: choices,
       variants: choices,
@@ -6540,6 +6550,37 @@ Modules.Pedidos = (function () {
     );
   }
 
+  function _orderItemCostPayload(item, product) {
+    item = Object.assign({}, item || {});
+    var qty = _orderItemStockQuantity(item);
+    var unitCost = _orderItemStockUnitCost(item, product);
+    var totalCost = unitCost > 0 ? +(qty * unitCost).toFixed(2) : _num(item.totalCost || item.costTotal || item.custoTotal || 0);
+    item.stockUnitCost = unitCost;
+    item.unitCost = unitCost;
+    item.costUnit = unitCost;
+    item.cost = unitCost;
+    item.totalCost = totalCost;
+    item.costTotal = totalCost;
+    item.custoTotal = totalCost;
+    item.estimatedUnitCost = unitCost;
+    item.estimatedTotalCost = totalCost;
+    return item;
+  }
+
+  function _orderProfitPayload(order) {
+    order = order || {};
+    var profit = _orderEstimatedProfit(order);
+    return {
+      profit: profit,
+      estimatedProfit: profit,
+      netProfit: profit,
+      grossProfit: profit,
+      orderProfit: profit,
+      profitAmount: profit,
+      marginValue: profit
+    };
+  }
+
   function _stockMovementOrderId(orderId, idx) {
     return String(orderId || 'pedido').replace(/[^\w-]/g, '_') + '_' + idx + '_saida_venda';
   }
@@ -6818,6 +6859,8 @@ Modules.Pedidos = (function () {
       var originalPrice = _num(item.originalPrice != null ? item.originalPrice : (_manualOrderProductBasePrice(product) + _num(item.choiceExtraTotal || 0)));
       var quantity = item.quantity || 1;
       var finalPrice = calc && !_num(item.choiceExtraTotal || 0) ? calc.calc.final : _num(item.finalPrice || originalPrice);
+      var stockUnitCost = _num(item.stockUnitCost != null ? item.stockUnitCost : item.unitCost != null ? item.unitCost : _firstText(product.stockUnitCost, product.costPerYield, product.custoUnitario, product.custoAtual, product.custo, product.cost, ''));
+      var totalCost = stockUnitCost > 0 ? +(stockUnitCost * quantity).toFixed(2) : _num(item.totalCost || item.costTotal || item.custoTotal || 0);
       return {
         id: item.productId,
         productId: item.productId,
@@ -6831,6 +6874,14 @@ Modules.Pedidos = (function () {
         unitPrice: finalPrice,
         basePrice: _num(item.basePrice || _manualOrderProductBasePrice(product)),
         choiceExtraTotal: _num(item.choiceExtraTotal || 0),
+        stockUnitCost: stockUnitCost,
+        unitCost: stockUnitCost,
+        cost: stockUnitCost,
+        totalCost: totalCost,
+        costTotal: totalCost,
+        custoTotal: totalCost,
+        estimatedUnitCost: stockUnitCost,
+        estimatedTotalCost: totalCost,
         choices: Array.isArray(item.choices) ? item.choices : [],
         selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : (Array.isArray(item.choices) ? item.choices : []),
         variants: Array.isArray(item.variants) ? item.variants : (Array.isArray(item.choices) ? item.choices : []),
@@ -7653,6 +7704,8 @@ Modules.Pedidos = (function () {
       var basePrice = _manualOrderProductBasePrice(product);
       var finalBasePrice = calc && calc.calc && calc.calc.final != null ? _num(calc.calc.final) : basePrice;
       var extra = _detailChoiceExtraTotal(choices);
+      var unitCost = _orderItemStockUnitCost(null, product);
+      var totalCost = +(unitCost * 1).toFixed(2);
       _manualOrderState.items.push({
         itemKey: itemKey,
         productId: id,
@@ -7679,6 +7732,14 @@ Modules.Pedidos = (function () {
         menuChoices: choices,
         internalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
         productInternalNote: _firstText(product.internalNote, product.internalNotes, product.kitchenNote, ''),
+        stockUnitCost: unitCost,
+        unitCost: unitCost,
+        cost: unitCost,
+        totalCost: totalCost,
+        costTotal: totalCost,
+        custoTotal: totalCost,
+        estimatedUnitCost: unitCost,
+        estimatedTotalCost: totalCost,
         promoId: calc && calc.promo ? String(calc.promo.id || calc.promo._id || calc.promo.slug || '') : '',
         promoName: calc && calc.promo ? _firstText(calc.promo.name, calc.promo.title, 'Promoção') : '',
         promoType: calc && calc.promo ? String(calc.promo.type || '') : '',
@@ -9021,6 +9082,10 @@ Modules.Pedidos = (function () {
     var paymentMethod = String(data.paymentMethod || '');
     var paidAmount = _paymentStatusIsPaid(paymentStatus) ? total : _num(data.paidAmount || 0);
     var channelCategory = _channelIncomeCategoryMeta(_salesChannelByName('Venda presencial') || _salesChannelByName('TPV') || {});
+    items = items.map(function (item) {
+      var product = _findProductByAnyId(item.productId || item.id || item.sourceItemId || item.produtoProntoId || '');
+      return _orderItemCostPayload(item, product);
+    });
     var payload = {
       customerId: String(data.customerId || ''),
       customerName: String(data.customerName || 'Cliente balcão'),
@@ -9088,6 +9153,7 @@ Modules.Pedidos = (function () {
       createdAt: _manualOrderCreatedAt(orderDate, orderTime)
     };
     Object.assign(payload, _orderChannelFinancialPatch(payload, total));
+    Object.assign(payload, _orderProfitPayload(payload));
     payload.fiscal = _ensureOrderFiscalDefaults(payload).fiscal;
     return DB.add('orders', payload).then(function (ref) {
       var createdId = (ref && ref.id) ? String(ref.id) : '';
