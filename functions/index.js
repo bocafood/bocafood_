@@ -370,8 +370,8 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     subject: "Seu teste do {{brandName}} acaba em breve",
     preheader: "Faltam poucos dias para terminar seu periodo de teste.",
     body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste do {{brandName}} esta acabando em breve.</p><p>Se quiser continuar sem interrupcao, escolha um plano abaixo:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div><p style=\"margin-top:14px;\">Enquanto o trial estiver ativo, o acesso continua normal.</p>",
-    ctaLabel: "Escolher plano mensal",
-    ctaUrl: "{{hotmartMonthlyUrl}}",
+    ctaLabel: "Abrir página de renovação",
+    ctaUrl: "{{appBaseUrl}}/renovar.html",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },
@@ -382,8 +382,8 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     subject: "Seu teste do {{brandName}} acaba hoje",
     preheader: "Hoje e o ultimo dia do seu periodo de teste.",
     body: "<p>Ola {{buyerName}},</p><p>Seu teste do {{brandName}} acaba hoje.</p><p>Escolha um plano para manter o acesso ativo sem pausa:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div>",
-    ctaLabel: "Escolher plano mensal",
-    ctaUrl: "{{hotmartMonthlyUrl}}",
+    ctaLabel: "Abrir página de renovação",
+    ctaUrl: "{{appBaseUrl}}/renovar.html",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },
@@ -394,8 +394,8 @@ const EMAIL_TEMPLATE_DEFAULTS = {
     subject: "Seu teste do {{brandName}} terminou",
     preheader: "Seu periodo de teste chegou ao fim. Escolha um plano para continuar.",
     body: "<p>Ola {{buyerName}},</p><p>Seu periodo de teste terminou.</p><p>Para continuar usando o BocaFood, escolha um dos planos abaixo:</p><div style=\"margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;\"><a href=\"{{hotmartMonthlyUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#B42318;color:#fff;text-decoration:none;font-weight:700;\">{{hotmartMonthlyName}} · {{hotmartMonthlyPrice}}</a><a href=\"{{hotmartAnnualUrl}}\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;background:#fff;border:1px solid #E4D9D5;color:#B42318;text-decoration:none;font-weight:700;\">{{hotmartAnnualName}} · {{hotmartAnnualPrice}}</a></div><p style=\"margin-top:14px;\">Se preferir, fale com o suporte para revisar seu acesso.</p>",
-    ctaLabel: "Escolher plano mensal",
-    ctaUrl: "{{hotmartMonthlyUrl}}",
+    ctaLabel: "Abrir página de renovação",
+    ctaUrl: "{{appBaseUrl}}/renovar.html",
     enabled: true,
     availableVariables: ["buyerName", "buyerEmail", "supportEmail", "appBaseUrl", "brandName", "trialEndsAt", "planName", "hotmartMonthlyUrl", "hotmartAnnualUrl", "hotmartMonthlyName", "hotmartAnnualName", "hotmartMonthlyPrice", "hotmartAnnualPrice"]
   },

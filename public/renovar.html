@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Renovar acesso | BocaFood</title>
+<link rel="icon" type="image/png" href="/assets/boca-food-favicon.png">
+<link rel="apple-touch-icon" href="/assets/boca-food-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#B42318;
+  --red-dark:#8F1E14;
+  --dark:#1F1F1F;
+  --muted:#6F6860;
+  --line:#EDE5E1;
+  --soft:#FAF7F4;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:linear-gradient(135deg,#FBF5F3 0%,#FFF8F6 48%,#FFFFFF 100%);font-family:'Manrope','Inter',sans-serif;color:var(--dark)}
+body{padding:20px}
+.page{min-height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+.card{width:min(720px,100%);background:#fff;border:1px solid rgba(180,35,24,.10);border-radius:28px;box-shadow:0 24px 70px rgba(31,31,31,.10);overflow:hidden}
+.topline{height:5px;background:linear-gradient(90deg,#B42318 0%,#C98A57 100%)}
+.inner{padding:28px}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.brand img{width:126px;height:56px;object-fit:contain;display:block}
+.kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#FFF3F0;color:var(--red);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.title{margin:16px 0 10px;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.text{margin:0 0 22px;color:var(--muted);font-size:15px;line-height:1.65;max-width:58ch}
+.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.plan{border:1px solid var(--line);border-radius:20px;background:var(--soft);padding:18px;display:flex;flex-direction:column;gap:10px;min-height:178px}
+.plan.featured{background:linear-gradient(180deg,#FFF8F6 0%,#FFFDFB 100%);border-color:rgba(180,35,24,.16);box-shadow:0 14px 30px rgba(180,35,24,.06)}
+.plan-name{font-size:18px;font-weight:800;line-height:1.2}
+.plan-price{font-size:28px;font-weight:800;line-height:1;color:var(--dark)}
+.plan-meta{font-size:13px;line-height:1.5;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;padding:0 16px;border-radius:14px;text-decoration:none;font-size:14px;font-weight:800;line-height:1.1}
+.btn.primary{background:linear-gradient(135deg,#B42318 0%,#8F1E14 100%);color:#fff;box-shadow:0 10px 22px rgba(180,35,24,.16)}
+.btn.secondary{background:#fff;border:1px solid #E4D9D5;color:var(--red)}
+.footer{padding:18px 28px 28px;border-top:1px solid rgba(237,229,225,.85);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.footer-copy{font-size:12px;line-height:1.5;color:var(--muted)}
+.support{color:var(--red);text-decoration:none;font-weight:800}
+@media (max-width:720px){
+  body{padding:14px}
+  .inner{padding:22px 18px}
+  .title{font-size:26px}
+  .plans{grid-template-columns:1fr}
+  .plan{min-height:auto}
+  .footer{padding:16px 18px 20px;flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="card" aria-labelledby="renew-title">
+      <div class="topline"></div>
+      <div class="inner">
+        <div class="brand">
+          <img src="/assets/boca-food-logo.png" alt="BocaFood">
+          <span class="kicker">Renovação de acesso</span>
+        </div>
+        <h1 id="renew-title" class="title">Seu período grátis acabou</h1>
+        <p class="text">Escolha um plano na Hotmart para continuar usando o BocaFood. Assim que o pagamento for confirmado, o acesso é liberado automaticamente.</p>
+
+        <div class="plans">
+          <article class="plan featured">
+            <div class="plan-name">Plano mensal</div>
+            <div class="plan-price">€29,90</div>
+            <div class="plan-meta">Para continuar mês a mês, com renovação simples e sem interrupção no acesso.</div>
+            <a class="btn primary" href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" target="_blank" rel="noopener">Escolher plano mensal</a>
+          </article>
+          <article class="plan">
+            <div class="plan-name">Plano anual</div>
+            <div class="plan-price">€299,90</div>
+            <div class="plan-meta">Para quem quer garantir o acesso por mais tempo com melhor custo por mês.</div>
+            <a class="btn secondary" href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=kah1d2ne" target="_blank" rel="noopener">Escolher plano anual</a>
+          </article>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="footer-copy">Se já pagou e ainda vê esta tela, aguarde alguns minutos e recarregue. Para ajuda: <a class="support" href="mailto:teajudo@bocafood.app">teajudo@bocafood.app</a></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
