@@ -581,7 +581,7 @@ Modules.Pedidos = (function () {
               _orderFilterOptions(['all'].concat(COLUMNS.map(function (c) { return c.key; })), _ui.status, 'Todos os status') +
             '</select>') +
           _adminFilterField('Canal', '<select onchange="Modules.Pedidos._setUi(\'channel\', this.value)" style="' + _adminSelectStyle() + '">' +
-              _orderFilterOptions(['all', 'cardapio', 'template', 'store', 'whatsapp', 'delivery', 'pickup'], _ui.channel, 'Todos os canais') +
+              _orderChannelFilterOptions(_ui.channel) +
             '</select>') +
         '</div>' +
         ((_ui.q || _ui.status !== 'all' || _ui.channel !== 'all') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Pedidos._clearOrderFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '') +
@@ -2291,6 +2291,32 @@ Modules.Pedidos = (function () {
     return values.map(function (v) {
       var label = v === 'all' ? emptyLabel : _orderStatusOrChannelLabel(v);
       return '<option value="' + _esc(v) + '"' + (String(selected || 'all') === String(v) ? ' selected' : '') + '>' + _esc(label) + '</option>';
+    }).join('');
+  }
+
+  function _orderChannelFilterOptions(selected) {
+    var seen = {};
+    var rows = [{ value: 'all', label: 'Todos os canais' }];
+    (_canais || []).forEach(function (c) {
+      if (!c || c.active === false || c.ativo === false || c.enabled === false) return;
+      var name = _firstText(c.name, c.nome, c.label, c.title, '');
+      if (!name) return;
+      var key = _channelAliasKey(name);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      rows.push({ value: key, label: _salesChannelDisplayName(name) });
+    });
+    if (rows.length === 1) {
+      rows.push({ value: 'cardapio', label: 'Cardápio' });
+      if (_isTpvEnabledForChannels()) rows.push({ value: 'venda-presencial', label: 'Venda presencial' });
+    }
+    var selectedKey = _channelAliasKey(selected || 'all');
+    if (selectedKey && selectedKey !== 'all' && !rows.some(function (row) { return _channelAliasKey(row.value || '') === selectedKey; })) {
+      rows.push({ value: selectedKey, label: _salesChannelDisplayName(selected) || String(selected || '') });
+    }
+    return rows.map(function (row) {
+      var key = String(row.value || 'all');
+      return '<option value="' + _esc(key) + '"' + (selectedKey === _channelAliasKey(key) ? ' selected' : '') + '>' + _esc(row.label || key) + '</option>';
     }).join('');
   }
 
