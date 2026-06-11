@@ -23,11 +23,12 @@ const MASTER_EMAILS = new Set([
 const HOTMART_OFFER_PLANS = {
   u7wyvsyn: { planSlug: "essencial", billingCycle: "monthly", trialDays: 15 },
   kah1d2ne: { planSlug: "compromisso_anual", billingCycle: "annual", trialDays: 15 },
+  woawlwrh: { planSlug: "essencial", billingCycle: "monthly", trialDays: 15 },
   woavlwrh: { planSlug: "fundadoras", billingCycle: "monthly", trialDays: 0 }
 };
 const HOTMART_PLAN_LINKS = {
   monthly: {
-    url: "https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn",
+    url: "https://pay.hotmart.com/J105828298T?checkoutMode=2&off=woawlwrh",
     name: "Plano mensal",
     price: "€29,90"
   },
