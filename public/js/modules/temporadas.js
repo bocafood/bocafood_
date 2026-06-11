@@ -1839,15 +1839,17 @@ Modules.Temporadas = (function () {
       allSalesChannels: input && input.salesChannels || [],
       salesChannels: input && input.salesChannels || []
     };
+    var reliableKeys = {};
     (orders || []).forEach(function (order) {
       if (!_isReliableCustomerRecurrenceOrder(order, actionContext)) return;
       var key = String(order.customerId || order.clientId || order.customerPhone || order.phone || order.customerEmail || order.email || order.customerName || order.name || '').trim().toLowerCase();
       if (!key) key = 'order:' + (order.id || Math.random());
       map[key] = (map[key] || 0) + 1;
+      reliableKeys[key] = true;
     });
     (customers || []).forEach(function (customer) {
       var key = String(customer.id || customer.phone || customer.email || customer.name || '').trim().toLowerCase();
-      if (!key || map[key]) return;
+      if (!key || map[key] || !reliableKeys[key]) return;
       map[key] = _number(customer.ordersCount, _number(customer.totalOrders, 0)) > 0 ? 1 : 0;
     });
     var keys = Object.keys(map);
@@ -12812,6 +12814,7 @@ Modules.Temporadas = (function () {
         records.push(record);
         if (key) byKey[key] = record;
       }
+      if (!_isReliableCustomerRecurrenceOrder(order, actionContext)) return;
       record.orders.push(order);
       if (order.channel) record.channels[order.channel] = (record.channels[order.channel] || 0) + 1;
     });
