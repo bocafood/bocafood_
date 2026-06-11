@@ -9,6 +9,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-1BYKQWDDWY"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-1BYKQWDDWY');
+  </script>
+  <script>
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1615015849751289');
+    fbq('track', 'PageView');
+  </script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
@@ -368,6 +384,9 @@
   </style>
 </head>
 <body>
+  <noscript>
+    <img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=1615015849751289&ev=PageView&noscript=1">
+  </noscript>
   <header class="topbar">
     <img class="brand-logo" src="/assets/boca-food-logo.png" alt="BocaFood">
   </header>
@@ -554,6 +573,19 @@
     var mainGoalLabels = mainGoals.map(function(item){ return { value: item, label: item }; });
     var businessStageLabels = businessStages.map(function(item){ return { value: item, label: item }; });
     var weeklyTimeLabels = weeklyTimes.map(function(item){ return { value: item, label: item }; });
+
+    function trackGa(name, params) {
+      try { if (window.gtag) gtag('event', name, params || {}); } catch (e) {}
+    }
+    function trackMeta(eventName, params) {
+      try { if (window.fbq) fbq('track', eventName, params || {}); } catch (e) {}
+    }
+    function trackSignupCreated() {
+      trackGa('sign_up', { method: 'email_or_google' });
+      trackMeta('Lead', { content_name: 'Cadastro BocaFood' });
+    }
+    trackGa('view_item', { item_name: 'Cadastro BocaFood' });
+    trackMeta('ViewContent', { content_name: 'Cadastro BocaFood' });
 
     function esc(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch];});}
     function formatShortDate(value){
@@ -906,6 +938,7 @@
           state.purchaseFound=!!(result.data&&result.data.purchaseFound);
           state.accessMode=(result.data&&result.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
           if(result.data&&result.data.trialEndsAt) state.trialEndsAt=result.data.trialEndsAt;
+          trackSignupCreated();
           state.step=1;render();
         });
       }).catch(function(err){
@@ -931,6 +964,7 @@
           state.purchaseFound=!!(response.data&&response.data.purchaseFound);
           state.accessMode=(response.data&&response.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
           if(response.data&&response.data.trialEndsAt) state.trialEndsAt=response.data.trialEndsAt;
+          trackSignupCreated();
           state.step=1;
           render();
         });
@@ -965,6 +999,7 @@
           state.purchaseFound=!!(response.data&&response.data.purchaseFound);
           state.accessMode=(response.data&&response.data.accessMode)|| (state.purchaseFound ? 'hotmart' : '');
           if(response.data&&response.data.trialEndsAt) state.trialEndsAt=response.data.trialEndsAt;
+          trackSignupCreated();
           state.step=1;
           render();
         }).finally(function(){setLoading(false);});
