@@ -11108,17 +11108,9 @@ Modules.Temporadas = (function () {
     return !!(config && (config.marketplace === true || config.isMarketplace === true || config.marketplaceChannel === true));
   }
 
-  function _seasonOrderLooksLikeMarketplace(order) {
-    if (!order) return false;
-    var source = String(order.importSource || order.importedFrom || order.marketplace || order.marketplaceName || '').trim().toLowerCase();
-    var type = String(order.deliveryType || order.channelType || order.salesChannelType || '').trim().toLowerCase();
-    return !!(source || order.importCsvGrossTotal || order.marketplaceGrossTotal || order.marketplaceOrderId || order.platformOrderId || order.glovoOrderId || type === 'marketplace');
-  }
-
   function _isReliableCustomerRecurrenceOrder(order, actionContext) {
     var normalized = order && order.raw ? order : _normalizeSeasonOrder(order);
     if (!normalized || !normalized.customerKey) return false;
-    if (_seasonOrderLooksLikeMarketplace(normalized.raw || normalized)) return false;
     return !_seasonChannelHasImportModel(normalized.channel, actionContext || {}) && !_seasonChannelIsMarketplace(normalized.channel, actionContext || {});
   }
 
