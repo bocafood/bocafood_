@@ -2142,8 +2142,8 @@ Modules.Configuracoes = (function () {
     var compactInputStyle = inputStyle + 'max-width:132px;';
     var rows = list.map(function (ch, idx) {
       var system = _isSystemChannel(ch);
-      return '<div class="channel-row" data-channel-row="' + idx + '" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:13px 14px;box-shadow:0 10px 24px rgba(47,37,35,.045);display:flex;flex-direction:column;gap:12px;">' +
-        '<div class="channel-row-main" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.12fr) auto;gap:10px;align-items:end;">' +
+      return '<div class="channel-row" data-channel-row="' + idx + '" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF8 100%);border:1px solid #EADFD8;border-radius:14px;padding:14px;box-shadow:0 10px 24px rgba(47,37,35,.045);display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+        '<div class="channel-row-main" style="display:grid;grid-template-columns:minmax(220px,1.35fr) minmax(220px,1fr) auto;gap:10px;align-items:end;min-width:0;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Canal de venda</span>' +
             '<input id="ch-name-' + idx + '" type="text" value="' + _esc(ch.name || '') + '" placeholder="Ex.: Instagram, marketplace, app de entrega" ' + (system ? 'readonly' : '') + ' style="' + inputStyle + (system ? 'background:#FAF8F4;color:#6F6860;' : '') + '">' +
@@ -2156,39 +2156,63 @@ Modules.Configuracoes = (function () {
             '<span class="mi" style="font-size:18px;">delete_outline</span>' +
           '</button>') +
         '</div>' +
-        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(170px,1fr) minmax(180px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Conta bancária padrão</span>' +
-            '<select id="ch-bank-account-' + idx + '" style="' + selectStyle + '">' + _channelBankAccountOptions(_channelBankAccountId(ch)) + '</select>' +
-          '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Forma de pagamento padrão</span>' +
-            '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(_channelPaymentMethod(ch)) + '</select>' +
-          '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Modelo de importação</span>' +
-            '<select id="ch-import-model-' + idx + '" style="' + selectStyle + '">' + _channelImportModelOptions(_channelImportModel(ch)) + '</select>' +
-          '</label>' +
-          '<label style="min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:flex-end;">' +
-            '<span style="' + labelStyle + '">Marketplace</span>' +
-            '<div style="height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;box-sizing:border-box;min-height:42px;">' +
-              '<input id="ch-marketplace-' + idx + '" type="checkbox"' + (_channelMarketplace(ch) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;margin:0;">' +
-              '<span style="font-size:13px;color:#2F2523;line-height:1.2;">Ignorar na recorrência</span>' +
+        '<div class="channel-row-panels" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:10px;align-items:start;min-width:0;">' +
+          '<div class="channel-panel" style="background:#FFFDFB;border:1px solid #EAE0D8;border-radius:12px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:10px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;">' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Operação</div>' +
+                '<div style="margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;">Como este canal entra no sistema e no cálculo recorrente.</div>' +
+              '</div>' +
             '</div>' +
-          '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Comissão %</span>' +
-            '<input id="ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
-          '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Taxa fixa</span>' +
-            '<input id="ch-fixed-fee-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
-          '</label>' +
-          '<label style="min-width:0;">' +
-            '<span style="' + labelStyle + '">Imposto comissão %</span>' +
-            '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
-          '</label>' +
-          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Só canais com modelo de importação aparecem na prévia de importação de pedidos. Se marcar Marketplace, os pedidos desse canal não entram na recorrência dos clientes. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
+            '<label style="min-width:0;">' +
+              '<span style="' + labelStyle + '">Categoria de entrada</span>' +
+              '<select id="ch-income-category-' + idx + '" onchange="Modules.Configuracoes._createEntradaCategoryFromChannel(' + idx + ')" style="' + selectStyle + '">' + _entradaCategoryOptions(_channelIncomeCategoryId(ch) || _channelIncomeCategoryName(ch)) + '</select>' +
+            '</label>' +
+            '<label style="min-width:0;display:flex;flex-direction:column;justify-content:flex-end;">' +
+              '<span style="' + labelStyle + '">Marketplace</span>' +
+              '<div style="height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;box-sizing:border-box;min-height:42px;">' +
+                '<input id="ch-marketplace-' + idx + '" type="checkbox"' + (_channelMarketplace(ch) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;margin:0;">' +
+                '<span style="font-size:13px;color:#2F2523;line-height:1.2;">Ignorar na recorrência</span>' +
+              '</div>' +
+            '</label>' +
+          '</div>' +
+          '<div class="channel-panel" style="background:#FFFDFB;border:1px solid #EAE0D8;border-radius:12px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:10px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;">' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:11px;font-weight:700;color:#8A7E7C;text-transform:uppercase;letter-spacing:.03em;">Financeiro</div>' +
+                '<div style="margin-top:3px;font-size:12px;color:#6F6860;line-height:1.35;">Padrões usados em pedidos, importações e repasses.</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="channel-row-costs channel-row-base" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(170px,1fr);gap:10px;align-items:end;min-width:0;">' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Conta bancária padrão</span>' +
+                '<select id="ch-bank-account-' + idx + '" style="' + selectStyle + '">' + _channelBankAccountOptions(_channelBankAccountId(ch)) + '</select>' +
+              '</label>' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Forma de pagamento padrão</span>' +
+                '<select id="ch-payment-method-' + idx + '" style="' + selectStyle + '">' + _channelPaymentMethodOptions(_channelPaymentMethod(ch)) + '</select>' +
+              '</label>' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Modelo de importação</span>' +
+                '<select id="ch-import-model-' + idx + '" style="' + selectStyle + '">' + _channelImportModelOptions(_channelImportModel(ch)) + '</select>' +
+              '</label>' +
+            '</div>' +
+            '<div class="channel-row-costs channel-row-fees" style="display:grid;grid-template-columns:minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;min-width:0;">' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Comissão %</span>' +
+                '<input id="ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+              '</label>' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Taxa fixa</span>' +
+                '<input id="ch-fixed-fee-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.fixedFee)) + '" placeholder="€ 0,00" style="' + compactInputStyle + '">' +
+              '</label>' +
+              '<label style="min-width:0;">' +
+                '<span style="' + labelStyle + '">Imposto comissão %</span>' +
+                '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
+              '</label>' +
+            '</div>' +
+            '<div style="color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Só canais com modelo de importação aparecem na prévia de importação de pedidos. Se marcar Marketplace, os pedidos desse canal não entram na recorrência dos clientes. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
+          '</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2196,7 +2220,7 @@ Modules.Configuracoes = (function () {
     var fixedChannelText = _isTpvEnabled() ? 'Cardápio e Venda presencial são canais fixos do BocaFood.' : 'Cardápio é um canal fixo do BocaFood. Venda presencial aparece aqui quando estiver ativada.';
     var emptyChannelText = _isTpvEnabled() ? 'Adicione apenas se sua loja vender por outro canal além do Cardápio e da Venda presencial.' : 'Adicione apenas se sua loja vender por outro canal além do Cardápio.';
     content.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px;max-width:1040px;width:100%;margin:0 auto;">' +
-      '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-costs{grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(92px,132px)!important}.channel-row-costs>div{grid-column:1/-1}}@media(max-width:640px){.channel-row-main,.channel-row-costs{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-costs>label,.channel-row-costs>div{grid-column:1/-1!important}.channel-row-costs input{max-width:100%!important}}</style>' +
+      '<style>@media(max-width:980px){.channel-row-main{grid-template-columns:1fr!important}.channel-row-main>button,.channel-row-main>span[title]{justify-self:start}.channel-row-panels{grid-template-columns:1fr!important}.channel-row-base{grid-template-columns:repeat(2,minmax(0,1fr))!important}.channel-row-fees{grid-template-columns:repeat(3,minmax(0,1fr))!important}}@media(max-width:640px){.channel-row-main,.channel-row-panels,.channel-row-base,.channel-row-fees{grid-template-columns:1fr!important}.channel-row-main>label,.channel-row-base>label,.channel-row-fees>label,.channel-row-base>div,.channel-row-fees>div{grid-column:1/-1!important}.channel-row-base input,.channel-row-base select,.channel-row-fees input,.channel-row-fees select{max-width:100%!important}}</style>' +
       '<section class="settings-card bf-card" style="background:linear-gradient(180deg,#FFFFFF 0%,#FFFCF9 100%);border:1px solid #EADFD8;border-radius:18px;padding:18px 20px;box-shadow:0 16px 38px rgba(47,37,35,.055);">' +
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">' +
           '<span class="mi" style="width:34px;height:34px;border-radius:12px;background:#F8F1ED;color:#8F3E32;display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;">storefront</span>' +
