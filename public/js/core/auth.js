@@ -286,6 +286,10 @@ window.Auth = (function () {
           var data = resolved.selected.data || {};
           var status = String(data.status || data.accountStatus || '').toLowerCase();
           if (isTrialExpired(data)) {
+            window.__trialRenewalContext = {
+              tenantUid: resolved.selected.id || user.uid || '',
+              email: user.email || ''
+            };
             console.warn('[Auth] bootstrap access denied', {
               email: user.email || '',
               uid: user.uid,
@@ -368,6 +372,10 @@ window.Auth = (function () {
           deniedReason = 'missing_master';
         } else if (expiredTrial) {
           deniedReason = 'trial_expired';
+          window.__trialRenewalContext = {
+            tenantUid: user.uid || '',
+            email: user.email || ''
+          };
         } else if ((status || '').toLowerCase() !== 'active') {
           deniedReason = 'inactive';
         } else if (normalizedRole === 'store_customer') {

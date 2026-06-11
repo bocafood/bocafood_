@@ -754,7 +754,11 @@ button,input,select,textarea{font-family:inherit}
       this.showLogin();
       if (err) {
         if (reason === 'trial_expired') {
-          window.location.href = '/renovar.html';
+          var ctx = window.__trialRenewalContext || {};
+          var params = [];
+          if (ctx.tenantUid) params.push('tenantUid=' + encodeURIComponent(ctx.tenantUid));
+          if (ctx.email) params.push('email=' + encodeURIComponent(ctx.email));
+          window.location.href = '/renovar.html' + (params.length ? '?' + params.join('&') : '');
           return;
         }
         var msg;

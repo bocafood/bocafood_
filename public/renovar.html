@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-1BYKQWDDWY"></script>
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -49,6 +51,8 @@ body{padding:20px}
 .kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#FFF3F0;color:var(--red);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .title{margin:16px 0 10px;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
 .text{margin:0 0 22px;color:var(--muted);font-size:15px;line-height:1.65;max-width:58ch}
+.status{margin:-6px 0 18px;padding:11px 14px;border-radius:14px;background:#FFF8F6;border:1px solid rgba(180,35,24,.10);color:#7B6E6A;font-size:13px;line-height:1.45}
+.status strong{color:#1F1F1F}
 .plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
 .plan{border:1px solid var(--line);border-radius:20px;background:var(--soft);padding:18px;display:flex;flex-direction:column;gap:10px;min-height:178px}
 .plan.featured{background:linear-gradient(180deg,#FFF8F6 0%,#FFFDFB 100%);border-color:rgba(180,35,24,.16);box-shadow:0 14px 30px rgba(180,35,24,.06)}
@@ -82,6 +86,7 @@ body{padding:20px}
         </div>
         <h1 id="renew-title" class="title">Seu período grátis acabou</h1>
         <p class="text">Escolha um plano na Hotmart para continuar usando o BocaFood. Assim que o pagamento for confirmado, o acesso é liberado automaticamente.</p>
+        <div id="renew-status" class="status">Verificando seu acesso...</div>
 
         <div class="plans">
           <article class="plan featured">
@@ -108,8 +113,62 @@ body{padding:20px}
   </noscript>
   <script>
     (function () {
+      var BB_FB_CFG = {
+        apiKey: 'AIzaSyAZk2mEPXR-VQOOEJWfcdhqoJOhHWjzda4',
+        authDomain: 'bocado-brasil.firebaseapp.com',
+        projectId: 'bocado-brasil',
+        storageBucket: 'bocado-brasil.firebasestorage.app',
+        messagingSenderId: '1083383234261',
+        appId: '1:1083383234261:web:b73a9e9f7df73233d6ec5c'
+      };
+      if (!firebase.apps.length) firebase.initializeApp(BB_FB_CFG);
+      var checkAccess = firebase.app().functions('us-central1').httpsCallable('getPublicTenantAccessStatus');
       var monthly = document.querySelector('a[href*="off=woawlwrh"]');
       var annual = document.querySelector('a[href*="off=kah1d2ne"]');
+      var renewStatus = document.getElementById('renew-status');
+      var checkInFlight = false;
+      var lastState = '';
+      var params = new URLSearchParams(window.location.search || '');
+      var tenantUid = params.get('tenantUid') || '';
+      var email = params.get('email') || '';
+
+      function setStatus(state, text) {
+        lastState = state || lastState;
+        if (!renewStatus) return;
+        renewStatus.innerHTML = text || '';
+      }
+
+      function redirectToAdmin() {
+        window.location.href = '/admin.html#dashboard';
+      }
+
+      function checkAccessStatus() {
+        if (checkInFlight) return Promise.resolve();
+        checkInFlight = true;
+        setStatus('checking', 'Verificando seu acesso...');
+        return checkAccess({ tenantUid: tenantUid, email: email }).then(function (response) {
+          var data = response && response.data ? response.data : {};
+          if (data.active === true && data.trialExpired !== true) {
+            setStatus('active', '<strong>Acesso liberado.</strong> Redirecionando para o painel...');
+            setTimeout(redirectToAdmin, 700);
+            return;
+          }
+          if (data.trialExpired === true) {
+            setStatus('trial_expired', '<strong>Seu período grátis acabou.</strong> Escolha um plano abaixo para continuar.');
+            return;
+          }
+          if (data.status === 'not_found') {
+            setStatus('not_found', '<strong>Não encontramos seu acesso.</strong> Escolha um plano ou use o mesmo e-mail do cadastro.');
+            return;
+          }
+          setStatus('inactive', '<strong>Seu acesso ainda não está ativo.</strong> Escolha um plano abaixo para continuar.');
+        }).catch(function () {
+          setStatus('error', '<strong>Não conseguimos verificar agora.</strong> Você pode escolher um plano abaixo e tentar novamente mais tarde.');
+        }).finally(function () {
+          checkInFlight = false;
+        });
+      }
+
       function trackPlan(planName, price, href) {
         try { if (window.gtag) gtag('event', 'begin_checkout', { currency: 'EUR', value: Number(String(price).replace(/[^\d,.-]/g, '').replace(',', '.')) || undefined, item_name: planName, item_id: href }); } catch (e) {}
         try { if (window.fbq) fbq('track', 'InitiateCheckout', { content_name: planName, value: price, currency: 'EUR' }); } catch (e) {}
@@ -117,6 +176,11 @@ body{padding:20px}
       }
       if (monthly) monthly.addEventListener('click', function () { trackPlan('Plano mensal', '29.90', monthly.href); });
       if (annual) annual.addEventListener('click', function () { trackPlan('Plano anual', '299.90', annual.href); });
+      window.addEventListener('focus', checkAccessStatus);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') checkAccessStatus();
+      });
+      checkAccessStatus();
     })();
   </script>
 </body>

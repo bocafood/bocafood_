@@ -1542,6 +1542,42 @@ async function findTenantByEmail(email) {
   return found;
 }
 
+function summarizeTenantAccess(tenantId, tenantData) {
+  const billing = tenantData.billing || {};
+  const status = String(tenantData.status || tenantData.accountStatus || billing.status || "").toLowerCase();
+  const billingStatus = String(tenantData.billingStatus || billing.status || "").toLowerCase();
+  const trialEndsAt = tenantData.trialEndsAt || billing.trialEndsAt || "";
+  const trialExpired = billingStatus === "trial" && daysUntilMadrid(trialEndsAt) != null && daysUntilMadrid(trialEndsAt) < 0;
+  return {
+    ok: true,
+    found: true,
+    tenantUid: tenantId,
+    status,
+    billingStatus,
+    accountStatus: String(tenantData.accountStatus || status || "").toLowerCase(),
+    trialEndsAt,
+    trialExpired,
+    active: status === "active" && !trialExpired,
+    storeName: (tenantData.store && tenantData.store.name) || tenantData.businessName || "",
+    planSlug: billing.planSlug || tenantData.plan || ""
+  };
+}
+
+exports.getPublicTenantAccessStatus = onCall({ region: REGION }, async (request) => {
+  const tenantUid = String(request.data && request.data.tenantUid || "").trim();
+  const email = normalizeEmail(request.data && request.data.email);
+  let tenant = null;
+  if (tenantUid) {
+    const snap = await db.collection("system_tenants").doc(tenantUid).get();
+    if (snap.exists) tenant = { id: snap.id, data: snap.data() || {} };
+  }
+  if (!tenant && email) tenant = await findTenantByEmail(email);
+  if (!tenant) {
+    return { ok: true, found: false, active: false, status: "not_found", billingStatus: "", trialExpired: false };
+  }
+  return summarizeTenantAccess(tenant.id, tenant.data || {});
+});
+
 exports.requestPasswordResetEmail = onCall({ region: REGION, serviceAccount: FIREBASE_ADMIN_SERVICE_ACCOUNT }, async (request) => {
   const email = normalizeEmail(request.data && request.data.email);
   if (!email || !email.includes("@")) {
