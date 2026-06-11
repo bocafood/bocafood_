@@ -319,6 +319,9 @@ Modules.Temporadas = (function () {
         taxPct: _number(channel.taxPct || channel.commissionTaxPct || channel.impostoPct, 0),
         minMarginPct: _number(channel.minMarginPct || channel.margemMinimaPct, 0),
         importModel: _seasonChannelImportModel(channel),
+        marketplace: channel.marketplace === true || channel.isMarketplace === true || channel.marketplaceChannel === true,
+        isMarketplace: channel.marketplace === true || channel.isMarketplace === true || channel.marketplaceChannel === true,
+        marketplaceChannel: channel.marketplace === true || channel.isMarketplace === true || channel.marketplaceChannel === true,
         locked: channel.locked === true
       });
     });
