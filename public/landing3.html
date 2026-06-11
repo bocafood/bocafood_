@@ -40,20 +40,6 @@
       window.location.replace('/admin.html');
     }
   </script>
-  <script type="text/javascript">
-    function importHotmart(){
-      var imported = document.createElement('script');
-      imported.src = 'https://static.hotmart.com/checkout/widget.min.js';
-      document.head.appendChild(imported);
-      var link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.type = 'text/css';
-      link.href = 'https://static.hotmart.com/css/hotmart-fb.min.css';
-      document.head.appendChild(link);
-    }
-    importHotmart();
-  </script>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1312,7 +1298,7 @@
       Aqui muda o <strong>cliente</strong>, o <strong>idioma</strong>, o <strong>custo</strong>, a <strong>burocracia</strong> e até a forma de divulgar. E, enquanto tenta dar conta de tudo, você ainda precisa decidir <strong>o que vender</strong>, <strong>quanto cobrar</strong> e como fazer o negócio crescer.
     </p>
     <div class="hero-actions">
-      <a href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" class="hotmart-fb hotmart__button-checkout btn btn-red btn-lg">Comece grátis →</a>
+      <a href="/cadastro" class="btn btn-red btn-lg" data-landing-cta="signup">Criar acesso grátis →</a>
     </div>
   </div>
 </section>
@@ -1735,8 +1721,8 @@
   <div class="final-inner">
     <h2>Entre para descobrir o que o seu negócio precisa agora.</h2>
     <p>Você não precisa continuar cobrando no medo, criando meta no ar ou esperando o fim do mês para saber se valeu a pena. O BocaFood te ajuda a enxergar foco, progresso e aprendizado com mais clareza.</p>
-    <a href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" class="hotmart-fb hotmart__button-checkout btn btn-red btn-xl">Comece grátis</a>
-    <p class="final-note">15 dias grátis. Depois, € 29,90/mês. Cancele quando quiser.</p>
+    <a href="/cadastro" class="btn btn-red btn-xl" data-landing-cta="signup">Criar acesso grátis</a>
+    <p class="final-note">30 dias grátis. Depois, o plano continua por € 29,90/mês. Cancele quando quiser.</p>
   </div>
 </section>
 
@@ -1786,7 +1772,7 @@
       <span class="sit-result-kicker">Seu primeiro sinal</span>
       <h3 data-sit-result-title>Você precisa de mais clareza antes de decidir.</h3>
       <p data-sit-result-text>O BocaFood ajuda a organizar essa leitura e transformar a rotina em um acompanhamento mais seguro.</p>
-        <a href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" class="hotmart-fb hotmart__button-checkout btn btn-red btn-lg" data-sit-result-cta>Comece grátis →</a>
+        <a href="/cadastro" class="btn btn-red btn-lg" data-landing-cta="signup" data-sit-result-cta>Criar acesso grátis →</a>
     </div>
   </div>
 </section>
@@ -1873,7 +1859,7 @@
       </div>
     </div>
     <div class="reveal d3">
-      <a href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" class="hotmart-fb hotmart__button-checkout btn btn-red btn-lg">Começar a usar o BocaFood →</a>
+      <a href="/cadastro" class="btn btn-red btn-lg" data-landing-cta="signup">Criar acesso grátis →</a>
     </div>
   </div>
 </section>
@@ -1979,10 +1965,10 @@
     <div class="preco-card reveal d1">
       <div class="preco-top">
         <div class="preco-plan">Plano Completo</div>
-        <div class="preco-h">Comece a usar <em>grátis</em></div>
-        <p class="preco-sub">Organize os primeiros dados da sua operação e veja o BocaFood transformar informações soltas em direção prática: onde olhar, o que acompanhar e qual foco faz sentido.</p>
-        <a href="https://pay.hotmart.com/J105828298T?checkoutMode=2&off=u7wyvsyn" class="hotmart-fb hotmart__button-checkout btn btn-red preco-cta">Começar grátis →</a>
-        <p class="preco-after">Depois, apenas <strong>€ 29,90/mês</strong>. Cancele quando quiser.</p>
+        <div class="preco-h">Crie seu acesso <em>grátis</em></div>
+        <p class="preco-sub">Cadastre-se direto e organize os primeiros dados da sua operação. Você começa com 30 dias grátis para enxergar o que precisa de atenção agora e decidir com mais clareza.</p>
+        <a href="/cadastro" class="btn btn-red preco-cta" data-landing-cta="signup">Criar acesso grátis →</a>
+        <p class="preco-after">30 dias grátis. Depois, apenas <strong>€ 29,90/mês</strong>. Cancele quando quiser.</p>
       </div>
       <div class="preco-bot">
         <div class="preco-ft-lbl">O que você leva junto</div>
@@ -2118,13 +2104,13 @@
   });
 
   // ── Google Analytics events
-  document.querySelectorAll('a.hotmart__button-checkout, a.hotmart-fb').forEach((link, index) => {
+  document.querySelectorAll('a[data-landing-cta="signup"]').forEach((link, index) => {
     link.addEventListener('click', () => {
       trackEvent('begin_checkout', {
         event_category: 'conversion',
         currency: 'EUR',
-        value: 29.90,
-        plan: 'Plano Completo',
+        value: 0,
+        plan: 'Cadastro direto',
         cta_text: getElementLabel(link),
         cta_position: index + 1,
         link_url: link.href
@@ -2133,7 +2119,7 @@
         fbq('track', 'Lead', {
           content_name: 'Landing BocaFood',
           content_type: 'product',
-          value: 29.90,
+          value: 0,
           currency: 'EUR',
           cta_text: getElementLabel(link),
           cta_position: index + 1,
@@ -2197,27 +2183,27 @@
     price: {
       title: 'Status: seu preço ainda está sendo decidido no medo.',
       text: 'Isso acontece quando o custo já está em euro, mas a cabeça ainda tenta proteger o cliente antes de proteger o negócio. O primeiro passo é parar de colocar preço só pela sensação e entender quanto cada venda precisa deixar para o ano fazer sentido.',
-      cta: 'Comece grátis e organize seu preço →'
+      cta: 'Criar acesso grátis e organizar seu preço →'
     },
     margin: {
       title: 'Status: existe movimento, mas falta saber o que sobra.',
       text: 'Quando tem pedido entrando, é fácil achar que o negócio está indo bem. O ponto é outro: depois de ingrediente, embalagem, entrega, taxa, IVA e tempo de produção, precisa ficar claro quais produtos ajudam e quais só ocupam sua rotina.',
-      cta: 'Comece grátis e veja seu dinheiro →'
+      cta: 'Criar acesso grátis e ver seu dinheiro →'
     },
     pace: {
       title: 'Status: você está olhando o mês tarde demais.',
       text: 'Se você só entende o mês no fechamento, perde a chance de agir enquanto ainda dava tempo. O caminho é acompanhar durante o mês: quanto já entrou, quanto falta e qual ação pode aproximar o negócio do que ele precisa pagar.',
-      cta: 'Comece grátis e acompanhe seu mês →'
+      cta: 'Criar acesso grátis e acompanhar seu mês →'
     },
     focus: {
       title: 'Status: tem esforço, mas falta saber o que vem primeiro.',
       text: 'Quando tudo parece urgente, você mexe em preço, Instagram, cardápio, cliente e entrega ao mesmo tempo. O primeiro ganho vem de escolher um foco com clareza: o que acompanhar, para quem e com qual resultado esperado.',
-      cta: 'Comece grátis e veja seu foco →'
+      cta: 'Criar acesso grátis e ver seu foco →'
     },
     mixed: {
       title: 'Status: seu negócio está pedindo direção, não mais correria.',
       text: 'Quando preço, margem, ritmo e foco se misturam, trabalhar mais nem sempre resolve. Você precisa saber o que vem primeiro: ajustar preço, proteger margem, recuperar o mês ou escolher o foco da vez.',
-      cta: 'Comece grátis no BocaFood →'
+      cta: 'Criar acesso grátis no BocaFood →'
     }
   };
 
