@@ -2169,9 +2169,9 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Modelo de importação</span>' +
             '<select id="ch-import-model-' + idx + '" style="' + selectStyle + '">' + _channelImportModelOptions(_channelImportModel(ch)) + '</select>' +
           '</label>' +
-          '<label style="min-width:0;">' +
+          '<label style="min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:flex-end;">' +
             '<span style="' + labelStyle + '">Marketplace</span>' +
-            '<div style="height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;box-sizing:border-box;">' +
+            '<div style="height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;box-sizing:border-box;min-height:42px;">' +
               '<input id="ch-marketplace-' + idx + '" type="checkbox"' + (_channelMarketplace(ch) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;margin:0;">' +
               '<span style="font-size:13px;color:#2F2523;line-height:1.2;">Ignorar na recorrência</span>' +
             '</div>' +
@@ -2227,7 +2227,7 @@ Modules.Configuracoes = (function () {
       var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
       var paymentMethod = _val('ch-payment-method-' + idx);
       var importModel = _val('ch-import-model-' + idx);
-      var marketplace = !!(_byId('ch-marketplace-' + idx) || {}).checked;
+      var marketplace = !!(document.getElementById('ch-marketplace-' + idx) || {}).checked;
       return Object.assign({
         name: name,
         commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
