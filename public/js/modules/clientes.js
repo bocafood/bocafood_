@@ -990,7 +990,7 @@ Modules.Clientes = (function () {
     var key = _channelKey(order && (order.channel || order.source || order.origin || order.salesChannel || order.canal || order.originChannel || order.originSource || ''));
     var label = _fold(order && (order.channelName || order.salesChannelName || ''));
     return (_canais || []).some(function (channel) {
-      if (!_channelImportModel(channel)) return false;
+      if (!_channelImportModel(channel) && !channel.marketplace && !channel.isMarketplace && !channel.marketplaceChannel) return false;
       return channel.key === key || _channelKey(channel.name || '') === key || (label && _fold(channel.name || '') === label);
     });
   }

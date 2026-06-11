@@ -1728,6 +1728,19 @@ Modules.Configuracoes = (function () {
     };
   }
 
+  function _channelMarketplaceFields(value) {
+    var marketplace = !!value;
+    return {
+      marketplace: marketplace,
+      isMarketplace: marketplace,
+      marketplaceChannel: marketplace
+    };
+  }
+
+  function _channelMarketplace(channel) {
+    return !!(channel && (channel.marketplace === true || channel.isMarketplace === true || channel.marketplaceChannel === true));
+  }
+
   function _channelBankAccountOptions(selected) {
     var current = String(selected || '');
     var active = (_bankAccounts || []).filter(function (account) {
@@ -2143,7 +2156,7 @@ Modules.Configuracoes = (function () {
             '<span class="mi" style="font-size:18px;">delete_outline</span>' +
           '</button>') +
         '</div>' +
-        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(170px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
+        '<div class="channel-row-costs" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) minmax(170px,1fr) minmax(180px,1fr) minmax(92px,132px) minmax(104px,132px) minmax(118px,148px);gap:10px;align-items:end;">' +
           '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Conta bancária padrão</span>' +
             '<select id="ch-bank-account-' + idx + '" style="' + selectStyle + '">' + _channelBankAccountOptions(_channelBankAccountId(ch)) + '</select>' +
@@ -2157,6 +2170,13 @@ Modules.Configuracoes = (function () {
             '<select id="ch-import-model-' + idx + '" style="' + selectStyle + '">' + _channelImportModelOptions(_channelImportModel(ch)) + '</select>' +
           '</label>' +
           '<label style="min-width:0;">' +
+            '<span style="' + labelStyle + '">Marketplace</span>' +
+            '<div style="height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #E8DCD7;border-radius:12px;background:#FFFCF8;box-sizing:border-box;">' +
+              '<input id="ch-marketplace-' + idx + '" type="checkbox"' + (_channelMarketplace(ch) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#B42318;margin:0;">' +
+              '<span style="font-size:13px;color:#2F2523;line-height:1.2;">Ignorar na recorrência</span>' +
+            '</div>' +
+          '</label>' +
+          '<label style="min-width:0;">' +
             '<span style="' + labelStyle + '">Comissão %</span>' +
             '<input id="ch-commission-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.commissionPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
@@ -2168,7 +2188,7 @@ Modules.Configuracoes = (function () {
             '<span style="' + labelStyle + '">Imposto comissão %</span>' +
             '<input id="ch-tax-' + idx + '" type="text" inputmode="decimal" value="' + _esc(_channelNumberText(ch.taxPct)) + '" placeholder="0,00" style="' + compactInputStyle + '">' +
           '</label>' +
-          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Só canais com modelo de importação aparecem na prévia de importação de pedidos. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
+          '<div style="grid-column:1/-1;color:#8A7E7C;font-size:11px;line-height:1.35;">Categoria, conta bancária e forma de pagamento serão usadas como padrão nos pedidos e nas importações desse canal. Só canais com modelo de importação aparecem na prévia de importação de pedidos. Se marcar Marketplace, os pedidos desse canal não entram na recorrência dos clientes. Deixe taxas zeradas quando este canal não cobra comissão, taxa por venda ou imposto sobre a comissão.</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2207,6 +2227,7 @@ Modules.Configuracoes = (function () {
       var cat = _findEntradaCategory(_val('ch-income-category-' + idx));
       var paymentMethod = _val('ch-payment-method-' + idx);
       var importModel = _val('ch-import-model-' + idx);
+      var marketplace = !!(_byId('ch-marketplace-' + idx) || {}).checked;
       return Object.assign({
         name: name,
         commissionPct: _parseChannelNumber(_val('ch-commission-' + idx)),
@@ -2217,6 +2238,9 @@ Modules.Configuracoes = (function () {
         bankAccountId: _val('ch-bank-account-' + idx),
         minMarginPct: parseFloat(String(prev.minMarginPct || '0').replace(',', '.')) || 0,
         differentPrice: !!prev.differentPrice,
+        marketplace: marketplace,
+        isMarketplace: marketplace,
+        marketplaceChannel: marketplace,
         locked: _isSystemChannel({ name: name }) || !!prev.locked
       }, _incomeCategoryFields(cat), _channelPaymentMethodFields(paymentMethod), _channelImportModelFields(importModel));
     }).filter(function (ch) { return !!ch.name; });
@@ -3448,10 +3472,10 @@ Modules.Configuracoes = (function () {
 
   function _fixedChannels() {
     var fixed = [
-      Object.assign({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true }, _channelPaymentMethodFields(''))
+      Object.assign({ name: 'Cardápio', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true }, _channelPaymentMethodFields(''), _channelMarketplaceFields(false))
     ];
     if (_isTpvEnabled()) {
-      fixed.push(Object.assign({ name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true }, _channelPaymentMethodFields('')));
+      fixed.push(Object.assign({ name: 'Venda presencial', commissionPct: 0, fixedFee: 0, taxPct: 0, contaPadraoId: '', defaultAccountId: '', bankAccountId: '', minMarginPct: 0, differentPrice: false, locked: true }, _channelPaymentMethodFields(''), _channelMarketplaceFields(false)));
     }
     return fixed;
   }
