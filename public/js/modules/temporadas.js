@@ -990,8 +990,8 @@ Modules.Temporadas = (function () {
     var customers = {};
     var redemptionCustomers = {};
     var actionContext = {
-      allSalesChannels: input && input.salesChannels || [],
-      salesChannels: input && input.salesChannels || []
+      allSalesChannels: (input && input.allSalesChannels) || (input && input.salesChannels) || [],
+      salesChannels: (input && input.salesChannels) || (input && input.allSalesChannels) || []
     };
     (movements || []).forEach(function (item) {
       item = item || {};
@@ -1836,8 +1836,8 @@ Modules.Temporadas = (function () {
   function _maturityLoyaltyStats(orders, customers, input) {
     var map = {};
     var actionContext = {
-      allSalesChannels: input && input.salesChannels || [],
-      salesChannels: input && input.salesChannels || []
+      allSalesChannels: (input && input.allSalesChannels) || (input && input.salesChannels) || [],
+      salesChannels: (input && input.salesChannels) || (input && input.allSalesChannels) || []
     };
     var reliableKeys = {};
     (orders || []).forEach(function (order) {
