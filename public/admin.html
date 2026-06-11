@@ -153,6 +153,17 @@ button,input,select,textarea{font-family:inherit}
 .store-btn{border:none;background:#fff;color:var(--dark);border-radius:10px;padding:7px 11px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(31,31,31,.03)}
 .store-btn:hover{background:#FAFAFB}
 .topbar-right{display:flex;align-items:center;gap:12px}
+.admin-beta-banner{margin:16px 24px 0;background:linear-gradient(135deg,#FFF8F6 0%,#FFFCFA 100%);border:1px solid #F2D0C9;border-radius:18px;box-shadow:0 12px 30px rgba(31,31,31,.06);padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.admin-beta-banner[hidden]{display:none!important}
+.admin-beta-banner-main{min-width:0;display:flex;align-items:flex-start;gap:12px;flex:1}
+.admin-beta-banner-icon{width:36px;height:36px;border-radius:13px;background:#FFF;display:inline-flex;align-items:center;justify-content:center;color:var(--red);flex:0 0 auto;box-shadow:0 8px 18px rgba(180,35,24,.10)}
+.admin-beta-banner-title{font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:var(--red);line-height:1.2;margin-bottom:3px}
+.admin-beta-banner-text{font-size:13px;line-height:1.45;color:#4A423C;margin:0;max-width:760px}
+.admin-beta-banner-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.admin-beta-banner-link{display:inline-flex;align-items:center;gap:7px;border:none;background:#fff;color:var(--red);border-radius:11px;padding:9px 12px;font-size:12px;font-weight:800;cursor:pointer;text-decoration:none;box-shadow:0 8px 18px rgba(31,31,31,.045)}
+.admin-beta-banner-link:hover{background:#FFF8F6}
+.admin-beta-banner-close{border:none;background:transparent;color:#8A7E7C;width:34px;height:34px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
+.admin-beta-banner-close:hover{background:rgba(31,31,31,.04);color:#1F1F1F}
 .store-status{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;color:#1A9E5A}
 .store-status::before{content:'';width:6px;height:6px;border-radius:50%;background:#1A9E5A;display:inline-block}
 .store-status.closed{color:#B42318}
@@ -208,6 +219,8 @@ button,input,select,textarea{font-family:inherit}
   .mobile-menu{display:flex;align-items:center;justify-content:center}
   .sidebar-toggle{display:none}
   .settings-grid{grid-template-columns:1fr}
+  .admin-beta-banner{margin:12px 12px 0;padding:13px}
+  .admin-beta-banner-actions{width:100%;justify-content:space-between}
 }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -274,6 +287,7 @@ button,input,select,textarea{font-family:inherit}
         <div class="nav-sub">
           <button class="nav-sub-item" data-route="pedidos/cozinha" onclick="Router.navigate('pedidos/cozinha')">Cozinha</button>
           <button class="nav-sub-item" data-route="pedidos/lista" onclick="Router.navigate('pedidos/lista')">Pedidos</button>
+          <button class="nav-sub-item" data-route="pedidos/carrinhos" onclick="Router.navigate('pedidos/carrinhos')">Carrinhos</button>
           <button class="nav-sub-item" data-route="pedidos/desempenho" onclick="Router.navigate('pedidos/desempenho')">Desempenho</button>
           <button class="nav-sub-item" data-route="pedidos/clientes" onclick="Router.navigate('pedidos/clientes')">Clientes</button>
         </div>
@@ -450,6 +464,19 @@ button,input,select,textarea{font-family:inherit}
         <button class="store-btn" onclick="AdminApp.openStore()"><span class="mi" style="font-size:17px">storefront</span>Ver loja</button>
       </div>
     </header>
+    <div id="admin-beta-banner" class="admin-beta-banner" hidden>
+      <div class="admin-beta-banner-main">
+        <div class="admin-beta-banner-icon"><span class="mi">science</span></div>
+        <div style="min-width:0;">
+          <div class="admin-beta-banner-title">Versão beta</div>
+          <p class="admin-beta-banner-text">Se algo não sair como esperado, ou se você tiver uma sugestão, fale com a Central de Ajuda. Isso ajuda a ajustar o BocaFood mais rápido.</p>
+        </div>
+      </div>
+      <div class="admin-beta-banner-actions">
+        <a class="admin-beta-banner-link" href="#suporte" onclick="Router.navigate('suporte')"><span class="mi" style="font-size:17px;">help</span>Central de Ajuda</a>
+        <button class="admin-beta-banner-close" type="button" aria-label="Fechar aviso beta" onclick="AdminApp.dismissBetaBanner()"><span class="mi">close</span></button>
+      </div>
+    </div>
     <div id="app"></div>
   </main>
 </div>
@@ -460,9 +487,9 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/core/router.js"></script>
 <script src="js/core/image-tools.js"></script>
 <script src="js/modules/dashboard.js?v=20260606-canal-pagamento-importacao"></script>
-<script src="js/modules/pedidos.js?v=20260610-concentracao-vendas-pareto-indicador"></script>
+<script src="js/modules/pedidos.js?v=20260611-order-date-edit"></script>
 <script src="js/modules/pos.js?v=20260512-tpv-shell"></script>
-<script src="js/modules/catalogo.js?v=20260606-variantes-modal-layout"></script>
+<script src="js/modules/catalogo.js?v=20260611-bcg-qty-order-v3"></script>
 <script src="js/modules/loja_online.js?v=20260524-reviews-admin-pattern-2"></script>
 <script src="js/modules/receitas.js?v=20260610-production-regularization"></script>
 <script src="js/modules/estoque.js?v=20260604-stock-onboarding-final"></script>
@@ -478,6 +505,24 @@ button,input,select,textarea{font-family:inherit}
 <script src="js/modules/financeiro.js?v=20260606-glovo-financeiro"></script>
 <script src="js/modules/configuracoes.js?v=20260606-import-model-canal"></script>
 <script src="js/modules/suporte.js?v=20260606-canal-pagamento-importacao"></script>
+<script>
+(function () {
+  var BANNER_KEY = 'bocafood_admin_beta_banner_dismissed_v1';
+  function syncBetaBanner() {
+    var banner = document.getElementById('admin-beta-banner');
+    if (!banner) return;
+    var dismissed = false;
+    try { dismissed = window.localStorage.getItem(BANNER_KEY) === '1'; } catch (err) {}
+    banner.hidden = dismissed;
+  }
+  window.AdminApp = window.AdminApp || {};
+  window.AdminApp.dismissBetaBanner = function () {
+    try { window.localStorage.setItem(BANNER_KEY, '1'); } catch (err) {}
+    syncBetaBanner();
+  };
+  document.addEventListener('DOMContentLoaded', syncBetaBanner);
+})();
+</script>
 <script>
 (function () {
   'use strict';
@@ -1199,6 +1244,7 @@ button,input,select,textarea{font-family:inherit}
   Router.register('pedidos', Modules.Pedidos);
   Router.register('pedidos/cozinha', Modules.Pedidos);
   Router.register('pedidos/lista', Modules.Pedidos);
+  Router.register('pedidos/carrinhos', Modules.Pedidos);
   Router.register('pedidos/desempenho', Modules.Pedidos);
   Router.register('pedidos/clientes', Modules.Clientes);
   Router.register('catalogo', Modules.Catalogo);

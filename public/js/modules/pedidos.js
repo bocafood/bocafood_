@@ -4127,7 +4127,8 @@ Modules.Pedidos = (function () {
       var payment = _safeDetailValue('pagamento', function () { return _detailPaymentInfo(o); }, { total: _num(o.total || o.amount || o.grandTotal), paid: _num(o.paidAmount || o.amountPaid || 0), pending: Math.max(0, _num(o.total || o.amount || o.grandTotal) - _num(o.paidAmount || o.amountPaid || 0)), method: _firstText(o.paymentMethod, o.payment, ''), status: _firstText(o.paymentStatus, o.paymentState, ''), subtotal: _num(o.subtotal || 0), originalSubtotal: _num(o.subtotalOriginal || o.subtotal || 0), promoDiscount: 0, couponDiscount: 0, pointsDiscount: 0, deliveryFee: _num(o.shippingFee || o.deliveryFee || 0), originalDeliveryFee: _num(o.shippingFee || o.deliveryFee || 0), freeShippingApplied: false, freeShippingPromotionName: '', discountTotal: _num(o.discountTotal || 0), couponCode: '', channelCosts: {} });
       var phoneHref = _safeDetailValue('telefone', function () { return _orderPhoneHref(o); }, '');
       var topName = _firstText(o.customerName, o.clientName, o.name, customer && customer.name, 'Cliente');
-      var topDate = _safeDetailValue('data do pedido', function () { return _orderScheduleInfo(o).text; }, _firstText(o.deliveryDate, o.pickupDate, o.scheduleDate, o.createdAt, 'Sem data'));
+      var orderDateRaw = _dateOnly(_firstText(o.orderDate, o.dataPedido, o.saleDate, o.createdDate, o.date, o.createdAt, o.created_at, ''));
+      var topDate = _safeDetailValue('data do pedido', function () { return orderDateRaw ? UI.fmtDate(new Date(orderDateRaw)) : _fmtDate(o); }, _firstText(o.orderDate, o.dataPedido, o.saleDate, o.createdDate, o.date, o.createdAt, o.created_at, 'Sem data'));
       var orderEditingLocked = !_orderDetailCanEditFields(o);
       var currentDetailStatus = String(o.status || 'Pendente');
       var hasCurrentStatusColumn = COLUMNS.some(function (c) { return c.key === currentDetailStatus; });
@@ -4144,6 +4145,7 @@ Modules.Pedidos = (function () {
       }, '');
       var addressText = _safeDetailValue('endereço', function () { return o.type === 'pickup' ? _orderPickupText(o) : _orderAddressText(o); }, '');
       var deliveryLabel = o.type === 'pickup' ? 'Retirada' : 'Entrega';
+      var detailOrderDateValue = orderDateRaw || '';
       var detailDateValue = o.type === 'pickup' ? _firstText(o.pickupDate, o.scheduleDate, o.deliveryDate, '') : _firstText(o.deliveryDate, o.scheduleDate, o.pickupDate, '');
       var detailTimeValue = o.type === 'pickup' ? _firstText(o.pickupTime, o.scheduleTime, o.deliveryTime, '') : _firstText(o.deliveryTime, o.scheduleTime, o.pickupTime, '');
       var customerStateLabel = detailCustomer.linked ? 'Cliente vinculado' : 'Sem vínculo';
@@ -4181,6 +4183,8 @@ Modules.Pedidos = (function () {
         '.order-detail-service-grid{grid-template-columns:minmax(0,1fr);}' +
         '.order-detail-service-row{display:grid;grid-template-columns:minmax(190px,.48fr) minmax(360px,1fr);gap:10px 12px;align-items:start;}' +
         '.order-detail-schedule-grid{grid-template-columns:minmax(135px,.34fr) minmax(135px,.34fr);align-items:end;justify-content:start;max-width:320px;}' +
+        '.order-detail-order-date-row{display:flex;justify-content:flex-start;}' +
+        '.order-detail-order-date-field{width:100%;max-width:220px;}' +
         '.order-detail-schedule-grid .order-detail-status-field{grid-column:1/-1;}' +
         '.order-detail-payment-grid{grid-template-columns:minmax(0,1fr);align-items:end;justify-content:start;}' +
         '.order-detail-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;justify-content:start;}' +
@@ -4241,6 +4245,9 @@ Modules.Pedidos = (function () {
                 (o.type === 'delivery' && o.zone ? '<div style="margin-top:6px;font-size:12px;color:#6F6860;">Zona: ' + _esc(o.zone) + '</div>' : '') +
               '</div>' +
             '</div>' +
+          '</div>' +
+          '<div class="order-detail-order-date-row" style="margin-top:9px;">' +
+            '<div class="order-detail-order-date-field"><label class="order-detail-label">Data do pedido</label><div class="order-detail-field-control"><input id="detail-order-date" type="date" value="' + _esc(detailOrderDateValue) + '"' + lockedDisabledAttr + '></div></div>' +
           '</div>' +
           '<div class="order-detail-grid order-detail-schedule-grid" style="margin-top:9px;">' +
             '<div><label class="order-detail-label">Dia</label><div class="order-detail-field-control"><input id="detail-delivery-date" type="date" value="' + _esc(detailDateValue) + '"' + lockedDisabledAttr + '></div></div>' +
@@ -4811,6 +4818,7 @@ Modules.Pedidos = (function () {
     var channelCommissionAmountInput = document.getElementById('detail-channel-commission-amount');
     var channelTaxAmountInput = document.getElementById('detail-channel-tax-amount');
     var channelFixedAmountInput = document.getElementById('detail-channel-fixed-amount');
+    var orderDateSel = document.getElementById('detail-order-date');
     var scheduleDateSel = document.getElementById('detail-delivery-date');
     var scheduleTimeSel = document.getElementById('detail-delivery-time');
     if (!sel) return;
@@ -4838,6 +4846,8 @@ Modules.Pedidos = (function () {
     var currentPaymentStatus = String(order && order.paymentStatus || '').trim();
     var currentPaidAmount = _num(order && order.paidAmount);
     var currentManualDiscount = _num(order && (order.manualDiscountTotal != null ? order.manualDiscountTotal : order.manualDiscount != null ? order.manualDiscount : order.discountManual || 0));
+    var currentOrderDate = _dateOnly(_firstText(order && order.orderDate, order && order.dataPedido, order && order.saleDate, order && order.createdDate, order && order.date, order && order.createdAt, order && order.created_at, ''));
+    var nextOrderDate = _dateOnly((orderDateSel && orderDateSel.value) || '') || currentOrderDate;
     var currentScheduleDate = String((isPickup ? (order && order.pickupDate) : (order && order.deliveryDate)) || (order && order.scheduleDate) || '').trim();
     var currentScheduleTime = String((isPickup ? (order && order.pickupTime) : (order && order.deliveryTime)) || (order && order.scheduleTime) || '').trim();
     var orderEditingLocked = !_orderDetailCanEditFields(order);
@@ -4851,6 +4861,7 @@ Modules.Pedidos = (function () {
     var channelChanged = _channelAliasKey(nextChannel) !== _channelAliasKey(currentChannel);
     var paymentChanged = nextPaymentMethod !== currentPaymentMethod;
     var bankAccountChanged = nextBankAccountId !== currentBankAccountId;
+    var orderDateChanged = nextOrderDate !== currentOrderDate;
     var scheduleChanged = nextScheduleDate !== currentScheduleDate || nextScheduleTime !== currentScheduleTime;
     var discountChanged = Math.abs(nextManualDiscount - currentManualDiscount) > 0.001;
     var channelFeePatch = null;
@@ -4966,6 +4977,7 @@ Modules.Pedidos = (function () {
       bankAccountChanged = false;
       paymentMetaChanged = false;
       channelFeePatch = null;
+      orderDateChanged = false;
       scheduleChanged = false;
       itemsChanged = false;
     }
@@ -5018,6 +5030,24 @@ Modules.Pedidos = (function () {
         if (order) Object.assign(order, channelFeePatch);
       }));
     }
+    if (orderDateChanged) {
+      var nextOrderDateTime = '';
+      var currentOrderDateTime = String(_firstText(order && order.orderDateTime, order && order.createdAt, order && order.created_at, '') || '').trim();
+      var timeMatch = currentOrderDateTime.match(/T(\d{2}:\d{2})/);
+      if (timeMatch && timeMatch[1]) nextOrderDateTime = nextOrderDate + 'T' + timeMatch[1];
+      var orderDatePatch = {
+        orderDate: nextOrderDate,
+        dataPedido: nextOrderDate,
+        saleDate: nextOrderDate,
+        createdDate: nextOrderDate,
+        date: nextOrderDate,
+        analyticsDate: nextOrderDate
+      };
+      if (nextOrderDateTime) orderDatePatch.orderDateTime = nextOrderDateTime;
+      tasks.push(DB.update('orders', id, orderDatePatch).then(function () {
+        if (order) Object.assign(order, orderDatePatch);
+      }));
+    }
     if (scheduleChanged) {
       var schedulePayload = {
         scheduleDate: nextScheduleDate,
@@ -5065,6 +5095,16 @@ Modules.Pedidos = (function () {
         fresh.contaBancariaId = nextBankAccountId;
         fresh.accountId = nextBankAccountId;
         fresh.bankAccountId = nextBankAccountId;
+        fresh.orderDate = nextOrderDate;
+        fresh.dataPedido = nextOrderDate;
+        fresh.saleDate = nextOrderDate;
+        fresh.createdDate = nextOrderDate;
+        fresh.date = nextOrderDate;
+        fresh.analyticsDate = nextOrderDate;
+        if (fresh.orderDateTime && typeof fresh.orderDateTime === 'string') {
+          var freshTimeMatch = fresh.orderDateTime.match(/T(\d{2}:\d{2})/);
+          if (freshTimeMatch && freshTimeMatch[1]) fresh.orderDateTime = nextOrderDate + 'T' + freshTimeMatch[1];
+        }
         if (channelPatch) Object.assign(fresh, channelPatch);
         fresh.paymentStatus = nextPaymentStatus;
         fresh.paymentState = nextPaymentStatus;
