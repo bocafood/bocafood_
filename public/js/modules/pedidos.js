@@ -31,6 +31,16 @@ Modules.Pedidos = (function () {
   var _kitchenDetailId = null;
   var _detailChecklistDirty = {};
   var _manualOrderCustomerListOpen = false;
+  var _unsubscribeCartSessions = null;
+  var _cartSessions = [];
+  var _cartSessionsLoading = false;
+  var _cartSessionsUi = {
+    q: '',
+    status: 'abandoned',
+    period: '30',
+    page: 1,
+    pageSize: 10
+  };
   var _reviewUi = {
     query: '',
     status: 'all',
@@ -184,6 +194,7 @@ Modules.Pedidos = (function () {
     key = String(key || 'demanda');
     if (key === 'demanda') return 'cozinha';
     if (key === 'todos' || key === 'lista' || key === 'pedidos') return 'lista';
+    if (key === 'carrinhos' || key === 'carrinho' || key === 'cart') return 'carrinhos';
     if (key === 'clientes') return 'clientes';
     if (key === 'desempenho' || key === 'performance') return 'desempenho';
     if (key === 'avaliacoes' || key === 'review' || key === 'reviews') return 'avaliacoes';
@@ -194,10 +205,146 @@ Modules.Pedidos = (function () {
   function _tabRoute(key) {
     var tab = _normalizeTab(key);
     if (tab === 'lista') return 'pedidos/lista';
+    if (tab === 'carrinhos') return 'pedidos/carrinhos';
     if (tab === 'clientes') return 'pedidos/clientes';
     if (tab === 'desempenho') return 'pedidos/desempenho';
     if (tab === 'avaliacoes') return 'loja-online/avaliacoes';
     return 'pedidos/cozinha';
+  }
+
+  function _unsubscribeCartSessionsListener() {
+    if (typeof _unsubscribeCartSessions === 'function') {
+      try { _unsubscribeCartSessions(); } catch (err) {}
+    }
+    _unsubscribeCartSessions = null;
+  }
+
+  function _cartSessionUpdatedAtTs(session) {
+    if (!session) return 0;
+    var raw = session.updatedAt || session.abandonedAt || session.endedAt || session.lastSeenAt || session.createdAt || 0;
+    if (raw && typeof raw.toDate === 'function') return raw.toDate().getTime();
+    var d = new Date(raw);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
+  function _cartSessionDateLabel(session) {
+    var ts = _cartSessionUpdatedAtTs(session);
+    if (!ts) return 'Sem data';
+    return UI.date(ts, 'dd/MM/yyyy HH:mm');
+  }
+
+  function _cartSessionItemText(session) {
+    var items = Array.isArray(session && session.items) ? session.items : [];
+    if (!items.length) return 'Sem itens registrados';
+    return items.slice(0, 4).map(function (item) {
+      var name = _firstText(item && item.name, 'Item');
+      var qty = _num(item && item.qty || item && item.quantity || 0);
+      return qty > 1 ? qty + 'x ' + name : name;
+    }).join(' · ');
+  }
+
+  function _cartSessionSearchText(session) {
+    var items = Array.isArray(session && session.items) ? session.items : [];
+    return [
+      session.sessionId,
+      session.orderRef,
+      session.storeSlug,
+      session.storeName,
+      session.customerName,
+      session.customerPhone,
+      session.customerEmail,
+      session.status,
+      session.orderType,
+      session.paymentMethod,
+      session.couponCode,
+      session.selectedDeliveryZone,
+      items.map(function (item) { return item && item.name ? item.name : ''; }).join(' ')
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function _cartSessionsNormalized() {
+    var statusFilter = String(_cartSessionsUi.status || 'abandoned').toLowerCase();
+    var q = String(_cartSessionsUi.q || '').trim().toLowerCase();
+    var period = Math.max(0, _num(_cartSessionsUi.period || 30));
+    var cutoff = period ? (Date.now() - (period * 24 * 60 * 60 * 1000)) : 0;
+    return (_cartSessions || []).filter(function (session) {
+      if (!session) return false;
+      var status = String(session.status || '').toLowerCase();
+      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      if (status === 'abandoned' && cutoff && _cartSessionUpdatedAtTs(session) < cutoff) return false;
+      if (q && _cartSessionSearchText(session).indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) {
+      return _cartSessionUpdatedAtTs(b) - _cartSessionUpdatedAtTs(a);
+    });
+  }
+
+  function _cartSessionsStats() {
+    var all = _cartSessions || [];
+    var abandoned = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'abandoned'; }).length;
+    var active = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'active' || String(s.status || '').toLowerCase() === 'checkout_started'; }).length;
+    var converted = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'converted'; }).length;
+    return { total: all.length, abandoned: abandoned, active: active, converted: converted };
+  }
+
+  function _subscribeCartSessions() {
+    _unsubscribeCartSessionsListener();
+    var query = _cartSessionsQuery();
+    if (!query) {
+      _cartSessions = [];
+      _cartSessionsLoading = false;
+      return;
+    }
+    _cartSessionsLoading = true;
+    _unsubscribeCartSessions = query.onSnapshot(function (snap) {
+      _cartSessions = snap.docs.map(function (doc) {
+        return Object.assign({}, doc.data() || {}, { id: doc.id });
+      });
+      _cartSessionsLoading = false;
+      _paintActive();
+    }, function (err) {
+      console.warn('[Pedidos] cart sessions listen error', err);
+      _cartSessions = [];
+      _cartSessionsLoading = false;
+      _paintActive();
+    });
+  }
+
+  function _cartSessionsQuery() {
+    if (!firebase || !firebase.firestore || !Auth || typeof Auth.getTenantId !== 'function') {
+      return null;
+    }
+    var tenantId = Auth.getTenantId();
+    if (!tenantId) {
+      return null;
+    }
+    return firebase.firestore().collectionGroup('cart_sessions').where('tenantId', '==', tenantId);
+  }
+
+  function _loadCartSessionsNow() {
+    var query = _cartSessionsQuery();
+    if (!query) {
+      _cartSessions = [];
+      _cartSessionsLoading = false;
+      _paintActive();
+      return Promise.resolve([]);
+    }
+    _cartSessionsLoading = true;
+    _paintActive();
+    return query.get().then(function (snap) {
+      _cartSessions = snap.docs.map(function (doc) {
+        return Object.assign({}, doc.data() || {}, { id: doc.id });
+      });
+      _cartSessionsLoading = false;
+      _paintActive();
+      return _cartSessions;
+    }).catch(function (err) {
+      console.warn('[Pedidos] cart sessions refresh error', err);
+      _cartSessions = [];
+      _cartSessionsLoading = false;
+      _paintActive();
+      return [];
+    });
   }
 
   function _loadMeta() {
@@ -324,12 +471,18 @@ Modules.Pedidos = (function () {
       _repairInflatedFinanceMovements(_orders);
       _paintActive();
     });
+    _subscribeCartSessions();
   }
 
   function _paintActive() {
     var content = document.getElementById('pedidos-content');
     if (!content) return;
     try {
+      if (_activeTab === 'carrinhos') {
+        content.innerHTML = _renderCarrinhosPage();
+        _paintCartSessionsList();
+        return;
+      }
       if (_activeTab === 'lista') {
         content.innerHTML = _renderPedidosPage();
         _renderOrdersList();
@@ -440,9 +593,264 @@ Modules.Pedidos = (function () {
     '</div>';
   }
 
+  function _cartSessionStatusTone(status) {
+    var key = String(status || '').toLowerCase();
+    if (key === 'abandoned') return { bg: '#FFF0EE', color: '#B42318', label: 'Abandonado' };
+    if (key === 'converted') return { bg: '#EDFAF3', color: '#1A9E5A', label: 'Convertido' };
+    if (key === 'checkout_started') return { bg: '#EFF6FF', color: '#2563EB', label: 'Checkout iniciado' };
+    return { bg: '#F2EDED', color: '#6F6860', label: 'Ativo' };
+  }
+
+  function _cartSessionStatusOptions(selected) {
+    var rows = [
+      ['all', 'Todas'],
+      ['abandoned', 'Abandonado'],
+      ['checkout_started', 'Checkout iniciado'],
+      ['active', 'Ativo'],
+      ['converted', 'Convertido']
+    ];
+    return rows.map(function (row) {
+      return '<option value="' + row[0] + '"' + (String(selected || 'abandoned') === row[0] ? ' selected' : '') + '>' + row[1] + '</option>';
+    }).join('');
+  }
+
+  function _renderCarrinhosPage() {
+    var stats = _cartSessionsStats();
+    var sessions = _cartSessionsNormalized();
+    return '<div class="bf-page" style="padding:24px;display:flex;flex-direction:column;gap:16px;min-height:0;flex:1;">' +
+      '<div class="bf-page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+        '<div style="min-width:0;flex:1 1 420px;">' +
+          '<h2 style="font-size:22px;font-weight:700;color:#1F1F1F;margin:0 0 6px;line-height:1.2;">Carrinhos abandonados</h2>' +
+          '<p style="font-size:13px;color:#6F6860;line-height:1.5;margin:0;max-width:760px;">Carrinhos com atividade registrada, mas sem pedido concluído dentro da janela de abandono.</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<button onclick="Modules.Pedidos._refreshCartSessions()" style="height:38px;padding:0 14px;border:1px solid #E6E1D8;border-radius:10px;background:#fff;color:#1F1F1F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);display:inline-flex;align-items:center;gap:6px;"><span class="mi" style="font-size:17px;color:#8A7E7C;">sync</span>Recarregar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">' +
+        _kitchenKpiCard('Carrinhos', stats.total, 'registros no tenant', 'shopping_cart', '#8A6F5A') +
+        _kitchenKpiCard('Abandonados', stats.abandoned, 'já expirados por inatividade', 'hourglass_top', '#B42318') +
+        _kitchenKpiCard('Em andamento', stats.active, 'ativos ou com checkout iniciado', 'schedule', '#2563EB') +
+        _kitchenKpiCard('Convertidos', stats.converted, 'viraram pedido', 'task_alt', '#1A9E5A') +
+      '</div>' +
+      '<div style="' + _adminPanelStyle() + '">' +
+        '<div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(160px,180px) minmax(160px,180px);gap:11px 12px;align-items:end;">' +
+          _adminFilterField('Buscar', '<input type="search" value="' + _esc(_cartSessionsUi.q || '') + '" oninput="Modules.Pedidos._setCartSessionsUi(\'q\', this.value)" placeholder="Cliente, telefone, item ou sessão" autocomplete="off" style="' + _adminInputStyle() + '">') +
+          _adminFilterField('Estado', '<select onchange="Modules.Pedidos._setCartSessionsUi(\'status\', this.value)" style="' + _adminSelectStyle() + '">' +
+            _cartSessionStatusOptions(_cartSessionsUi.status) +
+          '</select>') +
+          _adminFilterField('Período', '<select onchange="Modules.Pedidos._setCartSessionsUi(\'period\', this.value)" style="' + _adminSelectStyle() + '">' +
+            _orderFilterOptions(['7', '30', '60', '90'], String(_cartSessionsUi.period || '30'), '30 dias') +
+          '</select>') +
+        '</div>' +
+        ((_cartSessionsUi.q || _cartSessionsUi.status !== 'abandoned' || String(_cartSessionsUi.period || '30') !== '30') ? '<div style="display:flex;justify-content:flex-start;margin-top:11px;"><button type="button" onclick="Modules.Pedidos._clearCartSessionsFilters()" style="height:36px;padding:0 13px;border:1px solid #EADFD8;border-radius:11px;background:#fff;color:#6F6860;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(31,31,31,.03);">Limpar filtros</button></div>' : '') +
+      '</div>' +
+      '<section style="display:flex;flex-direction:column;gap:10px;min-height:0;">' +
+        '<div><div style="font-size:14px;font-weight:700;color:#1F1F1F;">Sessões capturadas</div><div style="font-size:13px;color:#6F6860;line-height:1.45;margin-top:2px;">Clique em uma sessão para ver o resumo completo do carrinho.</div></div>' +
+        '<div id="cart-sessions-list" style="display:flex;flex-direction:column;gap:10px;min-height:0;"></div>' +
+      '</section>' +
+    '</div>';
+  }
+
   function _paintTodosPanels() {
     var list = document.getElementById('orders-list');
     if (list) list.innerHTML = _renderOrdersListHTML();
+  }
+
+  function _setCartSessionsUi(key, value) {
+    _cartSessionsUi[key] = value;
+    if (key === 'q' || key === 'status' || key === 'period') _cartSessionsUi.page = 1;
+    _paintActive();
+  }
+
+  function _clearCartSessionsFilters() {
+    _cartSessionsUi.q = '';
+    _cartSessionsUi.status = 'abandoned';
+    _cartSessionsUi.period = '30';
+    _cartSessionsUi.page = 1;
+    _paintActive();
+  }
+
+  function _refreshCartSessions() {
+    _loadCartSessionsNow().then(function () {
+      _subscribeCartSessions();
+    });
+  }
+
+  function _cartSessionUpdatedAtTs(session) {
+    if (!session) return 0;
+    var raw = session.updatedAt || session.abandonedAt || session.endedAt || session.lastSeenAt || session.createdAt || 0;
+    if (raw && typeof raw.toDate === 'function') return raw.toDate().getTime();
+    var d = new Date(raw);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
+  function _cartSessionDateLabel(session) {
+    var ts = _cartSessionUpdatedAtTs(session);
+    if (!ts) return 'Sem data';
+    return UI.date(ts, 'dd/MM/yyyy HH:mm');
+  }
+
+  function _cartSessionItemText(session) {
+    var items = Array.isArray(session && session.items) ? session.items : [];
+    if (!items.length) return 'Sem itens registrados';
+    return items.slice(0, 4).map(function (item) {
+      var name = _firstText(item && item.name, 'Item');
+      var qty = _num(item && (item.qty != null ? item.qty : item.quantity || 0));
+      return qty > 1 ? qty + 'x ' + name : name;
+    }).join(' · ');
+  }
+
+  function _cartSessionSearchText(session) {
+    var items = Array.isArray(session && session.items) ? session.items : [];
+    return [
+      session.sessionId,
+      session.orderRef,
+      session.storeSlug,
+      session.storeName,
+      session.customerName,
+      session.customerPhone,
+      session.customerEmail,
+      session.status,
+      session.orderType,
+      session.paymentMethod,
+      session.couponCode,
+      session.selectedDeliveryZone,
+      items.map(function (item) { return item && item.name ? item.name : ''; }).join(' ')
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function _cartSessionsNormalized() {
+    var statusFilter = String(_cartSessionsUi.status || 'abandoned').toLowerCase();
+    var q = String(_cartSessionsUi.q || '').trim().toLowerCase();
+    var period = Math.max(0, _num(_cartSessionsUi.period || 30));
+    var cutoff = period ? (Date.now() - (period * 24 * 60 * 60 * 1000)) : 0;
+    return (_cartSessions || []).filter(function (session) {
+      if (!session) return false;
+      var status = String(session.status || '').toLowerCase();
+      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      if (status === 'abandoned' && cutoff && _cartSessionUpdatedAtTs(session) < cutoff) return false;
+      if (q && _cartSessionSearchText(session).indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) {
+      return _cartSessionUpdatedAtTs(b) - _cartSessionUpdatedAtTs(a);
+    });
+  }
+
+  function _cartSessionsStats() {
+    var all = _cartSessions || [];
+    var abandoned = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'abandoned'; }).length;
+    var active = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'active' || String(s.status || '').toLowerCase() === 'checkout_started'; }).length;
+    var converted = all.filter(function (s) { return String(s.status || '').toLowerCase() === 'converted'; }).length;
+    return { total: all.length, abandoned: abandoned, active: active, converted: converted };
+  }
+
+  function _openCartSession(sessionId) {
+    var session = (_cartSessions || []).find(function (item) { return String(item.id || '') === String(sessionId || ''); });
+    if (!session) {
+      UI.toast('Sessão não encontrada.', 'error');
+      return;
+    }
+    var tone = _cartSessionStatusTone(session.status);
+    var items = Array.isArray(session.items) ? session.items : [];
+    var body = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:11px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">' + _esc(tone.label) + '</div>' +
+            '<div style="font-size:20px;font-weight:800;line-height:1.2;color:#1F1F1F;">' + _esc(session.customerName || session.customerEmail || session.sessionId || 'Carrinho') + '</div>' +
+            '<div style="margin-top:7px;font-size:13px;color:#6F6860;line-height:1.45;">' + _esc(session.customerPhone || 'Sem telefone') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">' +
+            '<span style="display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:' + tone.bg + ';color:' + tone.color + ';font-size:11px;font-weight:800;">' + _esc(tone.label) + '</span>' +
+            '<span style="display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:#F2EDED;color:#6F6860;font-size:11px;font-weight:800;">' + _esc(_cartSessionDateLabel(session)) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
+      '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+        _kitchenKpiCard('Itens', _num(session.itemCount || 0), 'linhas no carrinho', 'shopping_bag', '#8A6F5A') +
+        _kitchenKpiCard('Quantidade', _num(session.totalQuantity || 0), 'unidades somadas', 'pin', '#B45309') +
+        _kitchenKpiCard('Total', UI.fmt(_num(session.total || 0)), 'valor atual do carrinho', 'payments', '#B42318') +
+        _kitchenKpiCard('Canal', _firstText(session.orderType, session.source, 'storefront'), 'tipo de jornada', 'call_split', '#2563EB') +
+      '</section>' +
+      '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div style="font-size:11px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Resumo dos itens</div>' +
+        (items.length ? items.map(function (item) {
+          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #F1ECE4;">' +
+            '<div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#1F1F1F;line-height:1.35;">' + _esc(item.name || 'Item') + '</div><div style="margin-top:4px;font-size:12px;color:#6F6860;">' + _esc(item.qty || 0) + 'x · ' + _esc(UI.fmt(item.total || 0)) + '</div></div>' +
+            '<div style="font-size:13px;font-weight:800;color:#B42318;white-space:nowrap;">' + _esc(UI.fmt(item.total || 0)) + '</div>' +
+          '</div>';
+        }).join('') : '<div style="font-size:13px;color:#8A7E7C;">Sem itens registrados.</div>') +
+      '</section>' +
+      '<section style="background:#fff;border:none;border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(31,31,31,.06);">' +
+        '<div style="font-size:11px;font-weight:800;color:#B42318;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Metadados</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">' +
+          '<div style="background:#FAF8F5;border:1px solid #EAE4DA;border-radius:14px;padding:12px;"><div style="font-size:10px;font-weight:800;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Sessão</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;word-break:break-all;">' + _esc(session.sessionId || '-') + '</div></div>' +
+          '<div style="background:#FAF8F5;border:1px solid #EAE4DA;border-radius:14px;padding:12px;"><div style="font-size:10px;font-weight:800;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Atualizado</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(_cartSessionDateLabel(session)) + '</div></div>' +
+          '<div style="background:#FAF8F5;border:1px solid #EAE4DA;border-radius:14px;padding:12px;"><div style="font-size:10px;font-weight:800;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Pedido</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(session.orderRef || '-') + '</div></div>' +
+          '<div style="background:#FAF8F5;border:1px solid #EAE4DA;border-radius:14px;padding:12px;"><div style="font-size:10px;font-weight:800;color:#6F6860;text-transform:uppercase;margin-bottom:4px;">Canal</div><div style="font-size:13px;font-weight:700;color:#1F1F1F;">' + _esc(_firstText(session.conversionChannel, session.paymentProvider, session.source, '-')) + '</div></div>' +
+        '</div>' +
+      '</section>' +
+    '</div>';
+    UI.modal({
+      title: 'Carrinho abandonado',
+      body: body,
+      maxWidth: '860px'
+    });
+  }
+
+  function _paintCartSessionsList() {
+    var wrap = document.getElementById('cart-sessions-list');
+    if (!wrap) return;
+    if (_cartSessionsLoading) {
+      wrap.innerHTML = '<div style="background:#fff;border:1px dashed #E4D7D4;border-radius:16px;padding:28px;text-align:center;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Carregando carrinhos...</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Aguardando o carregamento das sessões do tenant.</div></div>';
+      return;
+    }
+    var sessions = _cartSessionsNormalized();
+    if (!sessions.length) {
+      wrap.innerHTML = '<div style="background:#fff;border:1px dashed #E4D7D4;border-radius:16px;padding:28px;text-align:center;box-shadow:0 12px 30px rgba(31,31,31,.06);"><div style="font-size:15px;font-weight:700;color:#1F1F1F;margin-bottom:4px;">Nenhum carrinho encontrado</div><div style="font-size:13px;color:#6F6860;line-height:1.45;">Quando um carrinho for abandonado, ele aparece aqui com os itens, valor e data da última atividade.</div></div>';
+      return;
+    }
+    var totalPages = Math.max(1, Math.ceil(sessions.length / _cartSessionsUi.pageSize));
+    if (_cartSessionsUi.page > totalPages) _cartSessionsUi.page = totalPages;
+    if (_cartSessionsUi.page < 1) _cartSessionsUi.page = 1;
+    var start = (_cartSessionsUi.page - 1) * _cartSessionsUi.pageSize;
+    var pageItems = sessions.slice(start, start + _cartSessionsUi.pageSize);
+    wrap.innerHTML = pageItems.map(function (session) {
+      var tone = _cartSessionStatusTone(session.status);
+      var badge = '<span style="display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:' + tone.bg + ';color:' + tone.color + ';font-size:11px;font-weight:800;">' + _esc(tone.label) + '</span>';
+      return '<article onclick="Modules.Pedidos._openCartSession(\'' + _esc(session.id || '') + '\')" style="background:#fff;border:1px solid #E9DDD7;border-radius:16px;padding:14px 16px;box-shadow:0 12px 30px rgba(31,31,31,.06);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;">' +
+        '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">' +
+          '<div style="min-width:0;flex:1;">' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">' +
+              '<strong style="font-size:14px;color:#1F1F1F;line-height:1.25;">' + _esc(session.customerName || session.customerEmail || session.sessionId || 'Carrinho sem nome') + '</strong>' +
+              badge +
+            '</div>' +
+            '<div style="font-size:13px;color:#6F6860;line-height:1.45;">' + _esc(session.customerPhone || 'Sem telefone') + ' · ' + _esc(_cartSessionItemText(session)) + '</div>' +
+            '<div style="margin-top:7px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+              '<span style="display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:#F8F4EE;color:#7A7065;font-size:11px;font-weight:800;">' + _esc(_cartSessionDateLabel(session)) + '</span>' +
+              (session.orderRef ? '<span style="display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:#F8F4EE;color:#7A7065;font-size:11px;font-weight:800;">Pedido ' + _esc(session.orderRef) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align:right;min-width:110px;">' +
+            '<div style="font-size:16px;font-weight:800;color:#B42318;line-height:1.2;">' + _esc(UI.fmt(_num(session.total || 0))) + '</div>' +
+            '<div style="margin-top:4px;font-size:12px;color:#6F6860;">' + _esc(_num(session.itemCount || 0)) + ' itens · ' + _esc(_num(session.totalQuantity || 0)) + ' un</div>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }).join('') +
+      _paginationHtml(_cartSessionsUi.page, totalPages, 'Modules.Pedidos._setCartSessionsPage', 'Modules.Pedidos._setCartSessionsPageSize', _cartSessionsUi.pageSize);
+  }
+
+  function _setCartSessionsPage(page) {
+    _cartSessionsUi.page = Math.max(1, _num(page || 1));
+    _paintCartSessionsList();
+  }
+
+  function _setCartSessionsPageSize(pageSize) {
+    _cartSessionsUi.pageSize = Math.max(5, _num(pageSize || 10));
+    _cartSessionsUi.page = 1;
+    _paintCartSessionsList();
   }
 
   function _paintKitchenList() {
@@ -1912,19 +2320,27 @@ Modules.Pedidos = (function () {
   }
 
   function _orderChannelKey(order) {
-    return String(order && (order.channel || order.source || '')).trim().toLowerCase();
+    order = order || {};
+    return _channelAliasKey(_firstText(
+      order.channel,
+      order.source,
+      order.originChannel,
+      order.originSource,
+      order.salesChannel,
+      order.canalVenda,
+      order.channelName,
+      order.salesChannelName,
+      ''
+    ));
   }
 
   function _orderChannelLabel(order) {
-    var key = _orderChannelKey(order);
-    if (key === 'cardapio') return 'Cardápio';
-    if (key === 'template') return 'Template';
-    if (key === 'store') return 'Loja';
-    if (key === 'whatsapp') return 'WhatsApp';
-    if (key === 'pickup') return 'Retirada';
-    if (key === 'delivery') return 'Entrega';
-    if (!key) return '—';
-    return _title(key);
+    var meta = _orderChannelMeta(order);
+    var raw = meta.raw || '';
+    var label = meta.label || '';
+    if (label) return label;
+    if (!raw) return '—';
+    return _title(raw);
   }
 
   function _orderStatusLabel(status) {
@@ -11101,6 +11517,7 @@ Modules.Pedidos = (function () {
   function destroy() {
     _closeKitchenMode();
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+    if (typeof _unsubscribeCartSessions === 'function') { try { _unsubscribeCartSessions(); } catch (err) {} _unsubscribeCartSessions = null; }
     _orders = [];
     _customers = [];
     _reviews = [];
@@ -11116,6 +11533,12 @@ Modules.Pedidos = (function () {
     _setClientPage: _setClientPage, _setClientPageSize: _setClientPageSize,
     _clearKitchenFilters: _clearKitchenFilters, _clearOrderFilters: _clearOrderFilters, _clearClientFilters: _clearClientFilters,
     _paintTodosPanels: _paintTodosPanels,
+    _setCartSessionsUi: _setCartSessionsUi,
+    _clearCartSessionsFilters: _clearCartSessionsFilters,
+    _refreshCartSessions: _refreshCartSessions,
+    _openCartSession: _openCartSession,
+    _setCartSessionsPage: _setCartSessionsPage,
+    _setCartSessionsPageSize: _setCartSessionsPageSize,
     _toggleOrderSelection: _toggleOrderSelection, _toggleOrdersPageSelection: _toggleOrdersPageSelection, _clearOrdersSelection: _clearOrdersSelection, _setOrdersBulkStatus: _setOrdersBulkStatus, _getOrdersBulkStatus: _getOrdersBulkStatus, _bulkUpdateOrdersStatus: _bulkUpdateOrdersStatus, _applyBulkOrdersStatus: _applyBulkOrdersStatus,
     _setReviewUi: _setReviewUi, _setReviewPage: _setReviewPage, _setReviewPageSize: _setReviewPageSize,
     _onDragStart: _onDragStart, _onDragEnd: _onDragEnd, _onDrop: _onDrop,
