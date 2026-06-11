@@ -2366,6 +2366,43 @@
       gap: 8px;
     }
 
+    .cart-points-login {
+      display: none;
+      gap: 8px;
+      padding: 12px 13px;
+      border-radius: 16px;
+      background: #fffaf5;
+      border: 1px solid rgba(33, 27, 24, .07);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
+    }
+
+    .cart-points-login.show {
+      display: grid;
+    }
+
+    .cart-points-login strong {
+      color: var(--ink);
+      font-size: 12.5px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .cart-points-login a,
+    .cart-points-login button {
+      width: fit-content;
+      border: none;
+      background: transparent;
+      color: var(--brand);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      justify-self: start;
+    }
+
     .points-secondary {
       min-height: 44px;
       border: 1px solid rgba(33, 27, 24, .09);
@@ -10928,6 +10965,10 @@
                     </div>
                   </div>
                   <div class="cart-points-area" id="cart-points-area">
+                    <div class="cart-points-login" id="cart-points-login-required">
+                      <strong id="cart-points-login-text">Inicia sesión para usar tus puntos en este pedido.</strong>
+                      <button type="button" id="cart-points-login-link">Iniciar sesión</button>
+                    </div>
                     <label class="cart-points-row" id="cart-points-toggle-row">
                       <input type="checkbox" id="cart-use-points">
                       <span class="cart-points-copy">
@@ -11035,6 +11076,7 @@
       var returnToPointsAfterAuth = false;
       var returnToPromotionsAfterProduct = false;
       var cart = [];
+      var cartSessionSyncTimer = null;
       var modalProduct = null;
       var modalQty = 1;
       var modalSelections = {};
@@ -11380,6 +11422,175 @@
         return 'bocafood_public_cart_' + String(key).replace(/[^a-z0-9_-]/gi, '_');
       }
 
+      function publicCartSessionStorageKey() {
+        var key = activeTenantId || tenantId || requestedStoreSlug || 'default';
+        return 'bocafood_public_cart_session_' + String(key).replace(/[^a-z0-9_-]/gi, '_');
+      }
+
+      function generatePublicCartSessionId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return 'pcs_' + window.crypto.randomUUID().replace(/-/g, '');
+        return 'pcs_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+      }
+
+      function readPublicCartSessionState() {
+        if (!window.localStorage) return null;
+        try {
+          var raw = localStorage.getItem(publicCartSessionStorageKey());
+          if (!raw) return null;
+          var parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (err) {
+          console.warn('Cart session cache read error', err);
+          return null;
+        }
+      }
+
+      function writePublicCartSessionState(state) {
+        if (!window.localStorage) return;
+        try {
+          if (!state) localStorage.removeItem(publicCartSessionStorageKey());
+          else localStorage.setItem(publicCartSessionStorageKey(), JSON.stringify(state));
+        } catch (err) {
+          console.warn('Cart session cache save error', err);
+        }
+      }
+
+      function ensurePublicCartSessionState() {
+        var state = readPublicCartSessionState();
+        if (state && state.id) return state;
+        state = {
+          id: generatePublicCartSessionId(),
+          createdAt: Date.now(),
+          hasItems: false,
+          status: 'active'
+        };
+        writePublicCartSessionState(state);
+        return state;
+      }
+
+      function clearPublicCartSessionState() {
+        writePublicCartSessionState(null);
+      }
+
+      function cartSessionItemSummary() {
+        return cart.slice(0, 12).map(function (item) {
+          return {
+            id: item.id,
+            name: item.name,
+            qty: item.qty,
+            price: cartLineUnitPrice(item),
+            total: cartLineTotal(item),
+            madeToOrder: !!(item.madeToOrder || item.productMadeToOrder || item.sobEncomenda),
+            productionLeadDays: num(item.productionLeadDays || item.productionLeadTimeDays)
+          };
+        });
+      }
+
+      function syncPublicCartSessionNow(options) {
+        options = options || {};
+        if (!db || !activeTenantId) return Promise.resolve(null);
+        var hasItems = cart.length > 0;
+        var session = readPublicCartSessionState();
+        if (!session && !hasItems && !options.force) return Promise.resolve(null);
+        if (!session) session = ensurePublicCartSessionState();
+        if (!session || !session.id) return Promise.resolve(null);
+        var ref = col('cart_sessions').doc(session.id);
+        var nowTs = firebase.firestore.FieldValue.serverTimestamp();
+        var nowIsoValue = new Date().toISOString();
+        var authUser = storeAuthUser();
+        var customerName = firstText(fieldValue('customer-name'), currentCustomerRecord() && currentCustomerRecord().name, currentStoreUser && currentStoreUser.displayName, '');
+        var customerPhone = firstText(joinedPhoneValue('customer-whatsapp-country', 'customer-whatsapp'), fieldValue('customer-phone'), '');
+        var slotFieldId = orderType === 'delivery' ? 'delivery-slot' : 'pickup-slot';
+        var slotSelectEl = document.getElementById(slotFieldId);
+        var slotLabelText = firstText(
+          slotSelectEl && slotSelectEl.options && slotSelectEl.selectedIndex >= 0 && slotSelectEl.options[slotSelectEl.selectedIndex] ? slotSelectEl.options[slotSelectEl.selectedIndex].text : '',
+          ''
+        );
+        var payload = {
+          sessionId: session.id,
+          tenantId: activeTenantId,
+          storeSlug: requestedStoreSlug || '',
+          storeName: firstText((cfg && cfg.name) || (cfg && cfg.storeName) || '', requestedStoreSlug || ''),
+          status: hasItems ? (options.status || session.status || 'active') : (options.status || session.status || 'cleared'),
+          hasItems: hasItems,
+          itemCount: cart.length,
+          totalQuantity: cart.reduce(function (sum, item) { return sum + num(item.qty || 0); }, 0),
+          subtotal: cartTotal(),
+          total: cartGrandTotal(),
+          originalSubtotal: cartOriginalTotal(),
+          orderType: orderType || '',
+          couponCode: appliedCoupon ? couponCode(appliedCoupon) : '',
+          paymentMethod: firstText(fieldValue('payment-method'), ''),
+          slotKey: firstText(fieldValue(slotFieldId), ''),
+          slotLabel: slotLabelText,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          customerEmail: authUser && authUser.email ? authUser.email : '',
+          usePointsInCart: !!usePointsInCart,
+          selectedDeliveryZone: selectedDeliveryZone ? selectedDeliveryZone.name : '',
+          items: cartSessionItemSummary(),
+          firstSeenAt: session.createdAt ? new Date(session.createdAt).toISOString() : nowIsoValue,
+          updatedAt: nowTs,
+          lastSeenAt: nowTs,
+          source: 'storefront'
+        };
+        if (hasItems) payload.lastHasItemsAt = nowTs;
+        if (options.status === 'checkout_started') {
+          payload.status = 'checkout_started';
+          payload.checkoutStartedAt = nowTs;
+        }
+        if (options.status === 'converted') {
+          payload.status = 'converted';
+          payload.convertedAt = nowTs;
+          payload.endedAt = nowTs;
+          if (options.orderRef) payload.orderRef = String(options.orderRef);
+          if (options.channel) payload.conversionChannel = String(options.channel);
+          if (options.paymentProvider) payload.paymentProvider = String(options.paymentProvider);
+          payload.hasItems = false;
+        }
+        if (!hasItems && (session.hasItems || session.status === 'checkout_started' || session.status === 'active') && options.status !== 'converted') {
+          payload.status = options.status || 'cleared';
+          payload.clearedAt = nowTs;
+          payload.endedAt = nowTs;
+          payload.hasItems = false;
+        }
+        return ref.set(payload, { merge: true }).then(function () {
+          if (payload.status === 'converted' || payload.status === 'cleared' || payload.status === 'abandoned') {
+            clearPublicCartSessionState();
+          } else {
+            writePublicCartSessionState({
+              id: session.id,
+              createdAt: session.createdAt || Date.now(),
+              hasItems: hasItems,
+              status: payload.status || 'active'
+            });
+          }
+          return ref;
+        }).catch(function (err) {
+          console.warn('Cart session sync error', err);
+          return null;
+        });
+      }
+
+      function schedulePublicCartSessionSync(options) {
+        options = options || {};
+        if (!db || !activeTenantId) return;
+        if (cartSessionSyncTimer) clearTimeout(cartSessionSyncTimer);
+        cartSessionSyncTimer = setTimeout(function () {
+          cartSessionSyncTimer = null;
+          syncPublicCartSessionNow(options);
+        }, options.immediate ? 0 : 1800);
+      }
+
+      function markPublicCartSessionConverted(context) {
+        return syncPublicCartSessionNow({
+          status: 'converted',
+          orderRef: context && context.orderRef ? context.orderRef : '',
+          channel: context && context.channel ? context.channel : '',
+          paymentProvider: context && context.paymentProvider ? context.paymentProvider : ''
+        });
+      }
+
       function publicUpsellPromptStorageKey(rule) {
         var key = activeTenantId || tenantId || requestedStoreSlug || 'default';
         return 'bocafood_public_upsell_prompt_' + String(key).replace(/[^a-z0-9_-]/gi, '_') + '_' + String(upsellRuleId(rule) || 'rule').replace(/[^a-z0-9_-]/gi, '_');
@@ -11453,6 +11664,12 @@
           else localStorage.removeItem(publicCartStorageKey());
         } catch (err) {
           console.warn('Cart cache save error', err);
+        }
+        if (cart.length) {
+          schedulePublicCartSessionSync();
+        } else {
+          var sessionState = readPublicCartSessionState();
+          if (sessionState && sessionState.hasItems) schedulePublicCartSessionSync();
         }
       }
 
@@ -18474,13 +18691,24 @@
         document.getElementById('coupon-discount-row').style.display = discount ? 'flex' : 'none';
         document.getElementById('coupon-discount-val').textContent = '-' + money(discount);
         var pointsArea = document.getElementById('cart-points-area');
+        var pointsLogin = document.getElementById('cart-points-login-required');
+        var pointsLoginLink = document.getElementById('cart-points-login-link');
+        var pointsLoginText = document.getElementById('cart-points-login-text');
         var pointsCheckbox = document.getElementById('cart-use-points');
         var pointsHelp = document.getElementById('cart-points-help');
         var pointsTitle = document.getElementById('cart-points-title');
         if (pointsArea) pointsArea.classList.toggle('show', cart.length > 0 && loyaltyEnabled() && (pointsInfo.available || pointsInfo.reason === 'login' || pointsInfo.balance > 0));
+        if (pointsLogin) pointsLogin.classList.toggle('show', cart.length > 0 && loyaltyEnabled() && pointsInfo.reason === 'login');
+        if (pointsLoginText) pointsLoginText.textContent = t('cartPointsLogin');
+        if (pointsLoginLink) pointsLoginLink.onclick = function () { openAuthModal('login'); };
+        var pointsToggleRow = document.getElementById('cart-points-toggle-row');
+        if (pointsToggleRow) pointsToggleRow.style.display = pointsInfo.reason === 'login' ? 'none' : '';
         if (pointsCheckbox) {
           pointsCheckbox.checked = !!usePointsInCart && pointsInfo.available;
           pointsCheckbox.disabled = !pointsInfo.available;
+        }
+        if (pointsCheckbox && pointsLogin && pointsInfo.reason === 'login') {
+          pointsCheckbox.checked = false;
         }
         if (pointsTitle) pointsTitle.textContent = pointsInfo.available ? t('cartPointsUse') : t('pointsDiscountCart');
         if (pointsHelp) {
@@ -18864,6 +19092,7 @@
         return updateOrderStripePaid(context.docRef, paymentIntent).then(function () {
           return applyPointsRedemption(context.orderRef, context.pointsRedemption);
         }).then(function () {
+          markPublicCartSessionConverted({ orderRef: context.orderRef, channel: 'stripe', paymentProvider: 'stripe' });
           showCartWarning('');
           clearCart();
           closeStripePaymentModal();
@@ -18991,6 +19220,7 @@
           openCartUpsellModal(whatsappUpsellRule);
           return;
         }
+        schedulePublicCartSessionSync({ status: 'checkout_started', immediate: true });
         var discount = couponDiscount(subtotal);
         var pointsInfo = pointsRedemptionInfo();
         var pointDiscount = usePointsInCart && pointsInfo.available ? pointsInfo.discount : 0;
@@ -19152,10 +19382,11 @@
         var pointsRedemption = pointsRedemptionPayload;
         saveOrder({ docRef: pendingOrderDocRef, orderRef: orderRef, subtotal: subtotal, originalSubtotal: cartOriginalTotal(), promoDiscount: promoDiscount, upsellBenefits: upsellBenefits, upsellDiscount: upsellDiscount, discount: discount, pointsDiscount: pointDiscount, pointsRedemption: pointsRedemption, deliveryFee: fee, originalDeliveryFee: originalDeliveryFee, freeShippingPromotion: freeShippingPromo, freeShippingUpsellRule: freeShippingUpsellRule, total: cartGrandTotal(), customerName: customerName, customerPhone: customerPhone, address: address, deliveryAddress: deliveryAddressData(), postal: postal, payment: payment, paymentProvider: '', paymentStatus: 'previsto', paymentState: 'previsto', paid: false, paymentError: '', paymentRetryAvailable: false, note: note, slotKey: slotKey, slotLabel: slotLabelText }).then(function () {
           return applyPointsRedemption(orderRef, pointsRedemption);
-	        }).then(function () {
-	          trackMarketingEvent('purchase', marketingBaseParams({
-	            transaction_id: orderRef,
-	            value: cartGrandTotal(),
+        }).then(function () {
+          markPublicCartSessionConverted({ orderRef: orderRef, channel: 'whatsapp' });
+          trackMarketingEvent('purchase', marketingBaseParams({
+            transaction_id: orderRef,
+            value: cartGrandTotal(),
 	            content_name: 'Purchase',
 	            content_type: 'product',
 	            coupon: appliedCoupon ? couponCode(appliedCoupon) : '',
@@ -19164,8 +19395,8 @@
 	            payment_type: paymentPublicName(payment),
 	            discount: promoDiscount + upsellDiscount + discount + pointDiscount,
 	            items: marketingCartItems()
-	          }));
-	          showCartWarning('');
+          }));
+          showCartWarning('');
           clearCart();
           closeCart();
           openOrderSuccessModal(orderRef);
