@@ -115,6 +115,8 @@
     .btn-warm:hover { background: var(--earth); border-color: var(--honey); }
     .btn-white { background: #fff; color: var(--red); box-shadow: 0 6px 24px rgba(0,0,0,.15); }
     .btn-white:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,0,0,.22); }
+    .btn-whatsapp { background: #25D366; color: #fff; box-shadow: 0 4px 18px rgba(37,211,102,.24); }
+    .btn-whatsapp:hover { background: #1FB858; transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,211,102,.30); }
     .btn-lg  { padding: 16px 36px; font-size: 15.5px; }
     .btn-xl  { padding: 20px 48px; font-size: 18px; }
 
@@ -1299,6 +1301,7 @@
     </p>
     <div class="hero-actions">
       <a href="/cadastro" class="btn btn-red btn-lg" data-landing-cta="signup">Criar acesso grátis →</a>
+      <a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="btn btn-whatsapp btn-lg" data-landing-contact="whatsapp">Quero falar com alguém antes</a>
     </div>
   </div>
 </section>
@@ -1722,6 +1725,7 @@
     <h2>Entre para descobrir o que o seu negócio precisa agora.</h2>
     <p>Você não precisa continuar cobrando no medo, criando meta no ar ou esperando o fim do mês para saber se valeu a pena. O BocaFood te ajuda a enxergar foco, progresso e aprendizado com mais clareza.</p>
     <a href="/cadastro" class="btn btn-red btn-xl" data-landing-cta="signup">Criar acesso grátis</a>
+    <a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="btn btn-whatsapp btn-xl" data-landing-contact="whatsapp">Quero falar com alguém antes</a>
     <p class="final-note">30 dias grátis. Depois, o plano continua por € 29,90/mês. Cancele quando quiser.</p>
   </div>
 </section>
@@ -2136,6 +2140,24 @@
         contact_type: 'email',
         link_url: link.href
       });
+    });
+  });
+
+  document.querySelectorAll('a[href^="https://wa.me/"], a[data-landing-contact="whatsapp"]').forEach(link => {
+    link.addEventListener('click', () => {
+      trackEvent('contact_click', {
+        event_category: 'lead',
+        contact_type: 'whatsapp',
+        link_url: link.href
+      });
+      if (typeof fbq === 'function') {
+        fbq('track', 'Contact', {
+          content_name: 'Landing BocaFood',
+          content_type: 'product',
+          contact_type: 'whatsapp',
+          link_url: link.href
+        });
+      }
     });
   });
 
