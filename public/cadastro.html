@@ -236,6 +236,9 @@
     .google-btn:hover{border-color:#D9C8C4;background:#FFFCFB;transform:translateY(-1px);box-shadow:0 12px 24px rgba(31,31,31,.055)}
     .whatsapp-support-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;height:44px;margin:0 0 8px;padding:0 16px;border-radius:13px;background:#25D366;color:#fff;border:1.5px solid #1FA851;box-shadow:0 10px 20px rgba(37,211,102,.16);text-decoration:none;font-size:13px;font-weight:800;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
     .whatsapp-support-btn:hover{background:#1FB858;transform:translateY(-1px);box-shadow:0 14px 26px rgba(37,211,102,.20)}
+    .whatsapp-float-btn{position:fixed;right:18px;bottom:18px;z-index:999;display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:calc(100vw - 36px);padding:14px 18px;border-radius:999px;background:#25D366;color:#fff;text-decoration:none;font-size:14px;font-weight:800;box-shadow:0 14px 28px rgba(37,211,102,.24);border:1px solid rgba(255,255,255,.18)}
+    .whatsapp-float-btn:hover{background:#1FB858;transform:translateY(-2px);box-shadow:0 18px 34px rgba(37,211,102,.30)}
+    @media (max-width: 560px){.whatsapp-float-btn{left:16px;right:16px;bottom:14px;max-width:none;padding:13px 16px;font-size:13px}}
     .google-mark{width:16px;height:16px;display:block;flex:0 0 auto}
     .purchase-email-notice{margin:0 0 10px;padding:10px 12px;border:1px solid rgba(196,54,42,.16);border-radius:13px;background:#FFFCFB;color:#5F514E;font-size:12px;line-height:1.42}
     .purchase-email-notice strong{color:#3F3430;font-weight:850}
@@ -416,6 +419,8 @@
       </div>
     </section>
   </main>
+
+  <a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="whatsapp-float-btn" target="_blank" rel="noopener" aria-label="Falar com alguém antes pelo WhatsApp">Quero falar com alguém antes</a>
 
   <script>
   (function(){

@@ -117,6 +117,20 @@
     .btn-white:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,0,0,.22); }
     .btn-whatsapp { background: #25D366; color: #fff; box-shadow: 0 4px 18px rgba(37,211,102,.24); }
     .btn-whatsapp:hover { background: #1FB858; transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,211,102,.30); }
+    .whatsapp-float-btn {
+      position: fixed; right: 18px; bottom: 18px; z-index: 999;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; max-width: calc(100vw - 36px);
+      padding: 14px 18px; border-radius: 999px;
+      background: #25D366; color: #fff; text-decoration: none;
+      font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 14px;
+      box-shadow: 0 14px 28px rgba(37,211,102,.24);
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .whatsapp-float-btn:hover { background: #1FB858; transform: translateY(-2px); box-shadow: 0 18px 34px rgba(37,211,102,.30); }
+    @media (max-width: 560px) {
+      .whatsapp-float-btn { left: 16px; right: 16px; bottom: 14px; max-width: none; padding: 13px 16px; font-size: 13px; }
+    }
     .btn-lg  { padding: 16px 36px; font-size: 15.5px; }
     .btn-xl  { padding: 20px 48px; font-size: 18px; }
 
@@ -1301,7 +1315,6 @@
     </p>
     <div class="hero-actions">
       <a href="/cadastro" class="btn btn-red btn-lg" data-landing-cta="signup">Criar acesso grátis →</a>
-      <a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="btn btn-whatsapp btn-lg" data-landing-contact="whatsapp">Quero falar com alguém antes</a>
     </div>
   </div>
 </section>
@@ -1725,7 +1738,6 @@
     <h2>Entre para descobrir o que o seu negócio precisa agora.</h2>
     <p>Você não precisa continuar cobrando no medo, criando meta no ar ou esperando o fim do mês para saber se valeu a pena. O BocaFood te ajuda a enxergar foco, progresso e aprendizado com mais clareza.</p>
     <a href="/cadastro" class="btn btn-red btn-xl" data-landing-cta="signup">Criar acesso grátis</a>
-    <a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="btn btn-whatsapp btn-xl" data-landing-contact="whatsapp">Quero falar com alguém antes</a>
     <p class="final-note">30 dias grátis. Depois, o plano continua por € 29,90/mês. Cancele quando quiser.</p>
   </div>
 </section>
@@ -2017,12 +2029,14 @@
         </ul>
       </div>
     </div>
-    <div class="ft-bot">
+  <div class="ft-bot">
       <span>© 2026 BocaFood. Todos os direitos reservados.</span>
       <span>Feito para brasileiras empreendedoras na Europa</span>
     </div>
   </div>
 </footer>
+
+<a href="https://wa.me/34610226031?text=Quero%20falar%20com%20algu%C3%A9m%20antes." class="whatsapp-float-btn" data-landing-contact="whatsapp" aria-label="Falar com alguém antes pelo WhatsApp">Quero falar com alguém antes</a>
 
 <script>
   const GA_MEASUREMENT_ID = 'G-1BYKQWDDWY';
